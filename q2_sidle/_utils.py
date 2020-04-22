@@ -1,5 +1,6 @@
 
 import dask
+import numpy as np
 import pandas as pd
 import skbio
 
@@ -7,6 +8,28 @@ from dask.distributed import Client
 
 from q2_feature_classifier._skl import _chunks
 from q2_types.feature_data import DNAIterator, DNAFASTAFormat
+
+### Nucleotides
+degenerate_map = {"R": ['A', 'G'],
+                  'Y': ['C', 'T'],
+                  'S': ['G', 'C'],
+                  'W': ['A', 'T'],
+                  'K': ['G', 'T'],
+                  'M': ['A', 'C'],
+                  'B': ['C', 'G', 'T'],
+                  'D': ['A', 'G', 'T'],
+                  'H': ['A', 'C', 'T'],
+                  'V': ['A', 'C', 'G'],
+                  'N': ['A', 'C', 'G', 'T'],
+                  } 
+
+defined = ['A', 'C', 'T', 'G']
+degen = ['R', 'Y', 'S', 'W', 'K', 'M', 'B', 'D', 'H', 'V', 'N']
+degen_reps = {'A': ['R', 'W', 'M', 'D', 'H', 'V', 'N'],
+              'G': ['R', 'S', 'K', 'B', 'D', 'V', 'N'],
+              'T': ['Y', 'W', 'K', 'B', 'D', 'H', 'N'],
+              'C': ['Y', 'S', 'M', 'B', 'H', 'V', 'N'],
+              }
 
 
 
@@ -38,7 +61,7 @@ def _setup_dask_client(debug=False, cluster_config=None, n_workers=1):
     elif n_workers == 0:
         client = Client()
     else:
-        client = Client(n_workers=threads, processes=True)
+        client = Client(n_workers=n_workers, processes=True)
 
 
 def _convert_seq_block_to_dna_fasta_format(seqs):
@@ -79,4 +102,26 @@ def _convert_generator_to_seq_block(generator, chunksize=5000):
     seq_block = [_to_seq_array(seqs) for seqs in _chunks(generator, chunksize)]
 
     return seq_block
+
+
+def _count_degenerates(seq_array):
+    """
+    Determines the number of degenerate nt in a sequence
+
+    Parameters
+    ----------
+    seq_array: Dataframe
+        A dataframe where each row is a sequence and each column is a basepair
+        in that sequence
+
+    Returns
+    -------
+    Series
+        The number of degenerate basepairs in each array
+
+    """
+    any_degen = (~seq_array.isin(['A', 'G', 'T', 'C', np.nan]))
+    num_degen = any_degen.sum(axis=1)
+    
+    return num_degen
 

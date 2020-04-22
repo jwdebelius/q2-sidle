@@ -1,15 +1,12 @@
-import warnings
-
-# warnings.filterwarnings("ignore", category=YAMLLoadWarning) 
-
-
 import dask
 import numpy as np
 import pandas as pd
 
 from q2_sidle._utils import (_setup_dask_client, 
                              _convert_generator_to_delayed_seq_block, 
-                             _convert_seq_block_to_dna_fasta_format)
+                             _convert_seq_block_to_dna_fasta_format,
+                             _count_degenerates,
+                             )
 from q2_types.feature_data import (DNAFASTAFormat,
                                    DNAIterator, 
                                    DNASequencesDirectoryFormat
@@ -31,7 +28,7 @@ def filter_degenerate_sequences(sequences: DNASequencesDirectoryFormat,
 
     Parameters
     ----------
-    sequences: q2_types.DNAIterator
+    sequences: q2_types.DNASequencesDirectoryFormat
         The directory of reference sequences
     max_degen : int, optional
         The maximum number of degenerate nucleotides necessary to retain the
@@ -99,25 +96,6 @@ def _degen_filter(sequences, max_degen):
     return sub_seq
 
 
-def _count_degenerates(seq_array):
-    """
-    Determines the number of degenerate nt in a sequence
 
-    Parameters
-    ----------
-    seq_array: Dataframe
-        A dataframe where each row is a sequence and each column is a basepair
-        in that sequence
-
-    Returns
-    -------
-    Series
-        The number of degenerate basepairs in each array
-
-    """
-    any_degen = (~seq_array.isin(['A', 'G', 'T', 'C', np.nan]))
-    num_deg = any_degen.sum(axis=1)
-    
-    return num_deg
 
 
