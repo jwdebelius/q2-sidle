@@ -26,6 +26,9 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+.DS_Store
+q2_sidle/.DS_store
+q2_sidle/tests/.DS_store
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
