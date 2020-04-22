@@ -9,6 +9,7 @@ from q2_types.feature_data import (FeatureData,
 #                       Frequency, 
 #                       SampleData)
 import q2_sidle
+from q2_sidle import KmerMapFormat, KmerMap, KmerMapsDirFmt
 
 plugin = Plugin(
     name='sidle',
@@ -41,12 +42,12 @@ plugin.methods.register_function(
     },
     input_descriptions={
         'sequences': 'The sequences to be filtered.'
-        },
+    },
     output_descriptions={
         'filtered_sequences': ('The sequences filtered to remove full length'
                                ' sequences with excess degenerate '
                                'nucleotides')
-        },
+    },
     parameter_descriptions={
         'max_degen': ('the maximum number of degenerate sequences for a '
                       'sequence to be retained.'),
@@ -59,3 +60,115 @@ plugin.methods.register_function(
                   'a client) or not. `debug` superceeds all options'),
     }
 )
+
+plugin.methods.register_function(
+    function=q2_sidle.extract_regional_database,
+    name='Extract and expand regional kmer database',
+    description=('Performs in silico PCR to extract a region of the full '
+                 'length sequence, and then expands degenerate sequences '
+                 'and collapses duplicated sequences.'),
+    inputs={
+        'sequences': FeatureData[Sequence]
+    },
+    outputs=[
+        ('collapsed_kmers', FeatureData[Sequence]), 
+        ('kmer_map', FeatureData[KmerMap]),
+    ],
+    parameters={
+        'fwd_primer': Str,
+        'rev_primer': Str,
+        'trim_length': Int,
+        'region': Str,
+        'primer_mismatch': Int,
+        'trim_primers': Bool,
+        'reverse_complement_rev': Bool,
+        'chunk_size':  (Int % Range(1, None)),
+        'n_workers': Int % Range(0, None),
+        'debug': Bool,
+    },
+    input_descriptions={
+        'sequences': 'The full length sequences from the reference database',
+    },
+    output_descriptions={
+        'collapsed_kmers': ('Reference kmer sequences for the region with'
+                            ' the degenerate sequences expanded and '
+                            'duplicated sequences identified'
+                            ),
+        'kmer_map': ('A mapping relationship between the name of the '
+                     'sequence in the database and the kmer identifier used'
+                     ' in this region.'),
+    },
+    parameter_descriptions={
+        'fwd_primer': ('The forward primer used to amplify the region of '
+                       'interest'),
+        'rev_primer': ('The reverse primer used to amplify the region of '
+                       "interest. If this is 3'-5' anti-sense primer, then "
+                       'the `reverse-complement-rev` parameter should be '
+                       'used'),
+        'region': ('A unique description of the hypervariable region being '
+                   'extracted. If no region is provided, the primers will'
+                   ' be used'),
+        'trim_length': ('The length of the extracted regional kmers.'),
+        'primer_mismatch': ('The allowed mismatch between the database '
+                            'sequence and the primer'),
+        'trim_primers': ('Whether the primer should be trimmed from the '
+                        'region. This is removed before `trim_length` is '
+                        'applied'),
+        'reverse_complement_rev': ('Indicates the reverse primer should be '
+                                   'reverse complemented'),
+        'chunk_size': ('The number of sequences to be analyzed in parallel '
+                       'blocks'),
+        'n_workers': ('The number of jobs to initiate. When `n_workers` is 0,'
+                      ' the cluster will be able to access all avaliable'
+                      ' resources.'),
+        'debug': ('Whether the function should be run in debug mode (without '
+                  'a client) or not. `debug` superceeds all options'),
+    },
+    )
+
+plugin.methods.register_function(
+    function=q2_sidle.prepare_extracted_region,
+    name='Prepares an already extracted region',
+    description=('This function takes an amplified region of the database, '
+                 'expands the degenerate sequences and collapses the '
+                 'duplciated sequences under a single id that can be '
+                 'untangled later.'),
+    inputs={
+        'sequences': FeatureData[Sequence]
+    },
+    outputs=[
+        ('collapsed_kmers', FeatureData[Sequence]), 
+        ('kmer_map', FeatureData[KmerMap]),
+    ],
+    parameters={
+        'trim_length': Int,
+        'region': Str,
+        'chunk_size':  (Int % Range(1, None)),
+        'n_workers': Int % Range(0, None),
+        'debug': Bool,
+    },
+    input_descriptions={
+        'sequences': 'The full length sequences from the reference database',
+    },
+    output_descriptions={
+        'collapsed_kmers': ('Reference kmer sequences for the region with'
+                            ' the degenerate sequences expanded and '
+                            'duplicated sequences identified'
+                            ),
+        'kmer_map': ('A mapping relationship between the name of the '
+                     'sequence in the database and the kmer identifier used'
+                     ' in this region.'),
+    },
+    parameter_descriptions={
+        'region': ('A unique description of the hypervariable region being '
+                   'extracted.'),
+        'trim_length': ('The length of the extracted regional kmers.'),
+        'chunk_size': ('The number of sequences to be analyzed in parallel '
+                       'blocks'),
+        'n_workers': ('The number of jobs to initiate. When `n_workers` is 0,'
+                      ' the cluster will be able to access all avaliable'
+                      ' resources.'),
+        'debug': ('Whether the function should be run in debug mode (without '
+                  'a client) or not. `debug` superceeds all options'),
+    },
+    )
