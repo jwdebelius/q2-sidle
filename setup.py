@@ -24,18 +24,17 @@ setup(name='q2-sidle',
       packages=['q2_sidle', 'q2_sidle.tests'],
       # modules=['py_smurf.cli'],
       # url=,
-      #  entry_points={
-      #   'qiime2.plugins':
-      #   ['q2-sidle=q2_sidle.plugin_setup:plugin']
-      # },
+       entry_points={
+        'qiime2.plugins':
+        ['q2-sidle=q2_sidle.plugin_setup:plugin']
+      },
       # entry_points="""
       #     [console_scripts]
       #     sidle=sidle.cli:cli
       # """,
-      # install_requires=['biom-format >= 2.1.6',
-      #                   'sparse >= 0.8.0',
-      #                   'pandas >= 0.24.0',
-      #                   'scikit-bio >= 0.5.4',
-      #                   'coverage >= 4.5.4',
-      #                   ],
+      install_requires=['biom-format >= 2.1.6',
+                        'sparse >= 0.8.0',
+                        'pandas == 0.25.0',
+                        'dask >= 2.0',
+                        ],
       )
