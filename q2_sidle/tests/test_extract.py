@@ -1,6 +1,5 @@
 from unittest import TestCase, main
 import warnings
-warnings.filterwarnings('ignore', category=RuntimeWarning)
 
 import numpy as np
 import pandas as pd
