@@ -9,7 +9,8 @@ from q2_types.feature_data import (FeatureData,
 #                       Frequency, 
 #                       SampleData)
 import q2_sidle
-from q2_sidle import KmerMapFormat, KmerMap, KmerMapsDirFmt
+from q2_sidle import (KmerMapFormat, KmerMap, KmerMapsDirFmt, 
+                      KmerAlignment, KmerAlignFormat, KmerAlignDirFmt)
 
 plugin = Plugin(
     name='sidle',
@@ -124,11 +125,11 @@ plugin.methods.register_function(
         'debug': ('Whether the function should be run in debug mode (without '
                   'a client) or not. `debug` superceeds all options'),
     },
-    )
+)
 
 plugin.methods.register_function(
     function=q2_sidle.prepare_extracted_region,
-    name='Prepares an already extracted region',
+    name='Prepares an already extracted region to be a kmer database',
     description=('This function takes an amplified region of the database, '
                  'expands the degenerate sequences and collapses the '
                  'duplciated sequences under a single id that can be '
@@ -171,4 +172,61 @@ plugin.methods.register_function(
         'debug': ('Whether the function should be run in debug mode (without '
                   'a client) or not. `debug` superceeds all options'),
     },
-    )
+)
+
+plugin.methods.register_function(
+    function=q2_sidle.align_regional_kmers,
+    name='Aligns ASV representative sequences to a regional kmer database',
+    description=('This takes an "amplified" region of the database and '
+                 'performs alignment with representative ASV sequences. The '
+                 'alignment assumes the ASVs and kmers start at the same '
+                 'position in the sequence and that they are the same length.'
+                 ),
+    inputs={
+        'kmers': FeatureData[Sequence],
+        'rep_seq': FeatureData[Sequence],
+    },
+    outputs=[
+        ('sequence_alignment', FeatureData[KmerAlignment]),
+        ('discarded_sequences', FeatureData[Sequence]),
+
+    ],
+    parameters={
+        'region': Str,
+        'max_mismatch': Int % Range(1, None),
+        'chunk_size':  (Int % Range(1, 5000)),
+        'n_workers': Int % Range(0, None),
+        'debug': Bool,
+    },
+    input_descriptions={
+        'kmers': ('The reference kmer sequences from the database which have'
+                  ' had degenerate sequences expanded and duplicate sequences'
+                  ' identified'),
+        'rep_seq': ('The representative sequences for the ASVs being aligned.'
+                    'These must be a consistent length.'),
+    },
+    output_descriptions={
+        'sequence_alignment': ('A mapping between the database kmer name and'
+                               ' the asv'),
+        'discarded_sequences': ('The sequences which could not be aligned to'
+                                ' the database at the matching threshhold.'),
+    },
+     parameter_descriptions={
+        'region': ('A unique description of the hypervariable region being '
+                   'aligned. Ideally, this matches the unique identifier '
+                   'used during the regional extraction.'),
+        'max_mismatch': ('the maximum number of mismatched nucleotides '
+                         'allowed in mapping between a sequence and kmer'),
+        'chunk_size': ('The number of sequences to be analyzed in parallel '
+                       'blocks. It is highly recommend this number stay '
+                       'relatively small (>1000) in combination with parallel'
+                       ' processing (`n_workers`>1) for the best performance'
+                       ' and memory optimization.'),
+        'n_workers': ('The number of jobs to initiate. When `n_workers` is 0,'
+                      ' the cluster will be able to access all avaliable'
+                      ' resources.'),
+        'debug': ('Whether the function should be run in debug mode (without '
+                  'a client) or not. `debug` superceeds all options'),
+    },
+)
+

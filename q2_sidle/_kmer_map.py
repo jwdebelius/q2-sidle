@@ -10,3 +10,11 @@ class KmerMapFormat(model.TextFileFormat):
 KmerMapsDirFmt = model.SingleFileDirectoryFormat(
     'KmerMapDirFmt', 'map.tsv', KmerMapFormat)
 
+KmerAlignment = SemanticType('FeatureData', variant_of=FeatureData.field['type'])
+
+class KmerAlignFormat(model.TextFileFormat):
+    def validate(*args):
+        pass
+
+KmerAlignDirFmt = model.SingleFileDirectoryFormat(
+    'KmerAlignDirFmt', 'align.tsv', KmerAlignFormat)
