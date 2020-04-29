@@ -26,14 +26,7 @@ class FilterTest(TestCase):
                        '2': skbio.DNA('CATCATCAT', metadata={'id': '2'}),
                        }))
 
-    def test_filter_degenerate_sequences(self):
-        known = pd.Series({'1': 'CATCATCAT', 
-                           '2': 'CATCATCAT'})
-        test = filter_degenerate_sequences(self.dna_fasta, debug=True)
-        pdt.assert_series_equal(test.view(pd.Series).astype(str),
-                                 known)
-
-    def test__degen_filter(self):
+    def test_degen_filter(self):
         test = _degen_filter([self.seqs], max_degen=10)
         pdt.assert_frame_equal(dask.compute(*test)[0], self.seqs)
 
