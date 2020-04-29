@@ -58,6 +58,10 @@ coverage.xml
 *.mo
 *.pot
 
+# Dask stuff:
+q2_sidle/tests/dask-worker-space/*
+q2_sidle/dask-worker-space/*
+
 # Django stuff:
 *.log
 local_settings.py
