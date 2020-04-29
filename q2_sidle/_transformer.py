@@ -1,3 +1,4 @@
+import pandas as pd
 from qiime2 import Metadata
 
 from q2_sidle import KmerMapFormat, KmerAlignDirFmt
@@ -9,7 +10,7 @@ def _1(ff:KmerMapFormat) -> Metadata:
 
 @plugin.register_transformer
 def _2(ff:KmerMapFormat) -> pd.DataFrame:
-    return Metadata.load(str(ff)).to_dataframe()
+    return pd.read_csv(str(ff), sep='\t', dtype=str)
 
 @plugin.register_transformer
 def _3(obj: Metadata) -> KmerMapFormat:
@@ -18,5 +19,11 @@ def _3(obj: Metadata) -> KmerMapFormat:
     return ff
 
 @plugin.register_transformer
-def _4(ff:KmerAlignDirFmt) -> Metadata:
-    return Metadata.load(str(ff))
+def _4(obj: pd.DataFrame) -> KmerMapFormat:
+    ff = KmerMapFormat()
+    obj.to_csv(str(ff), sep='\t', dtype=str)
+    return ff
+
+# @plugin.register_transformer
+# def _4(ff:KmerAlignDirFmt) -> Metadata:
+#     return Metadata.load(str(ff))
