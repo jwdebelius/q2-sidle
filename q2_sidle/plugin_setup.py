@@ -4,13 +4,19 @@ from qiime2.plugin import (Plugin, Int, Float, Range, Metadata, Str, Bool,
 from q2_types.feature_data import (FeatureData,
                                    Sequence,
                                    ) 
-# from q2_types.feature_table import (
-#                       FeatureTable, 
-#                       Frequency, 
+from q2_types.feature_table import (
+                      FeatureTable, 
+                      Frequency, 
+                      )
 #                       SampleData)
+from q2_sidle import (KmerMap, 
+                      KmerMapFormat, 
+                      KmerMapDirFmt, 
+                      KmerAlignment, 
+                      KmerAlignFormat, 
+                      KmerAlignDirFmt
+                      )
 import q2_sidle
-from q2_sidle import (KmerMapFormat, KmerMap, KmerMapsDirFmt, 
-                      KmerAlignment, KmerAlignFormat, KmerAlignDirFmt)
 
 plugin = Plugin(
     name='sidle',
@@ -19,10 +25,21 @@ plugin = Plugin(
     package='q2_sidle',
     description=('This plugin reconstructs a full 16s sequence from short '
                  'reads over a marker gene region using the Short MUltiple '
-                 'Read Framework (SMURF) algorith'),
+                 'Read Framework (SMURF) algorithm'),
     short_description='Plugin for taxonomic classification.',
     # citations=[citations['bokulich2018optimizing']]
 )
+plugin.register_formats(KmerMapFormat, 
+                        KmerMapDirFmt, 
+                        KmerAlignFormat, 
+                        KmerAlignDirFmt
+                        )
+plugin.register_semantic_types(KmerMap, 
+                               KmerAlignment)
+plugin.register_semantic_type_to_format(FeatureData[KmerMap], 
+                                        KmerMapDirFmt)
+plugin.register_semantic_type_to_format(FeatureData[KmerAlignment], 
+                                        KmerAlignDirFmt)
 
 plugin.methods.register_function(
     function=q2_sidle.filter_degenerate_sequences,
@@ -36,7 +53,7 @@ plugin.methods.register_function(
         ('filtered_sequences', FeatureData[Sequence]),
     ],
     parameters={
-        'max_degen': (Int % Range(1, None)),
+        'max_degen': (Int % Range(0, None)),
         'chunk_size':  (Int % Range(1, None)),
         'n_workers': Int % Range(0, None),
         'debug': Bool,
@@ -63,7 +80,7 @@ plugin.methods.register_function(
 )
 
 plugin.methods.register_function(
-    function=q2_sidle.extract_regional_database,
+    function=extract_regional_database,
     name='Extract and expand regional kmer database',
     description=('Performs in silico PCR to extract a region of the full '
                  'length sequence, and then expands degenerate sequences '
@@ -128,7 +145,7 @@ plugin.methods.register_function(
 )
 
 plugin.methods.register_function(
-    function=q2_sidle.prepare_extracted_region,
+    function=prepare_extracted_region,
     name='Prepares an already extracted region to be a kmer database',
     description=('This function takes an amplified region of the database, '
                  'expands the degenerate sequences and collapses the '
@@ -175,7 +192,7 @@ plugin.methods.register_function(
 )
 
 plugin.methods.register_function(
-    function=q2_sidle.align_regional_kmers,
+    function=align_regional_kmers,
     name='Aligns ASV representative sequences to a regional kmer database',
     description=('This takes an "amplified" region of the database and '
                  'performs alignment with representative ASV sequences. The '
