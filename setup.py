@@ -36,5 +36,7 @@ setup(name='q2-sidle',
                         'sparse >= 0.8.0',
                         'pandas == 0.25.0',
                         'dask >= 2.0',
+                        'numba == 0.48',
+                        'regex',
                         ],
       )
