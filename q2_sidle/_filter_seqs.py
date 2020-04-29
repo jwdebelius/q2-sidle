@@ -3,9 +3,11 @@ import numpy as np
 import pandas as pd
 
 from q2_sidle._utils import (_setup_dask_client, 
-                             _convert_generator_to_delayed_seq_block, 
+                             _convert_generator_to_delayed_seq_block,
+                             _convert_generator_to_seq_block, 
                              _convert_seq_block_to_dna_fasta_format,
                              _count_degenerates,
+                             database_params,
                              )
 from q2_types.feature_data import (DNAFASTAFormat,
                                    DNAIterator, 
@@ -14,11 +16,11 @@ from q2_types.feature_data import (DNAFASTAFormat,
 
 
 def filter_degenerate_sequences(sequences: DNASequencesDirectoryFormat, 
-                                max_degen:int=3,
-                                chunk_size:int=10000,
-                                debug:bool=False, 
-                                n_workers:int=1
-                                ) -> DNAFASTAFormat:
+    max_degen:int=3,
+    chunk_size:int=10000,
+    debug:bool=False, 
+    n_workers:int=1
+    ) -> DNAFASTAFormat:
     """
     Prefilters the database to remove sequences with too many degenerates
 
@@ -51,7 +53,7 @@ def filter_degenerate_sequences(sequences: DNASequencesDirectoryFormat,
     _setup_dask_client(debug=debug, cluster_config=None,  
                        n_workers=n_workers)
     # Reads in the sequences
-    sequences = sequences.view(DNAIterator)
+    sequences = sequences.file.view(DNAIterator)
     seq_block = _convert_generator_to_delayed_seq_block(sequences, chunk_size)
     # Performs degenrate filtering
     sub_seq = \
@@ -95,6 +97,34 @@ def _degen_filter(sequences, max_degen):
 
     return sub_seq
 
+
+def _undefined_taxa_filtered(sequences, taxonomy, database, level):
+    """
+    Filters undefined taxonomy according to a provided database
+
+    Parameters
+    ----------
+    sequences: list of DataFrames or delayed DataFrames
+        The reference sequences represented in pd.DataFrames where each row is
+        a sequence and each column is a nucleotide position
+    taxonomy : DataFrame
+        The taxonomy represented as a DataFrame
+    database: ("greengenes", "silva", "homd", "none"):
+        A description of the database the taxonomy comes from
+    level: int
+        The taxonomy level being filtered
+
+    Returns
+    -------
+    sub_seqs
+        A list of filtered sequences 
+    """
+    # Gets the database information and functions for processing the data
+    db_params = database_params.get(database, dict([]))
+    delim = db_params.get('delim', ';')
+    defined_f = db_params.get('defined', lambda x: True)
+
+    # 
 
 
 
