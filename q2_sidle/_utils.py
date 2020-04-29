@@ -32,7 +32,6 @@ degen_reps = {'A': ['R', 'W', 'M', 'D', 'H', 'V', 'N'],
               }
 
 
-
 def _setup_dask_client(debug=False, cluster_config=None, n_workers=1):
     """
     Sets up a Dask client and daskboard
@@ -82,11 +81,7 @@ def _convert_generator_to_delayed_seq_block(generator, chunksize=5000):
     """
     Converts from a generator to a block of sequences
     """
-    @dask.delayed
-    def _to_seq_array(x):
-        return pd.DataFrame({s.metadata['id']:  list(str(s)) for s in x}).T
-
-    seq_block = [_to_seq_array(seqs) 
+    seq_block = [dask.delayed(_to_seq_array)(seqs) 
                  for seqs in _chunks(generator, chunksize)]
 
     return seq_block
@@ -96,12 +91,17 @@ def _convert_generator_to_seq_block(generator, chunksize=5000):
     """
     Converts from a generator to a block of sequences
     """
-    def _to_seq_array(x):
-        return  pd.DataFrame({s.metadata['id']:  list(str(s)) for s in x}).T
-
     seq_block = [_to_seq_array(seqs) for seqs in _chunks(generator, chunksize)]
-
     return seq_block
+
+
+def _to_seq_array(x):
+    """
+    Converts a list of sequences from a generator to a DataFrame of sequences
+    """
+    seq_series = pd.Series({s.metadata['id']: str(s) for s in x})
+    return seq_series.apply(lambda x: pd.Series(list(x)))
+
 
 
 def _count_degenerates(seq_array):
@@ -125,3 +125,35 @@ def _count_degenerates(seq_array):
     
     return num_degen
 
+
+database_params = {
+    'greengenes': {
+        'delim': '; ',
+        # 'levels': ['k__', 'p__', 'c__', 'o__', 'f__', 'g__', 's__'],
+        'defined': lambda x: len(x) > 3,
+        'inherient': lambda x: 'unsp. %s' % x.replace('__', '. '),
+        'contested': lambda x: x.replace('[', 'cont. ').replace(']', '')
+    },
+    'silva': {
+        'delim': ';',
+        # 'levels': [],
+        'defined': lambda x: ~(('uncul' in  x) | ('ambig' in x) | 
+                               ('metagenome' in x)),
+        'inherient': lambda x: x,
+        'contested': lambda x: x.replace('[', 'cont. ').replace(']', ''),
+    },
+    'homd': {
+        'delim': ';',
+        # 'levels': [],
+        'defined': lambda x: True,
+        'inherient': lambda x: x,
+        'contested': lambda x: x.replace('[', 'cont. ').replace(']', ''),
+    },
+    'none': {
+        'delim': ';',
+        # 'levels': [],
+        'defined': lambda x: True,
+        'inherient': lambda x: x,
+        'contested': lambda x: x,
+    },
+    }
