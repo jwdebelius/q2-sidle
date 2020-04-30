@@ -80,8 +80,6 @@ def align_regional_kmers(kmers: DNAFASTAFormat, rep_seq: DNAFASTAFormat,
     aligned['region'] = region
     aligned.sort_values(['kmer', 'asv'], inplace=True)
     aligned.set_index('kmer', inplace=True)
-    aligned.rename(index={k: k.replace('_|_', ' | ') for k in aligned.index}, 
-                   inplace=True)
 
     rep_set = pd.concat(rep_set, axis=0, sort=False)
     aligned_asvs = aligned['asv'].unique()

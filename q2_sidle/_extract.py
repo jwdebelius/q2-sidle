@@ -8,8 +8,8 @@ import numpy as np
 import pandas as pd
 import regex
 
+from qiime2 import Metadata
 from q2_types.feature_data import (DNAFASTAFormat, DNAIterator)
-
 from q2_sidle._utils import (_setup_dask_client, 
                              _convert_generator_to_seq_block,
                              _convert_generator_to_delayed_seq_block, 
@@ -438,7 +438,7 @@ def _collapse_duplicates(*seq_array):
             return 'sequence'
     
     groups = seqs.groupby(0)[seq_name].apply(
-        lambda x: ' | '.join(sorted(x.values))
+        lambda x: '|'.join(sorted(x.values))
         ).reset_index()
     groups = groups.rename(columns=rep_f)
     groups = groups.set_index('seq_name')
@@ -631,7 +631,7 @@ def _build_id_map(kmers, region):
         individual sequence name, and the region.
     """
     expansion = pd.DataFrame.from_dict(orient='index', data={
-        kmer: pd.Series(kmer.split(" | ")) for kmer in np.unique(kmers)
+        kmer: pd.Series(kmer.split("|")) for kmer in np.unique(kmers)
         })
     expansion.index.set_names('kmer', inplace=True)
     expansion.reset_index(inplace=True)
