@@ -1,5 +1,7 @@
 from unittest import TestCase, main
 
+import os
+
 import numpy as np
 import numpy.testing as npt
 import pandas as pd
@@ -7,22 +9,24 @@ import pandas.util.testing as pdt
 import skbio
 import sparse as sp
 
-from qiime2 import Artifact
-# from q2_types.feature_data import DNAIterator, DNAFASTAFormat
+from qiime2 import Artifact, Metadata
+from qiime2.plugin import ValidationError
 
-from q2_sidle._reconstruct import (_build_id_set,
+from q2_sidle._reconstruct import (reconstruct_counts,
+                                   _build_id_set,
+                                   _check_manifest,
                                    _construct_align_mat,
                                    _count_mapping,
                                    _expand_duplicate_sequences,
                                    _get_unique_kmers,
                                    _map_id_set,
-                                   _parse_generic,
-                                   _parse_greengenes,
+                                   _read_manifest_files,
                                    _solve_iterative_noisy,
                                    _solve_ml_em_iterative_1_sample,
                                    _untangle_database_ids,
                                    _scale_relative_abundance
                                    )
+import q2_sidle.tests.test_set as ts
 
 class ReconstructTest(TestCase):
     def setUp(self):
@@ -50,7 +54,7 @@ class ReconstructTest(TestCase):
             columns=['kmer', 'region', 'db_seq', 'clean_name'],
             )
         self.match1 = pd.DataFrame(
-            data=np.array([['seq1 | seq2', 'asv01', 0, 15, 'Bludhaven'],
+            data=np.array([['seq1|seq2', 'asv01', 0, 15, 'Bludhaven'],
                            ['seq3@0001', 'asv02', 0, 15, 'Bludhaven'],
                            ['seq3@0002', 'asv02', 1, 15, 'Bludhaven'],
                            ['seq5', 'asv04', 0, 15, 'Bludhaven'],
@@ -119,21 +123,21 @@ class ReconstructTest(TestCase):
                      'mean_kmer_per_region': 1,
                      'stdv_kmer_per_region': 0,
                      'taxonomy': 'DCU;Superhero;Gotham;Batfamily;Batgirl;Gordon;Barbara',
-                     'mapped_asvs': 'asv01 | asv06'
+                     'mapped_asvs': 'asv01|asv06'
                     },
             'seq2': {'num_regions': 2, 
                      'total_kmers_mapped': 2, 
                      'mean_kmer_per_region': 1,
                     'stdv_kmer_per_region': 0,
                     'taxonomy': 'DCU;Superhero;Gotham;Batfamily;Batgirl;Gordon;Barbara',
-                    'mapped_asvs': 'asv01 | asv07',
+                    'mapped_asvs': 'asv01|asv07',
                     },
             'seq3': {'num_regions': 2, 
                      'total_kmers_mapped': 3, 
                      'mean_kmer_per_region': 1.5,
                      'stdv_kmer_per_region': np.std([1, 2], ddof=1),
                      'taxonomy': 'DCU;Superhero;Gotham;Batfamily;Batman;Wayne;',
-                     'mapped_asvs': 'asv02 | asv03 | asv08'
+                     'mapped_asvs': 'asv02|asv03|asv08'
                     },
             'seq4': {'num_regions': 1, 
                      'total_kmers_mapped': 1, 
@@ -147,14 +151,14 @@ class ReconstructTest(TestCase):
                      'mean_kmer_per_region': 1,
                      'stdv_kmer_per_region': 0,
                      'taxonomy': 'DCU;Superhero;Gotham;Batfamily;Robin;Grayson;Dick',
-                     'mapped_asvs': 'asv04 | asv05 | asv10',
+                     'mapped_asvs': 'asv04|asv05|asv10',
                     },
             'seq6': {'num_regions': 2, 
                      'total_kmers_mapped': 2, 
                      'mean_kmer_per_region': 1,
                      'stdv_kmer_per_region': 0,
                      'taxonomy': 'DCU;Superhero;Gotham;Batfamily;Robin;Todd;Jason',
-                     'mapped_asvs': 'asv04 | asv05 | asv11',
+                     'mapped_asvs': 'asv04|asv05|asv11',
                     },
             })
         self.seq_summary.index.set_names('clean_name', inplace=True)
@@ -171,6 +175,84 @@ class ReconstructTest(TestCase):
                             name='clean_name'),
             name='sample.1'
             )
+        self.base_dir = \
+            os.path.join(os.path.dirname(os.path.realpath(__file__)), 
+                         'files/little_test')
+
+    def test_reconstruct_counts(self):
+        known_map = pd.Series({'seq1': 'seq1', 'seq2': 'seq2', 'seq3': 'seq3', 
+                              'seq4': 'seq4', 'seq5': 'seq5', 'seq6': 'seq6'}, 
+                              name='clean_name')
+        known_map.index.set_names('db_seq', inplace=True)
+
+        known_summary = pd.DataFrame.from_dict(orient='index', data={
+            'seq1': {'num_regions': 2., 
+                     'total_kmers_mapped': 2., 
+                     'mean_kmer_per_region': 1.,
+                     'stdv_kmer_per_region': 0.,
+                     'mapped_asvs': 'asv01|asv06'
+                    },
+            'seq2': {'num_regions': 2, 
+                     'total_kmers_mapped': 2, 
+                     'mean_kmer_per_region': 1,
+                    'stdv_kmer_per_region': 0,
+                    'mapped_asvs': 'asv01|asv07',
+                    },
+            'seq3': {'num_regions': 2, 
+                     'total_kmers_mapped': 3, 
+                     'mean_kmer_per_region': 1.5,
+                     'stdv_kmer_per_region': np.std([1, 2], ddof=1),
+                     'mapped_asvs': 'asv02|asv03|asv08'
+                    },
+            'seq4': {'num_regions': 1, 
+                     'total_kmers_mapped': 1, 
+                     'mean_kmer_per_region': 1,
+                     'stdv_kmer_per_region': 0,
+                     'mapped_asvs': 'asv09'
+                    },
+            'seq5': {'num_regions': 2, 
+                     'total_kmers_mapped': 2, 
+                     'mean_kmer_per_region': 1,
+                     'stdv_kmer_per_region': 0,
+                     'mapped_asvs': 'asv04|asv05|asv10',
+                    },
+            'seq6': {'num_regions': 2, 
+                     'total_kmers_mapped': 2, 
+                     'mean_kmer_per_region': 1,
+                     'stdv_kmer_per_region': 0,
+                     'mapped_asvs': 'asv04|asv05|asv11',
+                    },
+            })
+        known_summary.index.set_names('feature-id', inplace=True)
+        
+        manifest = Metadata(pd.DataFrame(
+            data=[[os.path.join(self.base_dir, 'region1_db_map.qza'),
+                   os.path.join(self.base_dir, 'region1_align.qza'),
+                   os.path.join(self.base_dir, 'region1_counts.qza')],
+                  [os.path.join(self.base_dir, 'region2_db_map.qza'),
+                   os.path.join(self.base_dir, 'region2_align.qza'),
+                   os.path.join(self.base_dir, 'region2_counts.qza')]],
+            columns=['kmer-map', 'alignment-map', 'frequency-table'],
+            index=pd.Index(['Bludhaven', 'Gotham'], name='id')
+            ))
+        count_table, summary, mapping = \
+            reconstruct_counts(manifest, debug=True)
+        npt.assert_array_equal(
+            count_table.matrix_data.todense(),
+            np.array([[100,  50,   0,  50,  50, 50],
+                      [100,  25, 100,  25,  25, 25],
+                      [  0, 100, 100,   0,  50, 50]]).T * 1.
+           )
+        npt.assert_array_equal(
+            np.array(list(count_table.ids(axis='sample'))),
+            np.array(['sample1', 'sample2', 'sample3'])
+        )
+        npt.assert_array_equal(
+            np.array(list(count_table.ids(axis='observation'))),
+            np.array(['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 'seq6']),
+        )
+        pdt.assert_series_equal(known_map, mapping)
+        pdt.assert_frame_equal(known_summary, summary.to_dataframe())
 
     def test_build_id_set(self):
         test = _build_id_set(['seq05', 'seq06'], 
@@ -200,11 +282,11 @@ class ReconstructTest(TestCase):
             columns=['db_seq', 'region', '0', '1', '2']
             )
 
-        known = pd.Series({'seq00': 'seq00 | seq01',
-                           'seq01': 'seq00 | seq01',
-                           'seq03': 'seq03 | seq04 | seq05',
-                           'seq04': 'seq03 | seq04 | seq05',
-                           'seq05': 'seq03 | seq04 | seq05',
+        known = pd.Series({'seq00': 'seq00|seq01',
+                           'seq01': 'seq00|seq01',
+                           'seq03': 'seq03|seq04|seq05',
+                           'seq04': 'seq03|seq04|seq05',
+                           'seq05': 'seq03|seq04|seq05',
                            'seq06': 'seq06',
                            'seq07': 'seq07',
                            }, name='clean_name')
@@ -215,6 +297,175 @@ class ReconstructTest(TestCase):
                               tangle=tangled,
                               )
         pdt.assert_series_equal(known, sub_map.compute())
+
+    def test_check_manifest_columns(self):
+        manifest = Metadata(pd.DataFrame(
+            data=np.array([['Bruce', 'Wayne'],
+                          ['Dick', 'Grayson'],
+                          ['Jason', 'Todd'],
+                          ['Tim', 'Drake'],
+                          ['Barbara', 'Gordon'],
+                          ['Stephanie', 'Brown'],
+                          ['Cassandra', 'Cain-Wayne'],
+                          ['Damian', 'Wayne'],
+                          ]),
+            index=pd.Index(['Batman', 'Nightwing', 'Red Hood', 'Red Robin',
+                            'Oracle', 'Batgirl', 'Black Bat', 'Robin'], 
+                            name='id'),
+            columns=['First Name', 'Last Name']
+        ))
+        # print(manifest)
+        with self.assertRaises(ValidationError) as err:
+            _check_manifest(manifest)
+        self.assertEqual(str(err.exception), 
+                         ('The manifest must contain the columns '
+                          'kmer-map, alignment-map and frequency-table.\n'
+                          'Please check the manifest and make sure all'
+                          ' column names are spelled correctly')
+                         )
+
+    def test_check_manifest_missing(self):
+        manifest = Metadata(pd.DataFrame(
+            data=np.array([['Bruce', 'Wayne', None],
+                          ['Dick', 'Grayson', '29'],
+                          ['Jason', 'Todd', '24'],
+                          ['Tim', 'Drake', '20'],
+                          ['Barbara', 'Gordon', '32'],
+                          ['Stephanie', 'Brown', '19'],
+                          ['Cassandra', 'Cain-Wayne', '22'],
+                          ['Damian', 'Wayne', '12'],
+                          ]),
+            index=pd.Index(['Batman', 'Nightwing', 'Red Hood', 'Red Robin',
+                            'Oracle', 'Batgirl', 'Black Bat', 'Robin'], 
+                            name='id'),
+            columns=['kmer-map', 'alignment-map', 'frequency-table']
+        ))
+        with self.assertRaises(ValidationError) as err:
+            _check_manifest(manifest)
+        self.assertEqual(str(err.exception), 
+                         ('All regions must have a kmer-map, '
+                          'alignment-map and frequency-table. Please '
+                          'check and make sure that you have provided '
+                          'all the files you need')
+                         )
+
+    def test_check_manifest_unique(self):
+        manifest = Metadata(pd.DataFrame(
+            data=np.array([['Bruce', 'Wayne', '45'],
+                          ['Dick', 'Grayson', '29'],
+                          ['Jason', 'Todd', '24'],
+                          ['Tim', 'Drake', '20'],
+                          ['Barbara', 'Gordon', '32'],
+                          ['Stephanie', 'Brown', '19'],
+                          ['Cassandra', 'Cain-Wayne', '22'],
+                          ['Damian', 'Wayne', '12'],
+                          ]),
+            index=pd.Index(['Batman', 'Nightwing', 'Red Hood', 'Red Robin',
+                            'Oracle', 'Batgirl', 'Black Bat', 'Robin'], 
+                            name='id'),
+            columns=['kmer-map', 'alignment-map', 'frequency-table']
+        ))
+        with self.assertRaises(ValidationError) as err:
+            _check_manifest(manifest)
+        self.assertEqual(str(err.exception), 
+                         ('All paths in the manifest must be unique.'
+                          ' Please check your filepaths')
+                         )
+
+    def test_check_manifest_exists(self):
+        manifest = Metadata(pd.DataFrame(
+            data=np.array([['Bruce', 'Wayne', '45'],
+                           ['Dick', 'Grayson', '29'],
+                           ['Jason', 'Todd', '24'],
+                           ]),
+            index=pd.Index(['Batman', 'Nightwing', 'Red Hood'], 
+                            name='id'),
+            columns=['kmer-map', 'alignment-map', 'frequency-table']
+        ))
+        with self.assertRaises(ValidationError) as err:
+            _check_manifest(manifest)
+        self.assertEqual(str(err.exception), 
+                         ('All the paths in the manifest must exist.'
+                          ' Please check your filepaths')
+                         )
+
+    def test_check_manifest_files(self):
+        base_dir = self.base_dir = \
+            os.path.join(os.path.dirname(os.path.realpath(__file__)), 
+                         'files/little_test')
+        manifest = Metadata(pd.DataFrame(
+            data=np.array([[self.base_dir, 
+                           os.path.join(base_dir, 'full_db.qza'),
+                           os.path.join(base_dir, 'region1_align_map.qza')]]),
+            index=pd.Index(['test'], 
+                            name='id'),
+            columns=['kmer-map', 'alignment-map', 'frequency-table']
+            ))
+        with self.assertRaises(ValidationError) as err:
+            _check_manifest(manifest)
+        self.assertEqual(str(err.exception), 
+                         ('All the paths in the manifest must be files.'
+                          ' Please check your filepaths')
+                         )
+
+    def test_read_manifest_files_path_error(self):
+        base_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), 
+                                'files/little_test')
+        manifest = Metadata(pd.DataFrame(
+            data=[[os.path.join(base_dir, 'region1_db_map.qza'),
+                   os.path.join(base_dir, 'region1_align_map.qza'),
+                   os.path.join(base_dir, 'region1_db_map.qza')],
+                  [os.path.join(base_dir, 'region1_align_map.qza'),
+                   os.path.join(base_dir, 'region1_align_map.qza'),
+                   os.path.join(base_dir, 'region1_db_map.qza')],
+                   ],
+            columns=['kmer-map', 'alignment-map', 'frequency-table'],
+            index=pd.Index(['Bludhaven', 'Gotham'], name='id')
+        ))
+        with self.assertRaises(TypeError) as err_:
+            _read_manifest_files(manifest, 'kmer-map', 'FeatureData[KmerMap]')
+        self.assertEqual(str(err_.exception),
+            'Not all kmer map Artifacts are of the FeatureData[KmerMap] '
+            'semantic type.\nPlease review semantic types for these'
+            ' regions:\nGotham'
+            )
+
+    def test_read_manifest_artifact(self):
+        base_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), 
+                                'files/little_test')
+        manifest = Metadata(pd.DataFrame(
+            data=[[os.path.join(base_dir, 'region1_db_map.qza'),
+                   os.path.join(base_dir, 'region1_align_map.qza'),
+                   os.path.join(base_dir, 'region1_db_map.qza')],
+                   ],
+            columns=['kmer-map', 'alignment-map', 'frequency-table'],
+            index=pd.Index(['Bludhaven'], name='id')
+        ))
+        test = _read_manifest_files(manifest, 'kmer-map', 
+                                    'FeatureData[KmerMap]')
+        self.assertEqual(len(test), 1)
+        self.assertTrue(isinstance(test[0], Artifact))
+        self.assertEqual(str(test[0].type), 'FeatureData[KmerMap]')
+        pdt.assert_frame_equal(test[0].view(pd.DataFrame), 
+                               ts.region1_db_map.view(pd.DataFrame))
+
+    def test_read_manifest_view(self):
+        base_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), 
+                                'files/little_test')
+        manifest = Metadata(pd.DataFrame(
+            data=[[os.path.join(base_dir, 'region1_db_map.qza'),
+                   os.path.join(base_dir, 'region1_align_map.qza'),
+                   os.path.join(base_dir, 'region1_db_map.qza')],
+                   ],
+            columns=['kmer-map', 'alignment-map', 'frequency-table'],
+            index=pd.Index(['Bludhaven'], name='id')
+        ))
+        test = _read_manifest_files(manifest, 'kmer-map', 
+                                    'FeatureData[KmerMap]',
+                                    pd.DataFrame)
+        self.assertEqual(len(test), 1)
+        self.assertTrue(isinstance(test[0], pd.DataFrame))
+        pdt.assert_frame_equal(test[0], ts.region1_db_map.view(pd.DataFrame))
 
     def test_count_mapping_degen(self):
         known = pd.DataFrame.from_dict(orient='index', data={
@@ -230,7 +481,7 @@ class ReconstructTest(TestCase):
             })
         known.index.set_names('clean_name', inplace=True)
         test = _count_mapping(self.pair, count_degen=True)
-        pdt.assert_frame_equal(test.compute(), known)
+        pdt.assert_frame_equal(test, known)
 
     def test_count_mapping_no_degen(self):
         known = pd.DataFrame.from_dict(orient='index', data={
@@ -246,13 +497,13 @@ class ReconstructTest(TestCase):
             })
         known.index.set_names('clean_name', inplace=True)
         test = _count_mapping(self.pair, count_degen=False)
-        pdt.assert_frame_equal(test.compute(), known)
+        pdt.assert_frame_equal(test, known)
 
     def test_untangle_database_ids(self):
         matches = pd.DataFrame(
             data=np.array([['seq00', 'seq00', 'seq00', '0'],
-                           ['seq01', 'seq01', 'seq01 | seq02', '0'],
-                           ['seq02', 'seq02', 'seq01 | seq02', '0'],
+                           ['seq01', 'seq01', 'seq01|seq02', '0'],
+                           ['seq02', 'seq02', 'seq01|seq02', '0'],
                            ['seq03', 'seq03@001', 'seq03@001', '0'],
                            ['seq03', 'seq03@002', 'seq03@002', '0'],
                            ['seq04', 'seq04@001', 'seq04@001', '0'],
@@ -260,18 +511,18 @@ class ReconstructTest(TestCase):
                            ['seq05', 'seq05', 'seq05', '0'],
                            ['seq06', 'seq06', 'seq06', '0'],
                            ['seq07', 'seq07', 'seq07', '0'],
-                           ['seq08', 'seq08', 'seq08 | seq09', '0'],
-                           ["seq09", 'seq09', 'seq08 | seq09', '0'],
-                           ['seq10', 'seq10', 'seq10 | seq11', '0'],
-                           ['seq11', 'seq11', 'seq10 | seq11', '0'],
-                           ['seq12', 'seq12', 'seq12 | seq13 | seq14', '0'],
-                           ['seq13', 'seq13', 'seq12 | seq13 | seq14', '0'],
-                           ['seq14', 'seq14', 'seq12 | seq13 | seq14', '0'],
+                           ['seq08', 'seq08', 'seq08|seq09', '0'],
+                           ["seq09", 'seq09', 'seq08|seq09', '0'],
+                           ['seq10', 'seq10', 'seq10|seq11', '0'],
+                           ['seq11', 'seq11', 'seq10|seq11', '0'],
+                           ['seq12', 'seq12', 'seq12|seq13|seq14', '0'],
+                           ['seq13', 'seq13', 'seq12|seq13|seq14', '0'],
+                           ['seq14', 'seq14', 'seq12|seq13|seq14', '0'],
                            ['seq16', 'seq16', 'seq16', '0'],
-                           ['seq17', 'seq17', 'seq17 | seq18', '0'],
-                           ['seq18', 'seq18', 'seq17 | seq18', '0'],
-                           ['seq19', 'seq19', 'seq19 | seq20', '0'],
-                           ['seq20', 'seq20', 'seq19 | seq20', '0'],
+                           ['seq17', 'seq17', 'seq17|seq18', '0'],
+                           ['seq18', 'seq18', 'seq17|seq18', '0'],
+                           ['seq19', 'seq19', 'seq19|seq20', '0'],
+                           ['seq20', 'seq20', 'seq19|seq20', '0'],
                            ['seq00', 'seq00', 'seq00', '1'],
                            ['seq01', 'seq01', 'seq01', '1'],
                            ['seq02', 'seq02', 'seq02', '1'],
@@ -280,17 +531,17 @@ class ReconstructTest(TestCase):
                            ['seq04', 'seq04@002', 'seq04@002', '1'],
                            ['seq04', 'seq04@003', 'seq04@003', '1'],
                            ['seq05', 'seq05@001', 'seq05@001', '1'],
-                           ['seq05', 'seq05@002', 'seq05@002 | seq06', '1'],
-                           ['seq06', 'seq06', 'seq05@002 | seq06', '1'],
+                           ['seq05', 'seq05@002', 'seq05@002|seq06', '1'],
+                           ['seq06', 'seq06', 'seq05@002|seq06', '1'],
                            ['seq09', 'seq09', 'seq09', '1'],
-                           ['seq10', 'seq10', 'seq10 | seq11', '1'],
-                           ['seq11', 'seq11', 'seq10 | seq11', '1'],
-                           ['seq12', 'seq12', 'seq12 | seq14 | seq15', '1'],
+                           ['seq10', 'seq10', 'seq10|seq11', '1'],
+                           ['seq11', 'seq11', 'seq10|seq11', '1'],
+                           ['seq12', 'seq12', 'seq12|seq14|seq15', '1'],
                            ['seq13', 'seq13', 'seq13', '1'],
-                           ['seq14', 'seq14', 'seq12 | seq14 | seq15', '1'],
-                           ['seq15', 'seq15', 'seq12 | seq14 | seq15', '1'],
-                           ['seq16', 'seq16', 'seq16 | seq17',  '1'],
-                           ['seq17', 'seq17', 'seq16 | seq17', '1']
+                           ['seq14', 'seq14', 'seq12|seq14|seq15', '1'],
+                           ['seq15', 'seq15', 'seq12|seq14|seq15', '1'],
+                           ['seq16', 'seq16', 'seq16|seq17',  '1'],
+                           ['seq17', 'seq17', 'seq16|seq17', '1']
                            ], dtype=object),
             columns=['db_seq', 'seq_name', 'kmer', 'region'],
             )
@@ -302,28 +553,27 @@ class ReconstructTest(TestCase):
                                 'seq05': 'seq05',
                                 'seq06': 'seq06',
                                 'seq07': 'seq07',
-                                'seq08': 'seq08 | seq09',
-                                'seq09': 'seq08 | seq09',
-                                'seq10': 'seq10 | seq11',
-                                'seq11': 'seq10 | seq11',
-                                'seq12': 'seq12 | seq14 | seq15',
+                                'seq08': 'seq08|seq09',
+                                'seq09': 'seq08|seq09',
+                                'seq10': 'seq10|seq11',
+                                'seq11': 'seq10|seq11',
+                                'seq12': 'seq12|seq14|seq15',
                                 'seq13': 'seq13',
-                                'seq14': 'seq12 | seq14 | seq15',
-                                'seq15': 'seq12 | seq14 | seq15',
+                                'seq14': 'seq12|seq14|seq15',
+                                'seq15': 'seq12|seq14|seq15',
                                 'seq16': 'seq16',
-                                'seq17': 'seq17 | seq18',
-                                'seq18': 'seq17 | seq18',
-                                'seq19': 'seq19 | seq20',
-                                'seq20': 'seq19 | seq20',
+                                'seq17': 'seq17|seq18',
+                                'seq18': 'seq17|seq18',
+                                'seq19': 'seq19|seq20',
+                                'seq20': 'seq19|seq20',
                                 }, name='clean_name')
         known_seq.index.set_names('db_seq', inplace=True)
         # Generates the renaming
         seq_ = _untangle_database_ids(matches)
         pdt.assert_series_equal(known_seq, seq_[0].compute())
 
-    
     def test_expand_duplicate_sequences(self):
-        original = pd.DataFrame(data=[['1', '2 | 3', '3 | 4 | 5', '6'],
+        original = pd.DataFrame(data=[['1', '2|3', '3|4|5', '6'],
                                       [10, 20, 30, 40]],
                                 index=['ids', 'counts']).T
         known = pd.DataFrame([[ '1', '2', '3', '3', '4', '5', '6'],
@@ -343,12 +593,12 @@ class ReconstructTest(TestCase):
         sequence_map.index.set_names('db_seq', inplace=True)
         test_mat = _construct_align_mat(self.match1, 
                                         sequence_map,
-                                        self.seq_summary)#.compute()
+                                        self.seq_summary).compute()
 
         # Rounds for the sake of sanity
         test_mat[self.float_cols] = test_mat[self.float_cols].round(4)
         test_mat[self.int_cols] = test_mat[self.int_cols].astype(int)
-        pdt.assert_frame_equal(self.align1, test_mat.compute())
+        pdt.assert_frame_equal(self.align1, test_mat)
 
     def test_solve_ml_em_iterative_1_sample(self):
         abund = sp.as_coo(np.array([0.18181818, 0.09090909, 0.09090909,

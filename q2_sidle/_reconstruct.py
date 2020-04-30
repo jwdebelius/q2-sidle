@@ -1,11 +1,13 @@
+import os
+
 import biom
 import dask
 import numpy as np
 import pandas as pd
 import sparse as sp
 
-from qiime2 import Metadata
-from q2_types.feature_table import FeatureTable, Frequency
+from qiime2 import Metadata, Artifact
+from qiime2.plugin import ValidationError
 from q2_sidle._utils import (_setup_dask_client, 
                              _convert_generator_to_seq_block,
                              _convert_generator_to_delayed_seq_block, 
@@ -13,45 +15,61 @@ from q2_sidle._utils import (_setup_dask_client,
                              degen_reps,
                              )
 
-def reconstruct(kmer_map: pd.DataFrame, 
-                regional_alignment: pd.DataFrame,
-                count_table: FeatureTable[Frequency],
-                per_nucleotide_error: float=0.005,
-                max_mismatch: int=2,
-                tolerance: float=1e-7,
-                num_iter: int=10000,
-                min_abund: float=1e-10,
-                count_degenerates: bool=True,
-                debug: bool=False, 
-                n_workers: int=1
-                ) -> (FeatureTable[Frequency], pd.DataFrame, pd.Series):
+def reconstruct_counts(manifest: Metadata,
+                       count_degenerates: bool=True,
+                       per_nucleotide_error: float=0.005,
+                       max_mismatch: int=2,
+                       tolerance: float=1e-7,
+                       num_iter: int=10000,
+                       min_abund: float=1e-10,
+                       debug: bool=False, 
+                       n_workers: int=1
+                       ) -> (biom.Table, Metadata, pd.Series):
     """
     Reconstructs regional alignments into a full length 16s sequence
 
     Parameters
     ----------
-
+    kmer_map : DataFrame
+        Okay, technically if this works, this is a list of the per-region 
+        dataframes that describe the relationship between kmer names and the 
+        original database sequence names
+    regional_alignment : DataFrame
+        Again, a list of dataframes that map the regional kmers ot an ASV 
+        label
+    count_table : biom.Table
+        Once again, a list of 
     """
     # Sets up the client
     _setup_dask_client(debug=debug, cluster_config=None,  
                        n_workers=n_workers)
 
-    # Checks the kmers and regional alignment.
-    if len(kmer_map) != len(regional_alignment):
-        raise ValueError("Each database region must have a corresonding "
-                         "alignment.")
+    # Checks the manifest
+    _check_manifest(manifest)
 
-    align_map = pd.concat(regional_alignment, axis=0, sort=False)
+    # Imports the alignment maps and gets the kmers that were aligned
+    align_map = pd.concat(
+        axis=0, 
+        sort=False, 
+        objs=_read_manifest_files(manifest, 'alignment-map', 
+                                  'FeatureData[KmerAlignment]', pd.DataFrame)
+        )
     align_map[['mismatch', 'length']] = \
         align_map[['mismatch', 'length']].astype(int)
-    
+    kmers = _get_unique_kmers(align_map['kmer'])
+
     ### Untangles the database to get the unique regional mapping
 
     # Filters database down to kmers which are present in the sequences 
     # because otherwise we're trying to untangle a huge amount of data and it 
     # just gets memory intensive and slow
     kmers = _get_unique_kmers(align_map['kmer'])
-    kmer_map = pd.concat(kmer_map, axis=0, sort=False)
+    kmer_map = pd.concat(
+        axis=0, 
+        sort=False,
+        objs=_read_manifest_files(manifest, 'kmer-map', 
+                                 'FeatureData[KmerMap]', pd.DataFrame)
+        )
     # Builds database mapping bettween the kmer, the original database
     # sequence and the original name
     db_map = _untangle_database_ids(kmer_map.copy(),
@@ -72,12 +90,15 @@ def reconstruct(kmer_map: pd.DataFrame,
                                     sequence_map=db_map.to_dict(),
                                     seq_summary=db_summary,
                                     nucleotide_error=per_nucleotide_error, 
-                                    max_mismatch=mismatch, 
+                                    max_mismatch=max_mismatch, 
                                     ).compute()
-
+    
     ### Solves the relative abundance
-    counts = pd.concat(axis=1, objs=counts).fillna(0).T
-    counts = counts.loc[counts.sum(axis=1) > 0]
+    counts = pd.concat(
+        axis=1, 
+        sort=False, 
+        objs=_read_manifest_files(manifest, 'frequency-table', 
+                                 'FeatureTable[Frequency]', pd.DataFrame)).T
 
     # We have to account for the fact that some of hte ASVs may have been 
     # discarded because they didn't meet the match parameters we've set or 
@@ -93,26 +114,92 @@ def reconstruct(kmer_map: pd.DataFrame,
     # Performs the maximum liklihood reconstruction on a per-sample basis. 
     # Im not sure if this could be refined to optimize the alogirthm
     # to allow multiple samples ot be solved together, but... eh?
-    rel_abund = solve_iterative_noisy(align_mat=align_mat, 
-                                      table=n_table,
-                                      tolerance=tolerance,
-                                      num_iter=n_iter,
-                                      min_abund=min_freq,
-                                      seq_summary=db_summary,
-                                      )
+    rel_abund = _solve_iterative_noisy(align_mat=align_mat, 
+                                       table=n_table,
+                                       tolerance=tolerance,
+                                       num_iter=num_iter,
+                                       min_abund=min_abund,
+                                       seq_summary=db_summary,
+                                       )
     
     # Puts together the regional normalized counts
-    count_table = scale_relative_abundance(align_mat=align_mat,
-                                           relative=rel_abund,
-                                           counts=counts,
-                                           seq_summary=db_summary)
-    count_table = count_table.loc[count_table.sum(axis=1) > 0]
-
-    summary = db_summary.loc[count_table.index].copy()
-    mapping = db_map.loc[count_table.index]
+    count_table = _scale_relative_abundance(align_mat=align_mat,
+                                            relative=rel_abund,
+                                            counts=counts,
+                                            seq_summary=db_summary)
+    count_table = biom.Table(count_table.values,
+                             sample_ids=count_table.columns,
+                             observation_ids=count_table.index)
+    summary = db_summary.loc[count_table.ids(axis='observation')].copy()
+    summary['mapped_asvs'] = \
+        align_mat.groupby('clean_name')['asv'].apply(lambda x: '|'.join(x))
+    summary.index.set_names('feature-id', inplace=True)
+    summary = Metadata(summary)
+    mapping = db_map.loc[count_table.ids(axis='observation')]
 
     return count_table, summary, mapping
 
+
+def _check_manifest(manifest):
+    """
+    Makes sure that everything is in the manifest
+
+    Parameters
+    ---------
+    Manifest : qiime2.Metadata
+        A manifest file describing the relationship between regions and their
+        alignment mapping. The manifest must have at least three columns
+        (`kmer-map`, `alignment-map` and `frequency-table`) each of which
+        contains a unique filepath. 
+    """
+    manifest = manifest.to_dataframe()
+    cols = manifest.columns
+    if not (('kmer-map' in cols) & ('alignment-map' in cols) & 
+            ('frequency-table' in cols)):
+        raise ValidationError('The manifest must contain the columns '
+                              'kmer-map, alignment-map and frequency-table.\n'
+                              'Please check the manifest and make sure all'
+                              ' column names are spelled correctly')
+    manifest = manifest[['kmer-map', 'alignment-map', 'frequency-table']]
+    if pd.isnull(manifest).any().any():
+        raise ValidationError('All regions must have a kmer-map, '
+                              'alignment-map and frequency-table. Please '
+                              'check and make sure that you have provided '
+                              'all the files you need')
+    if (len(manifest.values.flatten()) != 
+            len(np.unique(manifest.values.flatten()))):
+        raise ValidationError('All paths in the manifest must be unique.'
+                             ' Please check your filepaths')
+    if not np.all([os.path.exists(fp_) for fp_ in manifest.values.flatten()]):
+        raise ValidationError('All the paths in the manifest must exist.'
+                             ' Please check your filepaths')
+    if not np.all([os.path.isfile(fp_) for fp_ in manifest.values.flatten()]):
+        raise ValidationError('All the paths in the manifest must be files.'
+                             ' Please check your filepaths')
+
+
+def _read_manifest_files(manifest, dataset, semantic_type=None, view=None):
+    """
+    Extracts files from the manifest and turns them into a list of objects
+    for analysis
+    """
+    paths = manifest.get_column(dataset).to_series()
+    artifacts = [Artifact.load(path) for path in paths]
+    if semantic_type is not None:
+        type_check = np.array([str(a.type) == semantic_type 
+                               for a in artifacts])
+        if not np.all(type_check):
+            err_ = '\n'.join([
+                'Not all %s Artifacts are of the %s semantic type.' 
+                    % (dataset.replace('-', ' '),   semantic_type),
+                'Please review semantic types for these regions:',
+                '\n'.join(paths.index[type_check == False])
+                ])
+            raise TypeError(err_)
+    if view is not None:
+        return [a.view(view) for a in artifacts]
+    else:
+        return artifacts
 
 
 def _build_id_set(all_ids, tangle, block_size=500):
@@ -280,7 +367,7 @@ def _count_mapping(long_, count_degen, kmer='kmer', region='region',
     return counts
 
 
-def _expand_duplicate_sequences(df, id_col, delim=' | '):
+def _expand_duplicate_sequences(df, id_col, delim='|'):
     """
     Expands delimited IDs into rows with unique identifiers
 
@@ -319,7 +406,7 @@ def _expand_duplicate_sequences(df, id_col, delim=' | '):
 
 
 def _get_unique_kmers(series):
-    kmers = np.hstack([[a.split("@")[0] for a in kmer.split(' | ')] 
+    kmers = np.hstack([[a.split("@")[0] for a in kmer.split('|')] 
                        for kmer in series])
     return np.unique(kmers)
 
@@ -410,7 +497,7 @@ def _map_id_set(id_set, tangle):
                        inplace=True)
 
     def combine_map(x): 
-        return ' | '.join(np.sort(np.unique((x.values.flatten()))))
+        return '|'.join(np.sort(np.unique((x.values.flatten()))))
     long_match.rename(columns={0: 'db_seq', 1: 'clean_name'}, inplace=True)
     seq_map = long_match.groupby('db_seq')['clean_name'].apply(combine_map)
 
@@ -681,7 +768,7 @@ def _untangle_database_ids(region_db, kmers=None, count_degen=True,
         kmers = region_db['db_seq'].unique()
 
     def _split_seq(x):
-        return pd.Series([y.split('@')[0] for y in x.split(' | ')])
+        return pd.Series([y.split('@')[0] for y in x.split('|')])
 
     shared = \
         region_db.set_index(['db_seq', 'region'])['kmer'].apply(_split_seq)
