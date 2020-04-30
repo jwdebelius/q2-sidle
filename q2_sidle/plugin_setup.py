@@ -1,3 +1,5 @@
+import importlib
+
 from qiime2.plugin import (Plugin, Int, Float, Range, Metadata, Str, Bool,
                            Choices, MetadataColumn, Categorical, List,
                            Citations, TypeMatch)
@@ -14,7 +16,13 @@ from q2_sidle import (KmerMap,
                       KmerMapDirFmt, 
                       KmerAlignment, 
                       KmerAlignFormat, 
-                      KmerAlignDirFmt
+                      KmerAlignDirFmt,
+                      SidleReconstruction, 
+                      SidleReconFormat, 
+                      SidleReconDirFormat,
+                      ReconstructionSummary,
+                      ReconSummaryFormat,
+                      ReconSummaryDirFormat,                      
                       )
 import q2_sidle
 
@@ -29,17 +37,6 @@ plugin = Plugin(
     short_description='Plugin for taxonomic classification.',
     # citations=[citations['bokulich2018optimizing']]
 )
-plugin.register_formats(KmerMapFormat, 
-                        KmerMapDirFmt, 
-                        KmerAlignFormat, 
-                        KmerAlignDirFmt
-                        )
-plugin.register_semantic_types(KmerMap, 
-                               KmerAlignment)
-plugin.register_semantic_type_to_format(FeatureData[KmerMap], 
-                                        KmerMapDirFmt)
-plugin.register_semantic_type_to_format(FeatureData[KmerAlignment], 
-                                        KmerAlignDirFmt)
 
 plugin.methods.register_function(
     function=q2_sidle.filter_degenerate_sequences,
@@ -80,7 +77,7 @@ plugin.methods.register_function(
 )
 
 plugin.methods.register_function(
-    function=extract_regional_database,
+    function=q2_sidle.extract_regional_database,
     name='Extract and expand regional kmer database',
     description=('Performs in silico PCR to extract a region of the full '
                  'length sequence, and then expands degenerate sequences '
@@ -145,7 +142,7 @@ plugin.methods.register_function(
 )
 
 plugin.methods.register_function(
-    function=prepare_extracted_region,
+    function=q2_sidle.prepare_extracted_region,
     name='Prepares an already extracted region to be a kmer database',
     description=('This function takes an amplified region of the database, '
                  'expands the degenerate sequences and collapses the '
@@ -192,7 +189,7 @@ plugin.methods.register_function(
 )
 
 plugin.methods.register_function(
-    function=align_regional_kmers,
+    function=q2_sidle.align_regional_kmers,
     name='Aligns ASV representative sequences to a regional kmer database',
     description=('This takes an "amplified" region of the database and '
                  'performs alignment with representative ASV sequences. The '
@@ -204,7 +201,7 @@ plugin.methods.register_function(
         'rep_seq': FeatureData[Sequence],
     },
     outputs=[
-        ('sequence_alignment', FeatureData[KmerAlignment]),
+        ('regional_alignment', FeatureData[KmerAlignment]),
         ('discarded_sequences', FeatureData[Sequence]),
 
     ],
@@ -223,7 +220,7 @@ plugin.methods.register_function(
                     'These must be a consistent length.'),
     },
     output_descriptions={
-        'sequence_alignment': ('A mapping between the database kmer name and'
+        'regional_alignment': ('A mapping between the database kmer name and'
                                ' the asv'),
         'discarded_sequences': ('The sequences which could not be aligned to'
                                 ' the database at the matching threshhold.'),
@@ -247,3 +244,106 @@ plugin.methods.register_function(
     },
 )
 
+# plugin.methods.register_function(
+#     function=q2_sidle.reconstruct_counts,
+#     name='Reconstructs multiple aligned regions into a count table',
+#     description=('This takes multiple regional alignments and regional counts'
+#                  ' and reconstructs them into a single table with region-'
+#                  'normalized abundance counts.'),
+#     inputs={
+    
+#     },
+#     outputs=[
+# # #         ('reconstructed_table', FeatureTable[Frequency]),
+# # #         ('reconstruction_summary', FeatureData[ReconstructionSummary]),
+# # #         ('reconstruction_map', FeatureData[SidleReconstruction])
+#     ],
+#     parameters={
+# #         'metadata': Metadata,
+# # #         'per_nucleotide_error': Float % Range(0, 1),
+# # #         'max_mismatch': Int % Range(0, None),
+# # #         'tolerance': Float,
+# # #         'num_iter': Int,
+# # #         'min_abund': Float % Range(0, 1),
+# # #         'count_degenerates': Bool,
+# # #         'n_workers': Int % Range(0, None),
+# # #         'debug': Bool,
+#     },
+# # #     input_descriptions={
+# # #         'kmer_map': ('A mapping relationship between the name of the '
+# # #                      'sequence in the database and the kmer identifier used'
+# # #                      ' in this region.'),
+# # #         'regional_alignment': ('A mapping between the database kmer name and'
+# # #                                ' the asv which describes the region, length,'
+# # #                                ' and number of nucleotides which do not match'
+# # #                                ),
+# # #         'count_table': ('The per-region ASV abundance tables which contain '
+# # #                         'the ASVs from the regional alignment.')
+# # #     },
+# # #     output_descriptions={
+# # #         'reconstructed_table': ('The feature table with the reconstructed '
+# # #                                 'abundance using ASVs from all regions mapped'
+# # #                                 ' to database sequences.'),
+# # #         'reconstruction_summary': ('A summary of the statitics for the '
+# # #                                    'regional map describing the number of '
+# # #                                    'regions mapped to each reference sequence'
+# # #                                    ' and the number of kmers. The kmer '
+# # #                                    'mapping estimate can account for '
+# # #                                    'degeneracy when the `--count-degenerates`'
+# # #                                    ' flag is used or can ignore degenrate '
+# # #                                    'sequences in mapping'),
+# # #         'reconstruction_map': ('A map between the final kmer name and the '
+# # #                                'original database sequence. Useful for '
+# # #                                'reconstructing taxonomy and trees.'),
+# # #     },
+# # #     parameter_descriptions={
+# # #         'count_degenerates': ("Whether sequences which contain degenerate "
+# # #                               "nucleotides should be counted as unqiue kmers"
+# # #                               " or whether the number of original database "
+# # #                               "sequences before degenerate expansion should "
+# # #                               "be used."),
+# # #         'per_nucleotide_error': ('The assumed per-nucelotide error rate '
+# # #                                  'through out amplification and sequencing'),
+# # #         'max_mismatch': ('The maximum number of nucelotides which can differ '
+# # #                          'between a kmer and an ASV representative sequence '
+# # #                          'for it to still be considered a match'),
+# # #         'tolerance': ('The maximum allowed divergence during the maximum'
+# # #                       ' likelihood estimation'),
+# # #         'num_iter': ('The maximum number of iterations for maximum liklihood '
+# # #                      'alignment'),
+# # #         'min_abund': ('The minimum frequency for a feature to be retained '
+# # #                       'during reconstruction. The default from the original '
+# # #                       'smurf algorithm is 1e-10, the number here may depend'
+# # #                       ' on the total number of sequences in your sample'),
+# # #         'n_workers': ('The number of jobs to initiate. When `n_workers` is 0,'
+# # #                       ' the cluster will be able to access all avaliable'
+# # #                       ' resources.'),
+# # #         'debug': ('Whether the function should be run in debug mode (without '
+# # #                   'a client) or not. `debug` superceeds all options'),
+# # #     }
+# )
+
+plugin.register_formats(KmerMapFormat, 
+                        KmerMapDirFmt, 
+                        KmerAlignFormat, 
+                        KmerAlignDirFmt,
+                        SidleReconFormat, 
+                        SidleReconDirFormat,
+                        ReconSummaryFormat,
+                        ReconSummaryDirFormat
+                        )
+plugin.register_semantic_types(KmerMap, 
+                               KmerAlignment,
+                               SidleReconstruction,
+                               ReconstructionSummary
+                               )
+plugin.register_semantic_type_to_format(FeatureData[KmerMap], 
+                                        KmerMapDirFmt)
+plugin.register_semantic_type_to_format(FeatureData[KmerAlignment], 
+                                        KmerAlignDirFmt)
+plugin.register_semantic_type_to_format(FeatureData[SidleReconstruction], 
+                                        SidleReconDirFormat)
+plugin.register_semantic_type_to_format(FeatureData[ReconstructionSummary], 
+                                        ReconSummaryDirFormat)
+
+importlib.import_module('q2_sidle._transformer')
