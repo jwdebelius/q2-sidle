@@ -11,7 +11,7 @@ from q2_sidle.plugin_setup import plugin
 @plugin.register_transformer
 def _1(ff:KmerMapFormat) -> pd.DataFrame:
     df = pd.read_csv(str(ff), sep='\t', dtype=str)
-    return df
+    return df.set_index('db_seq')
 
 @plugin.register_transformer
 def _2(obj: pd.DataFrame) -> KmerMapFormat:
@@ -33,19 +33,24 @@ def _4(obj: pd.DataFrame) -> KmerAlignFormat:
 @plugin.register_transformer
 def _5(ff: SidleReconFormat) -> pd.Series:
     df = pd.read_csv(str(ff), sep='\t')
-    df.set_index(0, inplace=True)
-    return df[1]
+    df.set_index('clean_name', inplace=True)
+    return df['db_seq']
 
 @plugin.register_transformer
 def _6(obj: pd.Series) -> SidleReconFormat:
     ff = SidleReconFormat()
-    obj.to_csv(str(ff), sep='\t')
+    obj.to_csv(str(ff), sep='\t', header=True)
     return ff
 
 @plugin.register_transformer
 def _7(ff:ReconSummaryFormat) -> pd.DataFrame:
     df = pd.read_csv(str(ff), sep='\t', dtype=str)
     df.set_index('feature-id', inplace=True)
+    df.drop('#q2:types', inplace=True)
+    df[['num_regions', 'total_kmers_mapped']] = \
+        df[['num_regions', 'total_kmers_mapped']].astype(float).astype(int)
+    df[['mean_kmer_per_region', 'stdv_kmer_per_region']] = \
+        df[['mean_kmer_per_region', 'stdv_kmer_per_region']].astype(float)
     return df
 
 @plugin.register_transformer
