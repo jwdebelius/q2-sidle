@@ -396,7 +396,7 @@ class ReconstructTest(TestCase):
         manifest = Metadata(pd.DataFrame(
             data=np.array([[self.base_dir, 
                            os.path.join(base_dir, 'full_db.qza'),
-                           os.path.join(base_dir, 'region1_align_map.qza')]]),
+                           os.path.join(base_dir, 'region1_align.qza')]]),
             index=pd.Index(['test'], 
                             name='id'),
             columns=['kmer-map', 'alignment-map', 'frequency-table']
@@ -413,10 +413,10 @@ class ReconstructTest(TestCase):
                                 'files/little_test')
         manifest = Metadata(pd.DataFrame(
             data=[[os.path.join(base_dir, 'region1_db_map.qza'),
-                   os.path.join(base_dir, 'region1_align_map.qza'),
+                   os.path.join(base_dir, 'region1_align.qza'),
                    os.path.join(base_dir, 'region1_db_map.qza')],
-                  [os.path.join(base_dir, 'region1_align_map.qza'),
-                   os.path.join(base_dir, 'region1_align_map.qza'),
+                  [os.path.join(base_dir, 'region1_align.qza'),
+                   os.path.join(base_dir, 'region1_align.qza'),
                    os.path.join(base_dir, 'region1_db_map.qza')],
                    ],
             columns=['kmer-map', 'alignment-map', 'frequency-table'],

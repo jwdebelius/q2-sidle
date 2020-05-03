@@ -1,5 +1,7 @@
 from unittest import TestCase, main
 
+import os
+
 import dask
 import pandas as pd
 import pandas.util.testing as pdt
@@ -25,6 +27,9 @@ class FilterTest(TestCase):
                        '1': skbio.DNA('CATCATCAT', metadata={'id': '1'}),
                        '2': skbio.DNA('CATCATCAT', metadata={'id': '2'}),
                        }))
+        self.base_dir = \
+            os.path.join(os.path.dirname(os.path.realpath(__file__)), 
+                         'files/little_test')
 
     def test_degen_filter(self):
         test = _degen_filter([self.seqs], max_degen=10)
@@ -43,6 +48,8 @@ class FilterTest(TestCase):
                           dtype=int)
         test = _count_degenerates(seq_array)
         pdt.assert_series_equal(known, test)
+
+
 
 
 if __name__ == '__main__':
