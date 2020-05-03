@@ -19,8 +19,6 @@ def reconstruct_counts(manifest: Metadata,
                        count_degenerates: bool=True,
                        per_nucleotide_error: float=0.005,
                        max_mismatch: int=2,
-                       tolerance: float=1e-7,
-                       num_iter: int=10000,
                        min_abund: float=1e-10,
                        debug: bool=False, 
                        n_workers: int=1
@@ -70,6 +68,7 @@ def reconstruct_counts(manifest: Metadata,
         objs=_read_manifest_files(manifest, 'kmer-map', 
                                  'FeatureData[KmerMap]', pd.DataFrame)
         )
+    kmer_map.reset_index(inplace=True)
     # Builds database mapping bettween the kmer, the original database
     # sequence and the original name
     db_map = _untangle_database_ids(kmer_map.copy(),
@@ -99,6 +98,7 @@ def reconstruct_counts(manifest: Metadata,
         sort=False, 
         objs=_read_manifest_files(manifest, 'frequency-table', 
                                  'FeatureTable[Frequency]', pd.DataFrame)).T
+    counts.fillna(0, inplace=True)
 
     # We have to account for the fact that some of hte ASVs may have been 
     # discarded because they didn't meet the match parameters we've set or 
@@ -107,6 +107,8 @@ def reconstruct_counts(manifest: Metadata,
     unaligned_counts = counts.copy().drop(keep_asvs).sum(axis=1)
     counts = counts.loc[keep_asvs]
     align_mat = align_mat.loc[align_mat['asv'].isin(keep_asvs)]
+    keep_kmers = align_mat['clean_name'].unique()
+    db_summary = db_summary.loc[keep_kmers]
 
     # Normalizes the alignment table
     n_table = counts / counts.sum(axis=0)
@@ -116,26 +118,26 @@ def reconstruct_counts(manifest: Metadata,
     # to allow multiple samples ot be solved together, but... eh?
     rel_abund = _solve_iterative_noisy(align_mat=align_mat, 
                                        table=n_table,
-                                       tolerance=tolerance,
-                                       num_iter=num_iter,
                                        min_abund=min_abund,
                                        seq_summary=db_summary,
-                                       )
-    
+                                       ).fillna(0)
+    db_summary = db_summary.loc[rel_abund.index]
+
     # Puts together the regional normalized counts
     count_table = _scale_relative_abundance(align_mat=align_mat,
                                             relative=rel_abund,
                                             counts=counts,
-                                            seq_summary=db_summary)
+                                            seq_summary=db_summary).fillna(0)
     count_table = biom.Table(count_table.values,
                              sample_ids=count_table.columns,
                              observation_ids=count_table.index)
-    summary = db_summary.loc[count_table.ids(axis='observation')].copy()
+    count_table.filter(lambda v, id_, md: v.sum() > 0, axis='observation')
+    summary = db_summary.loc[count_table.ids(axis='observation')]
     summary['mapped_asvs'] = \
         align_mat.groupby('clean_name')['asv'].apply(lambda x: '|'.join(x))
     summary.index.set_names('feature-id', inplace=True)
     summary = Metadata(summary)
-    mapping = db_map.loc[count_table.ids(axis='observation')]
+    mapping = db_map[db_map.isin(count_table.ids(axis='observation'))]
 
     return count_table, summary, mapping
 
