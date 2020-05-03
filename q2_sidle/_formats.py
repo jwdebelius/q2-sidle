@@ -9,7 +9,7 @@ class KmerMapFormat(model.TextFileFormat):
         pass
 
 KmerMapDirFmt = model.SingleFileDirectoryFormat(
-    'KmerMapDirFmt', 'map.tsv', KmerMapFormat)
+    'KmerMapDirFmt', 'kmer-map.tsv', KmerMapFormat)
 
 
 class KmerAlignFormat(model.TextFileFormat):
@@ -17,7 +17,7 @@ class KmerAlignFormat(model.TextFileFormat):
         pass
 
 KmerAlignDirFmt = model.SingleFileDirectoryFormat(
-    'KmerAlignDirFmt', 'align.tsv', KmerAlignFormat)
+    'KmerAlignDirFmt', 'kmer-align.tsv', KmerAlignFormat)
 
 
 class SidleReconFormat(model.TextFileFormat):
@@ -25,7 +25,7 @@ class SidleReconFormat(model.TextFileFormat):
         pass
 
 SidleReconDirFormat = model.SingleFileDirectoryFormat(
-    'SidleReconDirFormat', 'mapping.tsv', SidleReconFormat
+    'SidleReconDirFormat', 'sidle-reconstruction-mapping.tsv', SidleReconFormat
     )
 
 class ReconSummaryFormat(model.TextFileFormat):
@@ -33,5 +33,5 @@ class ReconSummaryFormat(model.TextFileFormat):
         pass
 
 ReconSummaryDirFormat = model.SingleFileDirectoryFormat(
-    'ReconSummaryDirFormat', 'mapping.tsv', ReconSummaryFormat
+    'ReconSummaryDirFormat', 'sidle-summary.tsv', ReconSummaryFormat
     )
