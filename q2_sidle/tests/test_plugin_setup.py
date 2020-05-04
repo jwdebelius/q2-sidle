@@ -19,163 +19,163 @@ import q2_sidle.tests.test_set as ts
 
 
 class PluginSetupTest(TestCase):
-    # def setUp(self):
-    #     self.base_dir = \
-    #         os.path.join(os.path.dirname(os.path.realpath(__file__)), 
-    #                      'files/little_test')
-    #     self.ref_seqs = \
-    #         Artifact.load(os.path.join(self.base_dir, 'full_db.qza'))
-    #     self.region1_db_seqs = \
-    #         Artifact.load(os.path.join(self.base_dir, 'region1_db_seqs.qza'))
-    #     self.region2_db_seqs = \
-    #         Artifact.load(os.path.join(self.base_dir, 'region2_db_seqs.qza'))
-    #     self.region1_db_map = \
-    #         Artifact.load(os.path.join(self.base_dir, 'region1_db_map.qza'))
-    #     self.region2_db_map = \
-    #         Artifact.load(os.path.join(self.base_dir, 'region2_db_map.qza'))
-    #     self.rep_seqs1 = \
-    #         Artifact.load(os.path.join(self.base_dir, 'region1_rep_set.qza'))
-    #     self.align1 = \
-    #         Artifact.load(os.path.join(self.base_dir, 'region1_align.qza'))
-    #     self.manfiest = Metadata(pd.DataFrame(
-    #         data=[[os.path.join(self.base_dir, 'region1_db_map.qza'),
-    #                os.path.join(self.base_dir, 'region1_align.qza'),
-    #                os.path.join(self.base_dir, 'region1_counts.qza')],
-    #               [os.path.join(self.base_dir, 'region1_db_map.qza'),
-    #                os.path.join(self.base_dir, 'region1_align.qza'),
-    #                os.path.join(self.base_dir, 'region1_counts.qza')]],
-    #         columns=['kmer-map', 'alignment-map', 'frequency-table'],
-    #         index=pd.Index(['Bludhaven', 'Gotham'], name='id')
-    #         ))
+    def setUp(self):
+        self.base_dir = \
+            os.path.join(os.path.dirname(os.path.realpath(__file__)), 
+                         'files/little_test')
+        self.ref_seqs = \
+            Artifact.load(os.path.join(self.base_dir, 'full_db.qza'))
+        self.region1_db_seqs = \
+            Artifact.load(os.path.join(self.base_dir, 'region1_db_seqs.qza'))
+        self.region2_db_seqs = \
+            Artifact.load(os.path.join(self.base_dir, 'region2_db_seqs.qza'))
+        self.region1_db_map = \
+            Artifact.load(os.path.join(self.base_dir, 'region1_db_map.qza'))
+        self.region2_db_map = \
+            Artifact.load(os.path.join(self.base_dir, 'region2_db_map.qza'))
+        self.rep_seqs1 = \
+            Artifact.load(os.path.join(self.base_dir, 'region1_rep_set.qza'))
+        self.align1 = \
+            Artifact.load(os.path.join(self.base_dir, 'region1_align.qza'))
+        self.manfiest = Metadata(pd.DataFrame(
+            data=[[os.path.join(self.base_dir, 'region1_db_map.qza'),
+                   os.path.join(self.base_dir, 'region1_align.qza'),
+                   os.path.join(self.base_dir, 'region1_counts.qza')],
+                  [os.path.join(self.base_dir, 'region1_db_map.qza'),
+                   os.path.join(self.base_dir, 'region1_align.qza'),
+                   os.path.join(self.base_dir, 'region1_counts.qza')]],
+            columns=['kmer-map', 'alignment-map', 'frequency-table'],
+            index=pd.Index(['Bludhaven', 'Gotham'], name='id')
+            ))
     
-    # def test_plugin_setup(self):
-    #     self.assertEqual(plugin.name, 'sidle')
+    def test_plugin_setup(self):
+        self.assertEqual(plugin.name, 'sidle')
 
-    # def test_filter_degenerate_sequences(self):
-    #     known = self.ref_seqs.view(pd.Series).copy().astype(str).drop(['seq3'])
+    def test_filter_degenerate_sequences(self):
+        known = self.ref_seqs.view(pd.Series).copy().astype(str).drop(['seq3'])
 
-    #     test = sidle.filter_degenerate_sequences(
-    #         self.ref_seqs, 
-    #         max_degen=0, 
-    #         debug=True
-    #         )
-    #     test = test.filtered_sequences.view(pd.Series).astype(str)
-    #     pdt.assert_series_equal(known, test)
+        test = sidle.filter_degenerate_sequences(
+            self.ref_seqs, 
+            max_degen=0, 
+            debug=True
+            )
+        test = test.filtered_sequences.view(pd.Series).astype(str)
+        pdt.assert_series_equal(known, test)
 
-    # def test_extract_regional_database(self):
-    #     test_seqs, test_map = \
-    #         sidle.extract_regional_database(self.ref_seqs,
-    #                                         fwd_primer='WANTCAT',
-    #                                         rev_primer='CATCATCAT',
-    #                                         trim_length=15,
-    #                                         primer_mismatch=1,
-    #                                         debug=True,
-    #                                         )
-    #     pdt.assert_series_equal(
-    #         self.region1_db_seqs.view(pd.Series).astype(str),
-    #         test_seqs.view(pd.Series).astype(str)
-    #         )
-    #     pdt.assert_frame_equal(self.region1_db_map.view(pd.DataFrame),
-    #                            test_map.view(pd.DataFrame))
+    def test_extract_regional_database(self):
+        test_seqs, test_map = \
+            sidle.extract_regional_database(self.ref_seqs,
+                                            fwd_primer='WANTCAT',
+                                            rev_primer='CATCATCAT',
+                                            trim_length=15,
+                                            primer_mismatch=1,
+                                            debug=True,
+                                            )
+        pdt.assert_series_equal(
+            self.region1_db_seqs.view(pd.Series).astype(str),
+            test_seqs.view(pd.Series).astype(str)
+            )
+        pdt.assert_frame_equal(self.region1_db_map.view(pd.DataFrame),
+                               test_map.view(pd.DataFrame))
 
-    # def test_prepare_extracted_region(self):
-    #     test_seqs, test_map = \
-    #         sidle.prepare_extracted_region(self.region2_db_seqs,
-    #                                        region='Gotham',
-    #                                        trim_length=15,
-    #                                        debug=True,
-    #                                        )
-    #     pdt.assert_series_equal(
-    #         test_seqs.view(pd.Series).astype(str),
-    #         self.region2_db_seqs.view(pd.Series).astype(str)
-    #         )
-    #     pdt.assert_frame_equal(test_map.view(pd.DataFrame), 
-    #                            self.region2_db_map.view(pd.DataFrame))
+    def test_prepare_extracted_region(self):
+        test_seqs, test_map = \
+            sidle.prepare_extracted_region(self.region2_db_seqs,
+                                           region='Gotham',
+                                           trim_length=15,
+                                           debug=True,
+                                           )
+        pdt.assert_series_equal(
+            test_seqs.view(pd.Series).astype(str),
+            self.region2_db_seqs.view(pd.Series).astype(str)
+            )
+        pdt.assert_frame_equal(test_map.view(pd.DataFrame), 
+                               self.region2_db_map.view(pd.DataFrame))
 
-    # def test_align_regional_kmers(self):
-    #     warnings.filterwarnings('ignore', 
-    #                             category=skbio.io.FormatIdentificationWarning)
-    #     test_align, test_discard = \
-    #         sidle.align_regional_kmers(self.region1_db_seqs,
-    #                                    self.rep_seqs1,
-    #                                    region='WANTCAT-CATCATCAT',
-    #                                    max_mismatch=2,
-    #                                    debug=True,
-    #                                    )
-    #     self.assertEqual(len(test_discard.view(pd.Series)), 0)
-    #     pdt.assert_frame_equal(self.align1.view(pd.DataFrame),
-    #                            test_align.view(pd.DataFrame))
+    def test_align_regional_kmers(self):
+        warnings.filterwarnings('ignore', 
+                                category=skbio.io.FormatIdentificationWarning)
+        test_align, test_discard = \
+            sidle.align_regional_kmers(self.region1_db_seqs,
+                                       self.rep_seqs1,
+                                       region='WANTCAT-CATCATCAT',
+                                       max_mismatch=2,
+                                       debug=True,
+                                       )
+        self.assertEqual(len(test_discard.view(pd.Series)), 0)
+        pdt.assert_frame_equal(self.align1.view(pd.DataFrame),
+                               test_align.view(pd.DataFrame))
 
-    # def test_reconstruct_counts(self):
-    #     known_map = pd.Series({'seq1': 'seq1', 'seq2': 'seq2', 'seq3': 'seq3', 
-    #                           'seq4': 'seq4', 'seq5': 'seq5', 'seq6': 'seq6'}, 
-    #                           name='db_seq')
-    #     known_map.index.set_names('clean_name', inplace=True)
+    def test_reconstruct_counts(self):
+        known_map = pd.Series({'seq1': 'seq1', 'seq2': 'seq2', 'seq3': 'seq3', 
+                              'seq4': 'seq4', 'seq5': 'seq5', 'seq6': 'seq6'}, 
+                              name='db_seq')
+        known_map.index.set_names('clean_name', inplace=True)
 
-    #     known_summary = pd.DataFrame.from_dict(orient='index', data={
-    #         'seq1': {'num_regions': 2, 
-    #                  'total_kmers_mapped': 2, 
-    #                  'mean_kmer_per_region': 1.,
-    #                  'stdv_kmer_per_region': 0.,
-    #                  'mapped_asvs': 'asv01|asv06'
-    #                 },
-    #         'seq2': {'num_regions': 2, 
-    #                  'total_kmers_mapped': 2, 
-    #                  'mean_kmer_per_region': 1,
-    #                 'stdv_kmer_per_region': 0,
-    #                 'mapped_asvs': 'asv01|asv07',
-    #                 },
-    #         'seq3': {'num_regions': 2, 
-    #                  'total_kmers_mapped': 3, 
-    #                  'mean_kmer_per_region': 1.5,
-    #                  'stdv_kmer_per_region': np.std([1, 2], ddof=1),
-    #                  'mapped_asvs': 'asv02|asv03|asv08'
-    #                 },
-    #         'seq4': {'num_regions': 1, 
-    #                  'total_kmers_mapped': 1, 
-    #                  'mean_kmer_per_region': 1,
-    #                  'stdv_kmer_per_region': 0,
-    #                  'mapped_asvs': 'asv09'
-    #                 },
-    #         'seq5': {'num_regions': 2, 
-    #                  'total_kmers_mapped': 2, 
-    #                  'mean_kmer_per_region': 1,
-    #                  'stdv_kmer_per_region': 0,
-    #                  'mapped_asvs': 'asv04|asv05|asv10',
-    #                 },
-    #         'seq6': {'num_regions': 2, 
-    #                  'total_kmers_mapped': 2, 
-    #                  'mean_kmer_per_region': 1,
-    #                  'stdv_kmer_per_region': 0,
-    #                  'mapped_asvs': 'asv04|asv05|asv11',
-    #                 },
-    #         })
-    #     known_summary.index.set_names('feature-id', inplace=True)
+        known_summary = pd.DataFrame.from_dict(orient='index', data={
+            'seq1': {'num_regions': 2, 
+                     'total_kmers_mapped': 2, 
+                     'mean_kmer_per_region': 1.,
+                     'stdv_kmer_per_region': 0.,
+                     'mapped_asvs': 'asv01|asv06'
+                    },
+            'seq2': {'num_regions': 2, 
+                     'total_kmers_mapped': 2, 
+                     'mean_kmer_per_region': 1,
+                    'stdv_kmer_per_region': 0,
+                    'mapped_asvs': 'asv01|asv07',
+                    },
+            'seq3': {'num_regions': 2, 
+                     'total_kmers_mapped': 3, 
+                     'mean_kmer_per_region': 1.5,
+                     'stdv_kmer_per_region': np.std([1, 2], ddof=1),
+                     'mapped_asvs': 'asv02|asv03|asv08'
+                    },
+            'seq4': {'num_regions': 1, 
+                     'total_kmers_mapped': 1, 
+                     'mean_kmer_per_region': 1,
+                     'stdv_kmer_per_region': 0,
+                     'mapped_asvs': 'asv09'
+                    },
+            'seq5': {'num_regions': 2, 
+                     'total_kmers_mapped': 2, 
+                     'mean_kmer_per_region': 1,
+                     'stdv_kmer_per_region': 0,
+                     'mapped_asvs': 'asv04|asv05|asv10',
+                    },
+            'seq6': {'num_regions': 2, 
+                     'total_kmers_mapped': 2, 
+                     'mean_kmer_per_region': 1,
+                     'stdv_kmer_per_region': 0,
+                     'mapped_asvs': 'asv04|asv05|asv11',
+                    },
+            })
+        known_summary.index.set_names('feature-id', inplace=True)
         
-    #     manifest = Metadata(pd.DataFrame(
-    #         data=[[os.path.join(self.base_dir, 'region1_db_map.qza'),
-    #                os.path.join(self.base_dir, 'region1_align.qza'),
-    #                os.path.join(self.base_dir, 'region1_counts.qza')],
-    #               [os.path.join(self.base_dir, 'region2_db_map.qza'),
-    #                os.path.join(self.base_dir, 'region2_align.qza'),
-    #                os.path.join(self.base_dir, 'region2_counts.qza')]],
-    #         columns=['kmer-map', 'alignment-map', 'frequency-table'],
-    #         index=pd.Index(['Bludhaven', 'Gotham'], name='id')
-    #         ))
-    #     count_table, summary, mapping = \
-    #         sidle.reconstruct_counts(manifest, debug=True)
-    #     pdt.assert_frame_equal(
-    #         count_table.view(pd.DataFrame),
-    #         pd.DataFrame(
-    #             data=np.array([[100.,  50,   0,  50,  50, 50],
-    #                            [100.,  25, 100,  25,  25, 25],
-    #                            [  0., 100, 100,   0,  50, 50]]),
-    #             index=pd.Index(['sample1', 'sample2', 'sample3'], 'sample-id'),
-    #             columns=['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 'seq6']
-    #         )
-    #     )
-    #     pdt.assert_series_equal(known_map, mapping.view(pd.Series))
-    #     pdt.assert_frame_equal(known_summary, summary.view(pd.DataFrame))
+        manifest = Metadata(pd.DataFrame(
+            data=[[os.path.join(self.base_dir, 'region1_db_map.qza'),
+                   os.path.join(self.base_dir, 'region1_align.qza'),
+                   os.path.join(self.base_dir, 'region1_counts.qza')],
+                  [os.path.join(self.base_dir, 'region2_db_map.qza'),
+                   os.path.join(self.base_dir, 'region2_align.qza'),
+                   os.path.join(self.base_dir, 'region2_counts.qza')]],
+            columns=['kmer-map', 'alignment-map', 'frequency-table'],
+            index=pd.Index(['Bludhaven', 'Gotham'], name='id')
+            ))
+        count_table, summary, mapping = \
+            sidle.reconstruct_counts(manifest, debug=True)
+        pdt.assert_frame_equal(
+            count_table.view(pd.DataFrame),
+            pd.DataFrame(
+                data=np.array([[100.,  50,   0,  50,  50, 50],
+                               [100.,  25, 100,  25,  25, 25],
+                               [  0., 100, 100,   0,  50, 50]]),
+                index=pd.Index(['sample1', 'sample2', 'sample3'], 'sample-id'),
+                columns=['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 'seq6']
+            )
+        )
+        pdt.assert_series_equal(known_map, mapping.view(pd.Series))
+        pdt.assert_frame_equal(known_summary, summary.view(pd.DataFrame))
 
     def test_integration(self):
         # This will run through a slightly more complex dataset...
@@ -307,6 +307,7 @@ class PluginSetupTest(TestCase):
         table, summary, map_ = sidle.reconstruct_counts(
             manifest,
             debug=True,
+            count_degenerates=False,
         )
         known = \
             Artifact.load(os.path.join(known_dir, 'reconstructed-table.qza'))
@@ -314,10 +315,21 @@ class PluginSetupTest(TestCase):
                                table.view(pd.DataFrame))
         known = \
             Artifact.load(os.path.join(known_dir, 'reconstructed-summary.qza'))
-        print(known.view(pd.DataFrame).head())
-        print(summary.view(pd.DataFrame).head())
-        # pdt.assert_frame_equal(known.view(pd.DataFrame),
-                               # summary.view(pd.DataFrame))
+        # ASV mapping was optional in the  original sidle. This is  tested
+        # elsewhere  and dealing w ith it is going to suck. 
+        pdt.assert_frame_equal(
+            known.view(pd.DataFrame),
+            summary.view(pd.DataFrame).drop(columns=['mapped_asvs'])
+            )
+        known = \
+            Artifact.load(os.path.join(known_dir, 'sidle-reconstruction.qza'))
+        pdt.assert_series_equal(
+            known.view(pd.Series),
+            map_.view(pd.Series)
+            )
+
+        shutil.rmtree(test_dir)
+
         
 
 

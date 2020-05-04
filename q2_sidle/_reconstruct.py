@@ -84,7 +84,7 @@ def reconstruct_counts(manifest: Metadata,
                                 count_degenerates, 
                                 kmer='seq_name')
 
-     ### Constructs the regional alignment
+    ### Constructs the regional alignment
     align_mat = _construct_align_mat(align_map,
                                     sequence_map=db_map.to_dict(),
                                     seq_summary=db_summary,
