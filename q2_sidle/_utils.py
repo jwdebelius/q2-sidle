@@ -125,6 +125,7 @@ def _count_degenerates(seq_array):
     
     return num_degen
 
+    
 
 database_params = {
     'greengenes': {
@@ -137,8 +138,7 @@ database_params = {
     'silva': {
         'delim': ';',
         # 'levels': [],
-        'defined': lambda x: ~(('uncul' in  x) | ('ambig' in x) | 
-                               ('metagenome' in x)),
+        'defined': lambda x: ~(('uncul' in  x) | ('metagenome' in x)),
         'inherient': lambda x: x,
         'contested': lambda x: x.replace('[', 'cont. ').replace(']', ''),
     },
