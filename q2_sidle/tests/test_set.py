@@ -90,8 +90,27 @@ region2_counts = Artifact.import_data('FeatureTable[Frequency]', biom.Table(
                    [100,  25,  100,  25,  25, 25],
                    [  0, 100,  100,   0,  50, 50]]).T,
     sample_ids=['sample1', 'sample2', 'sample3'],
-    observation_ids=['asv06', 'asv07', 'asv08', 'asv09', 'asv10', 'asv11']
+    observation_ids=['asv06', 'asv07', 'asv08', 'asv09', 'asv10', 'asv11'],
     ))
+
+taxonomy_gg = pd.Series(
+    data=np.array(['k__DCU; p__Superhero; c__Gotham; o__Batfamily; f__Batgirl; g__Gordon; s__Barbara',
+                   'k__DCU; p__Superhero; c__Gotham; o__Batfamily; f__Batgirl; g__Gordon; s__Barbara',
+                   'k__DCU; p__Superhero; c__Gotham; o__Batfamily; f__Batman; g__Wayne; s__',
+                   'k__DCU; p__Superhero; c__Gotham; o__Civillian; f__Doctor; g__Thompson; s__Leslie',
+                   'k__DCU; p__Superhero; c__Gotham; o__Batfamily; f__Robin; g__Grayson; s__Dick',
+                   'k__DCU; p__Superhero; c__Gotham; o__Batfamily; f__Robin; g__Todd; s__Jason',
+                   ]),
+    index=pd.Index(['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 'seq6'], name='Feature ID'),
+    name='Taxon',
+    )
+taxonomy =  Artifact.import_data('FeatureData[Taxonomy]', taxonomy_gg)
+
+seq_map = Artifact.import_data(
+    'FeatureData[SidleReconstruction]', 
+    pd.Series(data=['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 'seq6'], 
+              index=pd.Index(['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 'seq6'], name='clean_name'), 
+              name='db_seq'))
 
 # ### ASV Sequences and fastas
 # rep_seq1_fasta = ('>asv01\nGCGAAGCGGCTCAGG\n\n'
@@ -288,8 +307,8 @@ region2_counts = Artifact.import_data('FeatureTable[Frequency]', biom.Table(
 #     data=np.array([['DCU', 'Superhero', 'Gotham', 'Batfamily', 'Batgirl', 'Gordon', "Barbara"],
 #                    ['DCU', 'Superhero', 'Gotham', 'Batfamily', 'Batgirl', 'Gordon', 'Barbara'],
 #                    ['DCU', 'Superhero', 'Gotham', 'Batfamily', 'Batman', 'Wayne', ''],
-#                    ['DCU', 'Superhero', 'Gotham', 'Civillian', 'Doctor', 'Thompson', "Leslie"],
-#                    ['DCU', 'Superhero', 'Gotham', 'Batfamily', 'Robin', 'Grayson', "Dick"],
+#                    ['DCU', 'Superhero', 'Gotham', 'Civillian;octor', 'Thompson', "Leslie"],
+#                    ['DCU', 'Superhero', 'Gotham', 'Batfamily', 'Robin', 'Grayson;ick'],
 #                    ['DCU', 'Superhero', 'Gotham', 'Batfamily', 'Robin', 'Todd', "Jason"],
 #                    ]),
 #     columns=['kingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species'],

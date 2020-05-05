@@ -5,6 +5,7 @@ from qiime2.plugin import (Plugin, Int, Float, Range, Metadata, Str, Bool,
                            Citations, TypeMatch)
 from q2_types.feature_data import (FeatureData,
                                    Sequence,
+                                   Taxonomy,
                                    ) 
 from q2_types.feature_table import (
                       FeatureTable, 
@@ -76,6 +77,7 @@ plugin.methods.register_function(
     }
 )
 
+
 plugin.methods.register_function(
     function=q2_sidle.extract_regional_database,
     name='Extract and expand regional kmer database',
@@ -141,6 +143,7 @@ plugin.methods.register_function(
     },
 )
 
+
 plugin.methods.register_function(
     function=q2_sidle.prepare_extracted_region,
     name='Prepares an already extracted region to be a kmer database',
@@ -187,6 +190,7 @@ plugin.methods.register_function(
                   'a client) or not. `debug` superceeds all options'),
     },
 )
+
 
 plugin.methods.register_function(
     function=q2_sidle.align_regional_kmers,
@@ -243,6 +247,7 @@ plugin.methods.register_function(
                   'a client) or not. `debug` superceeds all options'),
     },
 )
+
 
 plugin.methods.register_function(
     function=q2_sidle.reconstruct_counts,
@@ -314,6 +319,59 @@ plugin.methods.register_function(
     }
 )
 
+
+plugin.methods.register_function(
+    function=q2_sidle.reconstruct_taxonomy,
+    name='Reconstructs taxonomic strings for a reconstructed sidle table',
+    description=('Reconstructs the taxonomic annotation based on a sidle '
+                 'database by identifying the lowest taxonomic level  where'
+                 ' the taxonomic annotation diverges for two sequences'),
+    inputs={
+        'reconstruction_map': FeatureData[SidleReconstruction],
+        'taxonomy': FeatureData[Taxonomy]
+    },
+    outputs=[
+        ('reconstructed_taxonomy', FeatureData[Taxonomy])
+    ],
+    parameters={
+        'database': Str % Choices('none', 'greengenes', 'silva'),
+        'define_missing': Str % Choices('merge', 'inherit', 'ignore'),
+        'ambiguity_handling': Str % Choices('missing', 'ignore'),
+    },
+    input_descriptions={
+        'reconstruction_map': ('A map between the final kmer name and the '
+                               'original database sequence. Useful for '
+                               'reconstructing taxonomy and trees.'),
+        'taxonomy': ('The taxonomic strings from the database'),
+    },
+    output_descriptions={
+        'reconstructed_taxonomy': ('Taxonomy which addresses the ambiguity'
+                                   ' in assignment associated with mapping '
+                                   'to multiple sequences in reconstruction.')
+    },
+    parameter_descriptions={
+        'database': ('The taxonomic database being used. Currently, the only'
+                    ' two supported databases are Greengenes and Silva. '
+                    'The database choice influences the handling of missing '
+                    'and ambigious taxa.'),
+        'define_missing':  ('Taxonomic strings may be missing information '
+                             '(for example  `g__` in greengenes  or '
+                             '`D_5__uncultured bacteria` in Silva). These '
+                             'can be ignored  (`"ignore"`) and treated like'
+                             ' any other taxonomic designation; they can be'
+                             ' first inherited in merged sequences '
+                             '(`"merge`"), where, when there are two strings'
+                             ' being merged and one has a missing level, '
+                             'the missing level is taken form the defined'
+                             ' one, or they can be inherited from the '
+                             'previous level (`"inherit"`) first, and then '
+                             'merged.'),
+        'ambiguity_handling': ('whether "ambigious taxa" (Silva-specific) '
+                               'should be treated as missing values '
+                               '(`"missing`") or ignored (`"ignore"`)')
+    }
+)
+
 plugin.register_formats(KmerMapFormat, 
                         KmerMapDirFmt, 
                         KmerAlignFormat, 
@@ -323,18 +381,29 @@ plugin.register_formats(KmerMapFormat,
                         ReconSummaryFormat,
                         ReconSummaryDirFormat
                         )
+
+
 plugin.register_semantic_types(KmerMap, 
                                KmerAlignment,
                                SidleReconstruction,
                                ReconstructionSummary
                                )
+
+
 plugin.register_semantic_type_to_format(FeatureData[KmerMap], 
                                         KmerMapDirFmt)
+
+
 plugin.register_semantic_type_to_format(FeatureData[KmerAlignment], 
                                         KmerAlignDirFmt)
+
+
 plugin.register_semantic_type_to_format(FeatureData[SidleReconstruction], 
                                         SidleReconDirFormat)
+
+
 plugin.register_semantic_type_to_format(FeatureData[ReconstructionSummary], 
                                         ReconSummaryDirFormat)
+
 
 importlib.import_module('q2_sidle._transformer')

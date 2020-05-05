@@ -47,6 +47,8 @@ class PluginSetupTest(TestCase):
             columns=['kmer-map', 'alignment-map', 'frequency-table'],
             index=pd.Index(['Bludhaven', 'Gotham'], name='id')
             ))
+        self.seq_map = ts.seq_map
+        self.taxonomy = ts.taxonomy
     
     def test_plugin_setup(self):
         self.assertEqual(plugin.name, 'sidle')
@@ -107,10 +109,6 @@ class PluginSetupTest(TestCase):
                                test_align.view(pd.DataFrame))
 
     def test_reconstruct_counts(self):
-        known_map = pd.Series({'seq1': 'seq1', 'seq2': 'seq2', 'seq3': 'seq3', 
-                              'seq4': 'seq4', 'seq5': 'seq5', 'seq6': 'seq6'}, 
-                              name='db_seq')
-        known_map.index.set_names('clean_name', inplace=True)
 
         known_summary = pd.DataFrame.from_dict(orient='index', data={
             'seq1': {'num_regions': 2, 
@@ -174,8 +172,18 @@ class PluginSetupTest(TestCase):
                 columns=['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 'seq6']
             )
         )
-        pdt.assert_series_equal(known_map, mapping.view(pd.Series))
+        pdt.assert_series_equal(self.seq_map.view(pd.Series), 
+                                mapping.view(pd.Series))
         pdt.assert_frame_equal(known_summary, summary.view(pd.DataFrame))
+
+    def test_reconstruct_taxonomy(self):
+        test = sidle.reconstruct_taxonomy(self.seq_map, 
+                                          self.taxonomy,
+                                          database='greengenes',
+                                          define_missing='ignore')
+        pdt.asser_series_equal(self.taxonomy.view(pd.Series),
+                               test.view(pd.Series))
+
 
     def test_integration(self):
         # This will run through a slightly more complex dataset...
@@ -184,7 +192,8 @@ class PluginSetupTest(TestCase):
         test_dir = os.path.join(base_dir, 'test')
         known_dir = os.path.join(base_dir, 'known')
         data_dir = os.path.join(base_dir, 'data')
-        shutil.rmtree(test_dir)
+        if os.path.exists(test_dir):
+            shutil.rmtree(test_dir)
         os.makedirs(test_dir)
 
         # Sets up the temporary manifest
