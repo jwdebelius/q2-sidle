@@ -73,6 +73,7 @@ def reconstruct_taxonomy(reconstruction_map: pd.Series,
         return pd.Series([s.strip(' ') for s in  x.split(delim)])
     taxonomy = taxonomy.loc[reconstruction_map.index]
     taxonomy = taxonomy.apply(split_taxonomy)
+    taxonomy.index.set_names('Feature ID', inplace=True)
 
     if len(taxonomy.columns) == 1:
         raise ValueError('Only one taxonomic level was found. Please check '

@@ -33,8 +33,8 @@ def _4(obj: pd.DataFrame) -> KmerAlignFormat:
 @plugin.register_transformer
 def _5(ff: SidleReconFormat) -> pd.Series:
     df = pd.read_csv(str(ff), sep='\t', dtype=str)
-    df.set_index('clean_name', inplace=True)
-    return df['db_seq']
+    df.set_index('db_seq', inplace=True)
+    return df['clean_name']
 
 @plugin.register_transformer
 def _6(obj: pd.Series) -> SidleReconFormat:

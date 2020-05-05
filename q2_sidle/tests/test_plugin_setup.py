@@ -180,9 +180,10 @@ class PluginSetupTest(TestCase):
         test = sidle.reconstruct_taxonomy(self.seq_map, 
                                           self.taxonomy,
                                           database='greengenes',
-                                          define_missing='ignore')
-        pdt.asser_series_equal(self.taxonomy.view(pd.Series),
-                               test.view(pd.Series))
+                                          define_missing='ignore'
+                                          ).reconstructed_taxonomy
+        pdt.assert_series_equal(self.taxonomy.view(pd.Series),
+                                test.view(pd.Series))
 
 
     def test_integration(self):
@@ -338,13 +339,6 @@ class PluginSetupTest(TestCase):
             )
 
         shutil.rmtree(test_dir)
-
-        
-
-
-
-# class IntegrationTest(TestCase):
-
 
 if __name__ == '__main__':
     main()

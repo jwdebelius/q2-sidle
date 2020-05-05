@@ -59,7 +59,6 @@ class TaxonomyTest(TestCase):
             name='Taxon'
         )
         self.silva_taxonomy.index.set_names('Feature ID', inplace=True)
-
         self.seq_map = pd.Series({"seq01": "seq01", 
                                   'seq03': 'seq03|seq04', 
                                   'seq04': 'seq03|seq04', 
@@ -71,7 +70,8 @@ class TaxonomyTest(TestCase):
                                   'seq12': 'seq12',
                                   'seq13': 'seq13|seq14',
                                   'seq14': 'seq13|seq14'},
-                                name='clean_name')
+                                name='db_seq')
+        self.seq_map.index.set_names('clean_name', inplace=True)
 
     def test_reconstruct_taxonomy_none_ignore_ignore(self):
         known = pd.Series(
@@ -87,7 +87,7 @@ class TaxonomyTest(TestCase):
             )
         test = reconstruct_taxonomy(
             taxonomy=self.gg_taxonomy.apply(lambda x: x.replace(" ", "")), 
-            sidle_map=self.seq_map,
+            reconstruction_map=self.seq_map,
             database='none',
             define_missing='ignore',
             ambiguity_handling='ignore',
@@ -109,7 +109,7 @@ class TaxonomyTest(TestCase):
         with warnings.catch_warnings(record=True) as w:
             test = reconstruct_taxonomy(
                 taxonomy=self.gg_taxonomy.apply(lambda x: x.replace(" ", "")), 
-                sidle_map=self.seq_map,
+                reconstruction_map=self.seq_map,
                 database='none',
                 define_missing='merge',
                 ambiguity_handling='missing',
@@ -129,7 +129,7 @@ class TaxonomyTest(TestCase):
         with self.assertRaises(ValueError) as err:
             test = reconstruct_taxonomy(
                 taxonomy=self.gg_taxonomy.apply(lambda x: x.replace(' ', '')), 
-                sidle_map=self.seq_map,
+                reconstruction_map=self.seq_map,
                 database='greengenes',
                 )
         self.assertEqual(
@@ -151,7 +151,7 @@ class TaxonomyTest(TestCase):
             name='Taxon',
             )
         test = reconstruct_taxonomy(taxonomy=self.gg_taxonomy, 
-                                    sidle_map=self.seq_map,
+                                    reconstruction_map=self.seq_map,
                                     database='greengenes',
                                     define_missing='ignore',
                                     ambiguity_handling='ignore',
@@ -173,7 +173,7 @@ class TaxonomyTest(TestCase):
         with warnings.catch_warnings(record=True) as w:
             test = reconstruct_taxonomy(
                 taxonomy=self.gg_taxonomy, 
-                sidle_map=self.seq_map,
+                reconstruction_map=self.seq_map,
                 database='greengenes',
                 define_missing='inherit',
                 ambiguity_handling='missing',
@@ -199,7 +199,7 @@ class TaxonomyTest(TestCase):
             )
         test = reconstruct_taxonomy(
             taxonomy=self.gg_taxonomy, 
-            sidle_map=self.seq_map,
+            reconstruction_map=self.seq_map,
             database='greengenes',
         )
         pdt.assert_series_equal(known, test)
@@ -218,7 +218,7 @@ class TaxonomyTest(TestCase):
         )
         test = reconstruct_taxonomy(
             taxonomy=self.silva_taxonomy, 
-            sidle_map=self.seq_map,
+            reconstruction_map=self.seq_map,
             database='silva',
             define_missing='ignore',
             ambiguity_handling='ignore',
@@ -239,7 +239,7 @@ class TaxonomyTest(TestCase):
         )
         test = reconstruct_taxonomy(
             taxonomy=self.silva_taxonomy, 
-            sidle_map=self.seq_map,
+            reconstruction_map=self.seq_map,
             database='silva',
             define_missing='inherit',
             ambiguity_handling='missing',
@@ -260,7 +260,7 @@ class TaxonomyTest(TestCase):
         )
         test = reconstruct_taxonomy(
             taxonomy=self.silva_taxonomy, 
-            sidle_map=self.seq_map,
+            reconstruction_map=self.seq_map,
             database='silva',
         )
         pdt.assert_series_equal(known, test)
