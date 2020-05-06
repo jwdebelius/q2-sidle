@@ -21,7 +21,7 @@ from q2_sidle._utils import (_setup_dask_client,
 def align_regional_kmers(kmers: DNAFASTAFormat, rep_seq: DNAFASTAFormat, 
                          region: str, max_mismatch: int=2, 
                          chunk_size:int=1000, debug:bool=False, 
-                         n_workers:int=1) -> (pd.DataFrame, DNAFASTAFormat):
+                         n_workers:int=0) -> (pd.DataFrame, DNAFASTAFormat):
     """
     Performs regional alignment between database "kmers" and ASVs
 

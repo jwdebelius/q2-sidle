@@ -41,7 +41,7 @@ degen_sub = {'R': 'AG',
 
 def prepare_extracted_region(sequences: DNAFASTAFormat, region:str, 
     trim_length:int, chunk_size:int=10000, 
-    debug:bool=False, n_workers:int=1
+    debug:bool=False, n_workers:int=0
     ) -> (DNAFASTAFormat, pd.DataFrame):
     """
     Prepares and extracted database for regional alignment

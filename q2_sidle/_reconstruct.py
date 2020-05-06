@@ -21,7 +21,7 @@ def reconstruct_counts(manifest: Metadata,
                        max_mismatch: int=2,
                        min_abund: float=1e-10,
                        debug: bool=False, 
-                       n_workers: int=1
+                       n_workers: int=0
                        ) -> (biom.Table, Metadata, pd.Series):
     """
     Reconstructs regional alignments into a full length 16s sequence
