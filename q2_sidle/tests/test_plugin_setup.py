@@ -49,6 +49,7 @@ class PluginSetupTest(TestCase):
             ))
         self.seq_map = ts.seq_map
         self.taxonomy = ts.taxonomy
+        self.count1 = ts.region1_counts
     
     def test_plugin_setup(self):
         self.assertEqual(plugin.name, 'sidle')
@@ -93,6 +94,22 @@ class PluginSetupTest(TestCase):
             )
         pdt.assert_frame_equal(test_map.view(pd.DataFrame), 
                                self.region2_db_map.view(pd.DataFrame))
+
+    def test_trim_dada2_posthoc(self):
+        test_table, test_seqs = \
+            sidle.trim_dada2_posthoc(self.count1,
+                                     self.rep_seqs1,
+                                     hashed_feature_ids=False,
+                                     )
+
+        known_seqs = self.rep_seqs1.view(pd.Series).astype(str).copy()
+        known_seqs.index = known_seqs
+        known_table = self.count1.view(pd.DataFrame).copy()
+        known_table.columns = known_seqs.index
+
+        pdt.assert_frame_equal(test_table.view(pd.DataFrame), known_table)
+        pdt.assert_series_equal(test_seqs.view(pd.Series).astype(str), 
+                                known_seqs)
 
     def test_align_regional_kmers(self):
         warnings.filterwarnings('ignore', 
