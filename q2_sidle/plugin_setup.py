@@ -389,7 +389,7 @@ plugin.methods.register_function(
     },
     outputs=[
         ('trimmed_table', FeatureTable[Frequency]),
-        ('trimmed_representative_sequneces', FeatureData[Sequence]),
+        ('trimmed_representative_sequences', FeatureData[Sequence]),
     ],
     parameters={
         'trim_length': Int % Range(0, None),
@@ -403,7 +403,7 @@ plugin.methods.register_function(
     },
     output_descriptions={
         'trimmed_table': ('ASV table with consistent length ASVs'),
-        'trimmed_representative_sequneces': ('ASV sequences of a consistent '
+        'trimmed_representative_sequences': ('ASV sequences of a consistent '
                                              'length')
     },
     parameter_descriptions={
