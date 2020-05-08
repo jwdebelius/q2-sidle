@@ -61,7 +61,7 @@ def _8(obj:pd.DataFrame) -> ReconSummaryFormat:
 
 @plugin.register_transformer
 def _9(ff:ReconSummaryFormat) -> Metadata:
-    return qiime2.Metadata.load(str(ff))
+    return Metadata.load(str(ff))
 
 @plugin.register_transformer
 def _10(obj:Metadata) -> ReconSummaryFormat:
