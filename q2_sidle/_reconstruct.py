@@ -155,13 +155,16 @@ def reconstruct_counts(manifest: Metadata,
     last_rev = kmer_map.drop_duplicates('db-seq', keep='last')
     last_rev = last_rev.set_index('db-seq')['rev-primer']
     
-    mapping = pd.concat(axis=1, objs=[
+    mapping = pd.concat(axis=1, sort=False, objs=[
         db_map[db_map.isin(count_table.ids(axis='observation'))],
-        covered.rename(columns={i: 'length_%s' % region_names[i] 
+        covered.rename(columns={i: 'length-%s' % region_names[i] 
                                 for i in covered.columns}),
         first_fwd,
         last_rev,
         ])
+    mapping.index.set_names('db-seq', inplace=True)
+    mapping.dropna(subset=['clean_name'], inplace=True)
+    mapping.sort_index(inplace=True)
 
     return count_table, summary, mapping
 
@@ -566,6 +569,7 @@ def _scale_relative_abundance(align_mat, relative, counts, seq_summary,
     """
 
     # Gets the sequence positions
+    align_mat = align_mat.loc[align_mat[seq_name].isin(relative.index)].copy()
     align_seqs = align_mat[seq_name].values
     align_asvs = align_mat[asv_name].values
     samples = relative.columns

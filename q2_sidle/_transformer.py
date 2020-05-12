@@ -11,12 +11,16 @@ from q2_sidle.plugin_setup import plugin
 @plugin.register_transformer
 def _1(ff:KmerMapFormat) -> pd.DataFrame:
     df = pd.read_csv(str(ff), sep='\t', dtype=str)
+    df = df[['db-seq', 'seq-name', 'kmer', 'region', 'kmer-length', 
+             'fwd-primer', 'rev-primer']]
     df[['kmer-length']] = df[['kmer-length']].astype(int)
     return df.set_index('db-seq')
 
 @plugin.register_transformer
 def _2(ff:KmerMapFormat) -> Metadata:
     df = pd.read_csv(str(ff), sep='\t', dtype=str)
+    df = df[['db-seq', 'seq-name', 'kmer', 'region', 'kmer-length', 
+             'fwd-primer', 'rev-primer']]
     df[['kmer-length']] = df[['kmer-length']].astype(int)
     df.rename(columns={'kmer': 'id'}, inplace=True)
     return Metadata(df.set_index('id'))
