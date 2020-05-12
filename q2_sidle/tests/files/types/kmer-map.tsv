@@ -1,0 +1,3 @@
+db-seq	seq-name	kmer	region	fwd-primer	rev-primer	kmer-length
+Batman	Batman	Batman	Gotham	WANTCAT	CATCATCAT	50
+Superman	Superman	Superman	Metropolis	CATDAD	DADCAT	50

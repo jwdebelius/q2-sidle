@@ -22,7 +22,7 @@ def reconstruct_counts(manifest: Metadata,
                        min_abund: float=1e-10,
                        debug: bool=False, 
                        n_workers: int=0
-                       ) -> (biom.Table, Metadata, pd.Series):
+                       ) -> (biom.Table, Metadata, pd.DataFrame):
     """
     Reconstructs regional alignments into a full length 16s sequence
 
@@ -44,6 +44,10 @@ def reconstruct_counts(manifest: Metadata,
 
     # Checks the manifest
     _check_manifest(manifest)
+    
+    # Gets the order of the regions
+    region_order = manifest.get_column('region-order').to_series().astype(int).to_dict()
+    region_names = {i: r for r, i in region_order.items()}
 
     # Imports the alignment maps and gets the kmers that were aligned
     align_map = pd.concat(
@@ -54,6 +58,7 @@ def reconstruct_counts(manifest: Metadata,
         )
     align_map[['mismatch', 'length']] = \
         align_map[['mismatch', 'length']].astype(int)
+    align_map.replace({'region': region_order}, inplace=True)
     kmers = _get_unique_kmers(align_map['kmer'])
 
     ### Untangles the database to get the unique regional mapping
@@ -69,6 +74,7 @@ def reconstruct_counts(manifest: Metadata,
                                  'FeatureData[KmerMap]', pd.DataFrame)
         )
     kmer_map.reset_index(inplace=True)
+    kmer_map['region'] = kmer_map['region'].replace(region_order)
     # Builds database mapping bettween the kmer, the original database
     # sequence and the original name
     db_map = _untangle_database_ids(kmer_map.copy(),
@@ -79,10 +85,10 @@ def reconstruct_counts(manifest: Metadata,
     db_map = pd.concat(dask.compute(*db_map), axis=0, sort=False)
 
     ### Summarizes the database
-    kmer_map['clean_name'] = kmer_map['db_seq'].replace(db_map.to_dict())
+    kmer_map['clean_name'] = kmer_map['db-seq'].replace(db_map.to_dict())
     db_summary = _count_mapping(kmer_map.reset_index(), 
                                 count_degenerates, 
-                                kmer='seq_name')
+                                kmer='seq-name')
 
     ### Constructs the regional alignment
     align_mat = _construct_align_mat(align_map,
@@ -133,11 +139,29 @@ def reconstruct_counts(manifest: Metadata,
                              observation_ids=count_table.index)
     count_table.filter(lambda v, id_, md: v.sum() > 0, axis='observation')
     summary = db_summary.loc[count_table.ids(axis='observation')]
-    summary['mapped_asvs'] = \
+    summary['mapped-asvs'] = \
         align_mat.groupby('clean_name')['asv'].apply(lambda x: '|'.join(x))
     summary.index.set_names('feature-id', inplace=True)
     summary = Metadata(summary)
-    mapping = db_map[db_map.isin(count_table.ids(axis='observation'))]
+
+    # Puts together a kmer-based mapping which describes the regions covered
+    kmer_map.sort_values(['db-seq', 'region'], ascending=True, inplace=True)
+    kmer_map.drop_duplicates(['db-seq', 'region'], inplace=True)
+    kmer_map['region'] = kmer_map['region'].astype(int)
+
+    covered = kmer_map.pivot('db-seq', 'region', 'kmer-length')
+    first_fwd = kmer_map.drop_duplicates('db-seq', keep='first')
+    first_fwd = first_fwd.set_index('db-seq')['fwd-primer']
+    last_rev = kmer_map.drop_duplicates('db-seq', keep='last')
+    last_rev = last_rev.set_index('db-seq')['rev-primer']
+    
+    mapping = pd.concat(axis=1, objs=[
+        db_map[db_map.isin(count_table.ids(axis='observation'))],
+        covered.rename(columns={i: 'length_%s' % region_names[i] 
+                                for i in covered.columns}),
+        first_fwd,
+        last_rev,
+        ])
 
     return count_table, summary, mapping
 
@@ -157,7 +181,7 @@ def _check_manifest(manifest):
     manifest = manifest.to_dataframe()
     cols = manifest.columns
     if not (('kmer-map' in cols) & ('alignment-map' in cols) & 
-            ('frequency-table' in cols)):
+            ('frequency-table' in cols) & ('region-order' in cols)):
         raise ValidationError('The manifest must contain the columns '
                               'kmer-map, alignment-map and frequency-table.\n'
                               'Please check the manifest and make sure all'
@@ -292,9 +316,9 @@ def _construct_align_mat(match, sequence_map, seq_summary, nucleotide_error=0.00
     """
     # Expands the kmer identifiers and then maps back to the database
     align_mat = _expand_duplicate_sequences(match, id_col=kmer_name)
-    align_mat['db_seq'] = \
+    align_mat['db-seq'] = \
         align_mat[kmer_name].apply(lambda x: x.split('@')[0])
-    align_mat[seq_name] = align_mat['db_seq'].replace(sequence_map)
+    align_mat[seq_name] = align_mat['db-seq'].replace(sequence_map)
 
     # Collapses into ASV-ref seq combos where for degenerates, the closet
     # match is retained as the sequence.
@@ -326,7 +350,7 @@ def _construct_align_mat(match, sequence_map, seq_summary, nucleotide_error=0.00
     # # ### Computes Mij: Pr(kmer = j | read = j)
     # Normalizes the alignment probability based on the pre-region 
     # amplification
-    region_amp = seq_summary['num_regions']
+    region_amp = seq_summary['num-regions']
     region_norm = asv_ref[seq_name].replace(region_amp)
     asv_ref['norm'] = (asv_ref['match_prob'] / region_norm)
 
@@ -334,7 +358,7 @@ def _construct_align_mat(match, sequence_map, seq_summary, nucleotide_error=0.00
 
 
 def _count_mapping(long_, count_degen, kmer='kmer', region='region', 
-    clean_name='clean_name', db_seq='db_seq'):
+    clean_name='clean_name', db_seq='db-seq'):
     """
     Counts the number of sequences which have been mapped 
     """
@@ -360,10 +384,10 @@ def _count_mapping(long_, count_degen, kmer='kmer', region='region',
               regional_seqs.groupby('clean_name')[kmer].std().fillna(0),
               # regional_seqs.groupby('clean_name')['']
               ],
-        index=['num_regions', 
-               'total_kmers_mapped', 
-               'mean_kmer_per_region',
-               'stdv_kmer_per_region'
+        index=['num-regions', 
+               'total-kmers-mapped', 
+               'mean-kmer-per-region',
+               'stdv-kmer-per-region'
                ],
         ).T
     return counts
@@ -438,7 +462,7 @@ def _map_id_set(id_set, tangle):
 
     id_set = np.sort(np.unique(id_set))
     exp1 = tangle.loc[tangle.drop(columns=['region']).isin(id_set).any(axis=1)].copy()
-    exp1 = exp1.set_index('db_seq').loc[(id_set)].reset_index()
+    exp1 = exp1.set_index('db-seq').loc[(id_set)].reset_index()
     exp1.dropna(axis=0, how='all', inplace=True)
 
     # Minimizes the region in an attempt to make this make more sense for
@@ -448,8 +472,8 @@ def _map_id_set(id_set, tangle):
                   inplace=True)
     num_regions = len(exp1['region'].unique())
 
-    miss_seq = exp1.drop_duplicates(['region', 'db_seq'])[['region', 'db_seq', '0']].copy()
-    miss_seq = miss_seq.pivot(index='db_seq', 
+    miss_seq = exp1.drop_duplicates(['region', 'db-seq'])[['region', 'db-seq', '0']].copy()
+    miss_seq = miss_seq.pivot(index='db-seq', 
                               columns='region', 
                               values='0').isna()
 
@@ -460,20 +484,20 @@ def _map_id_set(id_set, tangle):
         ]))
 
     # Finds the regions that are matching
-    long_mat = exp1.drop_duplicates(['region', 'db_seq']).melt(
-        id_vars=['db_seq', 'region'],
-        value_vars=exp1.drop(columns=['db_seq', 'region']),
+    long_mat = exp1.drop_duplicates(['region', 'db-seq']).melt(
+        id_vars=['db-seq', 'region'],
+        value_vars=exp1.drop(columns=['db-seq', 'region']),
         # value_name='',
         ).dropna().copy()
-    long_mat.sort_values(['db_seq', 'region', 'value'], inplace=True)
-    long_mat.drop_duplicates(['db_seq', 'region', 'value'], inplace=True)
+    long_mat.sort_values(['db-seq', 'region', 'value'], inplace=True)
+    long_mat.drop_duplicates(['db-seq', 'region', 'value'], inplace=True)
 
     # Gets the alignment matrix
     seq_coords = {seq: i for i, seq in enumerate(sorted(id_set))}
     num_coords = len(id_set)
     #  Builds a sparse matrix of the matches
     match_array = sp.COO(
-        long_mat[['db_seq', 'value', 'region']].replace(seq_coords).values.T,
+        long_mat[['db-seq', 'value', 'region']].replace(seq_coords).values.T,
         data=True,
         shape=(num_coords, num_coords, num_regions)
     )
@@ -494,14 +518,14 @@ def _map_id_set(id_set, tangle):
 
     # ...And we map the matches back to the database sequences
     long_match = pd.DataFrame(match_coords.coords, 
-                              index=['db_seq', 'clean_name']).T
+                              index=['db-seq', 'clean_name']).T
     long_match.replace({i: seq for seq, i in seq_coords.items()},
                        inplace=True)
 
     def combine_map(x): 
         return '|'.join(np.sort(np.unique((x.values.flatten()))))
-    long_match.rename(columns={0: 'db_seq', 1: 'clean_name'}, inplace=True)
-    seq_map = long_match.groupby('db_seq')['clean_name'].apply(combine_map)
+    long_match.rename(columns={0: 'db-seq', 1: 'clean_name'}, inplace=True)
+    seq_map = long_match.groupby('db-seq')['clean_name'].apply(combine_map)
 
     return seq_map
 
@@ -568,7 +592,7 @@ def _scale_relative_abundance(align_mat, relative, counts, seq_summary,
 
     # And then sums the counts over the sequence (so we get the total counts)
     counts_r = (counts_r_given_j.groupby(seq_name)[samples].sum().T / 
-                seq_summary['num_regions']).T
+                seq_summary['num-regions']).T
 
     return counts_r.round(0)
 
@@ -651,7 +675,7 @@ def _solve_iterative_noisy(align_mat, table, seq_summary, tolerance=1e-7,
 
     # Tidies the table
     def tidy_table(df):
-        df = df /  seq_summary.loc[df.index, ['num_regions']].values
+        df = df /  seq_summary.loc[df.index, ['num-regions']].values
         df = df / df.sum(axis=0)
         df.fillna(0, inplace=True)
         df = df.loc[(df > 0).any(axis=1)]
@@ -761,30 +785,30 @@ def _untangle_database_ids(region_db, kmers=None, count_degen=True,
     """
 
     # Gets list of sequences that should be untangled together
-    region_db.replace({'region': {r: i for i, r in 
-                       enumerate(region_db['region'].unique())}}, inplace=True)
-    region_db.sort_values(['db_seq', 'region', 'seq_name'], inplace=True)
-    region_db.drop_duplicates(['db_seq', 'region', 'kmer'], inplace=True)
+    region_db['region'] = region_db['region'].astype(float)
+    region_db['region'] = region_db['region'] - region_db['region'].min()
+    region_db.sort_values(['db-seq', 'region', 'seq-name'], inplace=True)
+    region_db.drop_duplicates(['db-seq', 'region', 'kmer'], inplace=True)
 
     if kmers is None:
-        kmers = region_db['db_seq'].unique()
+        kmers = region_db['db-seq'].unique()
 
     def _split_seq(x):
         return pd.Series([y.split('@')[0] for y in x.split('|')])
 
     shared = \
-        region_db.set_index(['db_seq', 'region'])['kmer'].apply(_split_seq)
+        region_db.set_index(['db-seq', 'region'])['kmer'].apply(_split_seq)
     shared.reset_index(inplace=True)
     shared.columns = shared.columns.astype(str)
 
     shared = shared.loc[shared.drop(columns='region').isin(kmers).any(axis=1)]
 
-    region_db.set_index('db_seq', inplace=True)
+    region_db.set_index('db-seq', inplace=True)
 
     # And then we map the sequences into a list of unniqu IDs. This is done 
     # sequentially because its hard to do in parallel. They get mapped into 
     # blocks containing at least as many IDs as we specify in block size.
-    seqs_to_map = np.sort(shared['db_seq'].unique())
+    seqs_to_map = np.sort(shared['db-seq'].unique())
 
     seq_blocks = _build_id_set(seqs_to_map, 
                                shared.drop(columns=['region'].copy()),

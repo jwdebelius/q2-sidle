@@ -41,7 +41,7 @@ class ReconstructTest(TestCase):
                   ['seq05', 1, 'seq05', 'seq06'],
                   ['seq06', 1, 'seq05', 'seq06']
                   ],
-            columns=['db_seq', 'region', '0', '1'],
+            columns=['db-seq', 'region', '0', '1'],
             )
         self.id_set = [np.array(['seq05', 'seq06'])]
         self.pair = pd.DataFrame(
@@ -51,7 +51,7 @@ class ReconstructTest(TestCase):
                   ['seq06', 0, 'seq06', 'seq06'],
                   ['seq06', 1, 'seq06', 'seq06']
                   ],
-            columns=['kmer', 'region', 'db_seq', 'clean_name'],
+            columns=['kmer', 'region', 'db-seq', 'clean_name'],
             )
         self.match1 = pd.DataFrame(
             data=np.array([['seq1|seq2', 'asv01', 0, 15, 'Bludhaven'],
@@ -118,47 +118,47 @@ class ReconstructTest(TestCase):
         self.align2 = self.align2.round(4)
 
         self.seq_summary = pd.DataFrame.from_dict(orient='index', data={
-            'seq1': {'num_regions': 2, 
-                     'total_kmers_mapped': 2, 
-                     'mean_kmer_per_region': 1,
-                     'stdv_kmer_per_region': 0,
+            'seq1': {'num-regions': 2, 
+                     'total-kmers-mapped': 2, 
+                     'mean-kmer-per-region': 1,
+                     'stdv-kmer-per-region': 0,
                      'taxonomy': 'DCU;Superhero;Gotham;Batfamily;Batgirl;Gordon;Barbara',
-                     'mapped_asvs': 'asv01|asv06'
+                     'mapped-asvs': 'asv01|asv06'
                     },
-            'seq2': {'num_regions': 2, 
-                     'total_kmers_mapped': 2, 
-                     'mean_kmer_per_region': 1,
-                    'stdv_kmer_per_region': 0,
+            'seq2': {'num-regions': 2, 
+                     'total-kmers-mapped': 2, 
+                     'mean-kmer-per-region': 1,
+                    'stdv-kmer-per-region': 0,
                     'taxonomy': 'DCU;Superhero;Gotham;Batfamily;Batgirl;Gordon;Barbara',
-                    'mapped_asvs': 'asv01|asv07',
+                    'mapped-asvs': 'asv01|asv07',
                     },
-            'seq3': {'num_regions': 2, 
-                     'total_kmers_mapped': 3, 
-                     'mean_kmer_per_region': 1.5,
-                     'stdv_kmer_per_region': np.std([1, 2], ddof=1),
+            'seq3': {'num-regions': 2, 
+                     'total-kmers-mapped': 3, 
+                     'mean-kmer-per-region': 1.5,
+                     'stdv-kmer-per-region': np.std([1, 2], ddof=1),
                      'taxonomy': 'DCU;Superhero;Gotham;Batfamily;Batman;Wayne;',
-                     'mapped_asvs': 'asv02|asv03|asv08'
+                     'mapped-asvs': 'asv02|asv03|asv08'
                     },
-            'seq4': {'num_regions': 1, 
-                     'total_kmers_mapped': 1, 
-                     'mean_kmer_per_region': 1,
-                     'stdv_kmer_per_region': 0,
+            'seq4': {'num-regions': 1, 
+                     'total-kmers-mapped': 1, 
+                     'mean-kmer-per-region': 1,
+                     'stdv-kmer-per-region': 0,
                      'taxonomy': 'DCU;Superhero;Gotham;Civillian;Doctor;Thompson;Leslie',
-                     'mapped_asvs': 'asv09'
+                     'mapped-asvs': 'asv09'
                     },
-            'seq5': {'num_regions': 2, 
-                     'total_kmers_mapped': 2, 
-                     'mean_kmer_per_region': 1,
-                     'stdv_kmer_per_region': 0,
+            'seq5': {'num-regions': 2, 
+                     'total-kmers-mapped': 2, 
+                     'mean-kmer-per-region': 1,
+                     'stdv-kmer-per-region': 0,
                      'taxonomy': 'DCU;Superhero;Gotham;Batfamily;Robin;Grayson;Dick',
-                     'mapped_asvs': 'asv04|asv05|asv10',
+                     'mapped-asvs': 'asv04|asv05|asv10',
                     },
-            'seq6': {'num_regions': 2, 
-                     'total_kmers_mapped': 2, 
-                     'mean_kmer_per_region': 1,
-                     'stdv_kmer_per_region': 0,
+            'seq6': {'num-regions': 2, 
+                     'total-kmers-mapped': 2, 
+                     'mean-kmer-per-region': 1,
+                     'stdv-kmer-per-region': 0,
                      'taxonomy': 'DCU;Superhero;Gotham;Batfamily;Robin;Todd;Jason',
-                     'mapped_asvs': 'asv04|asv05|asv11',
+                     'mapped-asvs': 'asv04|asv05|asv11',
                     },
             })
         self.seq_summary.index.set_names('clean_name', inplace=True)
@@ -180,47 +180,57 @@ class ReconstructTest(TestCase):
                          'files/little_test')
 
     def test_reconstruct_counts(self):
-        known_map = pd.Series({'seq1': 'seq1', 'seq2': 'seq2', 'seq3': 'seq3', 
-                              'seq4': 'seq4', 'seq5': 'seq5', 'seq6': 'seq6'}, 
-                              name='clean_name')
-        known_map.index.set_names('db_seq', inplace=True)
+        known_map = pd.DataFrame(
+            data=np.array([['seq1', 15, 15, 'WANTCAT', 'CACGTCAK'],
+                           ['seq2', 15, 15, 'WANTCAT', 'CACGTCAK'],
+                           ['seq3', 15, 15, 'WANTCAT', 'CACGTCAK'],
+                           ['seq4', np.nan, 15, 'CACCTCGTN', 'CACGTCAK'],
+                           ['seq5', 15, 15, 'WANTCAT', 'CACGTCAK'],
+                           ['seq6', 15, 15, 'WANTCAT', 'CACGTCAK'],
+                           ]),
+            index=pd.Index(['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 'seq6'], name='db-seq'),
+            columns=['clean_name', 'length_Bludhaven', 'length_Gotham', 
+                     'fwd-primer', 'rev-primer']
+            )
+        known_map[['length_Bludhaven', 'length_Gotham']] = \
+            known_map[['length_Bludhaven', 'length_Gotham']].astype(float)
 
         known_summary = pd.DataFrame.from_dict(orient='index', data={
-            'seq1': {'num_regions': 2., 
-                     'total_kmers_mapped': 2., 
-                     'mean_kmer_per_region': 1.,
-                     'stdv_kmer_per_region': 0.,
-                     'mapped_asvs': 'asv01|asv06'
+            'seq1': {'num-regions': 2., 
+                     'total-kmers-mapped': 2., 
+                     'mean-kmer-per-region': 1.,
+                     'stdv-kmer-per-region': 0.,
+                     'mapped-asvs': 'asv01|asv06'
                     },
-            'seq2': {'num_regions': 2, 
-                     'total_kmers_mapped': 2, 
-                     'mean_kmer_per_region': 1,
-                    'stdv_kmer_per_region': 0,
-                    'mapped_asvs': 'asv01|asv07',
+            'seq2': {'num-regions': 2, 
+                     'total-kmers-mapped': 2, 
+                     'mean-kmer-per-region': 1,
+                    'stdv-kmer-per-region': 0,
+                    'mapped-asvs': 'asv01|asv07',
                     },
-            'seq3': {'num_regions': 2, 
-                     'total_kmers_mapped': 3, 
-                     'mean_kmer_per_region': 1.5,
-                     'stdv_kmer_per_region': np.std([1, 2], ddof=1),
-                     'mapped_asvs': 'asv02|asv03|asv08'
+            'seq3': {'num-regions': 2, 
+                     'total-kmers-mapped': 3, 
+                     'mean-kmer-per-region': 1.5,
+                     'stdv-kmer-per-region': np.std([1, 2], ddof=1),
+                     'mapped-asvs': 'asv02|asv03|asv08'
                     },
-            'seq4': {'num_regions': 1, 
-                     'total_kmers_mapped': 1, 
-                     'mean_kmer_per_region': 1,
-                     'stdv_kmer_per_region': 0,
-                     'mapped_asvs': 'asv09'
+            'seq4': {'num-regions': 1, 
+                     'total-kmers-mapped': 1, 
+                     'mean-kmer-per-region': 1,
+                     'stdv-kmer-per-region': 0,
+                     'mapped-asvs': 'asv09'
                     },
-            'seq5': {'num_regions': 2, 
-                     'total_kmers_mapped': 2, 
-                     'mean_kmer_per_region': 1,
-                     'stdv_kmer_per_region': 0,
-                     'mapped_asvs': 'asv04|asv05|asv10',
+            'seq5': {'num-regions': 2, 
+                     'total-kmers-mapped': 2, 
+                     'mean-kmer-per-region': 1,
+                     'stdv-kmer-per-region': 0,
+                     'mapped-asvs': 'asv04|asv05|asv10',
                     },
-            'seq6': {'num_regions': 2, 
-                     'total_kmers_mapped': 2, 
-                     'mean_kmer_per_region': 1,
-                     'stdv_kmer_per_region': 0,
-                     'mapped_asvs': 'asv04|asv05|asv11',
+            'seq6': {'num-regions': 2, 
+                     'total-kmers-mapped': 2, 
+                     'mean-kmer-per-region': 1,
+                     'stdv-kmer-per-region': 0,
+                     'mapped-asvs': 'asv04|asv05|asv11',
                     },
             })
         known_summary.index.set_names('feature-id', inplace=True)
@@ -228,11 +238,11 @@ class ReconstructTest(TestCase):
         manifest = Metadata(pd.DataFrame(
             data=[[os.path.join(self.base_dir, 'region1_db_map.qza'),
                    os.path.join(self.base_dir, 'region1_align.qza'),
-                   os.path.join(self.base_dir, 'region1_counts.qza')],
+                   os.path.join(self.base_dir, 'region1_counts.qza'), 0],
                   [os.path.join(self.base_dir, 'region2_db_map.qza'),
                    os.path.join(self.base_dir, 'region2_align.qza'),
-                   os.path.join(self.base_dir, 'region2_counts.qza')]],
-            columns=['kmer-map', 'alignment-map', 'frequency-table'],
+                   os.path.join(self.base_dir, 'region2_counts.qza'), 1]],
+            columns=['kmer-map', 'alignment-map', 'frequency-table', 'region-order'],
             index=pd.Index(['Bludhaven', 'Gotham'], name='id')
             ))
         count_table, summary, mapping = \
@@ -251,7 +261,7 @@ class ReconstructTest(TestCase):
             np.array(list(count_table.ids(axis='observation'))),
             np.array(['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 'seq6']),
         )
-        pdt.assert_series_equal(known_map, mapping)
+        pdt.assert_frame_equal(known_map, mapping)
         pdt.assert_frame_equal(known_summary, summary.to_dataframe())
 
     def test_build_id_set(self):
@@ -279,7 +289,7 @@ class ReconstructTest(TestCase):
                   ['seq06', 1, 'seq06',  np.nan,  np.nan],
                   ['seq07', 2, 'seq07',  np.nan,  np.nan],
                   ],
-            columns=['db_seq', 'region', '0', '1', '2']
+            columns=['db-seq', 'region', '0', '1', '2']
             )
 
         known = pd.Series({'seq00': 'seq00|seq01',
@@ -290,7 +300,7 @@ class ReconstructTest(TestCase):
                            'seq06': 'seq06',
                            'seq07': 'seq07',
                            }, name='clean_name')
-        known.index.set_names('db_seq', inplace=True)
+        known.index.set_names('db-seq', inplace=True)
 
         sub_map = _map_id_set(id_set=['seq00', 'seq01', 'seq03', 'seq04', 
                                       'seq05', 'seq06', 'seq07'],
@@ -314,7 +324,6 @@ class ReconstructTest(TestCase):
                             name='id'),
             columns=['First Name', 'Last Name']
         ))
-        # print(manifest)
         with self.assertRaises(ValidationError) as err:
             _check_manifest(manifest)
         self.assertEqual(str(err.exception), 
@@ -326,19 +335,19 @@ class ReconstructTest(TestCase):
 
     def test_check_manifest_missing(self):
         manifest = Metadata(pd.DataFrame(
-            data=np.array([['Bruce', 'Wayne', None],
-                          ['Dick', 'Grayson', '29'],
-                          ['Jason', 'Todd', '24'],
-                          ['Tim', 'Drake', '20'],
-                          ['Barbara', 'Gordon', '32'],
-                          ['Stephanie', 'Brown', '19'],
-                          ['Cassandra', 'Cain-Wayne', '22'],
-                          ['Damian', 'Wayne', '12'],
+            data=np.array([['Bruce', 'Wayne', None, '0'],
+                          ['Dick', 'Grayson', '29', '0'],
+                          ['Jason', 'Todd', '24', '0'],
+                          ['Tim', 'Drake', '20', '0'],
+                          ['Barbara', 'Gordon', '32', '1'],
+                          ['Stephanie', 'Brown', '19', '1'],
+                          ['Cassandra', 'Cain-Wayne', '22', '1'],
+                          ['Damian', 'Wayne', '12', '1'],
                           ]),
             index=pd.Index(['Batman', 'Nightwing', 'Red Hood', 'Red Robin',
                             'Oracle', 'Batgirl', 'Black Bat', 'Robin'], 
                             name='id'),
-            columns=['kmer-map', 'alignment-map', 'frequency-table']
+            columns=['kmer-map', 'alignment-map', 'frequency-table', 'region-order']
         ))
         with self.assertRaises(ValidationError) as err:
             _check_manifest(manifest)
@@ -351,19 +360,19 @@ class ReconstructTest(TestCase):
 
     def test_check_manifest_unique(self):
         manifest = Metadata(pd.DataFrame(
-            data=np.array([['Bruce', 'Wayne', '45'],
-                          ['Dick', 'Grayson', '29'],
-                          ['Jason', 'Todd', '24'],
-                          ['Tim', 'Drake', '20'],
-                          ['Barbara', 'Gordon', '32'],
-                          ['Stephanie', 'Brown', '19'],
-                          ['Cassandra', 'Cain-Wayne', '22'],
-                          ['Damian', 'Wayne', '12'],
+            data=np.array([['Bruce', 'Wayne', '45', '0'],
+                          ['Dick', 'Grayson', '29', '0'],
+                          ['Jason', 'Todd', '24', '0'],
+                          ['Tim', 'Drake', '20', '0'],
+                          ['Barbara', 'Gordon', '32', '1'],
+                          ['Stephanie', 'Brown', '19', '1'],
+                          ['Cassandra', 'Cain-Wayne', '22', '1'],
+                          ['Damian', 'Wayne', '12', '1'],
                           ]),
             index=pd.Index(['Batman', 'Nightwing', 'Red Hood', 'Red Robin',
                             'Oracle', 'Batgirl', 'Black Bat', 'Robin'], 
                             name='id'),
-            columns=['kmer-map', 'alignment-map', 'frequency-table']
+            columns=['kmer-map', 'alignment-map', 'frequency-table',  'region-order'],
         ))
         with self.assertRaises(ValidationError) as err:
             _check_manifest(manifest)
@@ -374,13 +383,13 @@ class ReconstructTest(TestCase):
 
     def test_check_manifest_exists(self):
         manifest = Metadata(pd.DataFrame(
-            data=np.array([['Bruce', 'Wayne', '45'],
-                           ['Dick', 'Grayson', '29'],
-                           ['Jason', 'Todd', '24'],
+            data=np.array([['Bruce', 'Wayne', '45', '0'],
+                           ['Dick', 'Grayson', '29', '0'],
+                           ['Jason', 'Todd', '24', '0'],
                            ]),
             index=pd.Index(['Batman', 'Nightwing', 'Red Hood'], 
                             name='id'),
-            columns=['kmer-map', 'alignment-map', 'frequency-table']
+            columns=['kmer-map', 'alignment-map', 'frequency-table', 'region-order'],
         ))
         with self.assertRaises(ValidationError) as err:
             _check_manifest(manifest)
@@ -396,10 +405,12 @@ class ReconstructTest(TestCase):
         manifest = Metadata(pd.DataFrame(
             data=np.array([[self.base_dir, 
                            os.path.join(base_dir, 'full_db.qza'),
-                           os.path.join(base_dir, 'region1_align.qza')]]),
+                           os.path.join(base_dir, 'region1_align.qza'),
+                           'Bludhaven',
+                           ]]),
             index=pd.Index(['test'], 
                             name='id'),
-            columns=['kmer-map', 'alignment-map', 'frequency-table']
+            columns=['kmer-map', 'alignment-map', 'frequency-table', 'region-order'],
             ))
         with self.assertRaises(ValidationError) as err:
             _check_manifest(manifest)
@@ -469,15 +480,15 @@ class ReconstructTest(TestCase):
 
     def test_count_mapping_degen(self):
         known = pd.DataFrame.from_dict(orient='index', data={
-            'seq05': {'num_regions': 2., 
-                      'total_kmers_mapped': 3., 
-                      'mean_kmer_per_region': 1.5,
-                      'stdv_kmer_per_region': np.std([2, 3], ddof=1),
+            'seq05': {'num-regions': 2., 
+                      'total-kmers-mapped': 3., 
+                      'mean-kmer-per-region': 1.5,
+                      'stdv-kmer-per-region': np.std([2, 3], ddof=1),
                       },
-            'seq06': {'num_regions': 2, 
-                      'total_kmers_mapped': 2,
-                      'mean_kmer_per_region': 1,
-                      'stdv_kmer_per_region': 0},
+            'seq06': {'num-regions': 2, 
+                      'total-kmers-mapped': 2,
+                      'mean-kmer-per-region': 1,
+                      'stdv-kmer-per-region': 0},
             })
         known.index.set_names('clean_name', inplace=True)
         test = _count_mapping(self.pair, count_degen=True)
@@ -485,15 +496,15 @@ class ReconstructTest(TestCase):
 
     def test_count_mapping_no_degen(self):
         known = pd.DataFrame.from_dict(orient='index', data={
-            'seq05': {'num_regions': 2., 
-                      'total_kmers_mapped': 2., 
-                      'mean_kmer_per_region': 1.,
-                      'stdv_kmer_per_region': 0.,
+            'seq05': {'num-regions': 2., 
+                      'total-kmers-mapped': 2., 
+                      'mean-kmer-per-region': 1.,
+                      'stdv-kmer-per-region': 0.,
                       },
-            'seq06': {'num_regions': 2, 
-                      'total_kmers_mapped': 2,
-                      'mean_kmer_per_region': 1,
-                      'stdv_kmer_per_region': 0},
+            'seq06': {'num-regions': 2, 
+                      'total-kmers-mapped': 2,
+                      'mean-kmer-per-region': 1,
+                      'stdv-kmer-per-region': 0},
             })
         known.index.set_names('clean_name', inplace=True)
         test = _count_mapping(self.pair, count_degen=False)
@@ -543,7 +554,7 @@ class ReconstructTest(TestCase):
                            ['seq16', 'seq16', 'seq16|seq17',  '1'],
                            ['seq17', 'seq17', 'seq16|seq17', '1']
                            ], dtype=object),
-            columns=['db_seq', 'seq_name', 'kmer', 'region'],
+            columns=['db-seq', 'seq-name', 'kmer', 'region'],
             )
         known_seq = pd.Series({'seq00': 'seq00', 
                                 'seq01': 'seq01',
@@ -567,7 +578,7 @@ class ReconstructTest(TestCase):
                                 'seq19': 'seq19|seq20',
                                 'seq20': 'seq19|seq20',
                                 }, name='clean_name')
-        known_seq.index.set_names('db_seq', inplace=True)
+        known_seq.index.set_names('db-seq', inplace=True)
         # Generates the renaming
         seq_ = _untangle_database_ids(matches)
         pdt.assert_series_equal(known_seq, seq_[0].compute())
@@ -590,7 +601,7 @@ class ReconstructTest(TestCase):
                                   'seq4': 'seq4',
                                   'seq5': 'seq5',
                                   'seq6': 'seq6'}, name='clean_name')
-        sequence_map.index.set_names('db_seq', inplace=True)
+        sequence_map.index.set_names('db-seq', inplace=True)
         test_mat = _construct_align_mat(self.match1, 
                                         sequence_map,
                                         self.seq_summary).compute()

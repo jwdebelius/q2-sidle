@@ -1,0 +1,4 @@
+feature-id	num-regions	total-kmers-mapped	mean-kmer-per-region	stdv-kmer-per-region	mapped-asvs
+#q2:types	numeric	numeric	numeric	numeric	categorical
+Batman	2	4	2	0	Bruce|Wayne|Richard|Grayson
+Superman	1	1	1	0	Kent

@@ -9,8 +9,8 @@ import skbio
 from qiime2 import Artifact
 from q2_types.feature_data import DNAIterator, DNAFASTAFormat
 
-from q2_sidle._extract import (prepare_extracted_region,
-                               extract_regional_database,
+from q2_sidle._extract import (extract_regional_database,
+                               prepare_extracted_region,
                                _extract_region,
                                _find_primer_end,
                                _find_primer_start,
@@ -57,8 +57,8 @@ class ExtractTest(TestCase):
         self.region_1 = Artifact.import_data(
             'FeatureData[Sequence]',
             pd.Series({
-                'seq1 | seq2': skbio.DNA('GCGAAGCGGCTCAGG', 
-                                         metadata={'id': 'seq1 | seq2'}),
+                'seq1|seq2': skbio.DNA('GCGAAGCGGCTCAGG', 
+                                         metadata={'id': 'seq1|seq2'}),
                 'seq3@0001': skbio.DNA('ATCCGCGTTGGAGTT', 
                                        metadata={'id': 'seq3@0001'}),
                 'seq3@0002': skbio.DNA('TTCCGCGTTGGAGTT', 
@@ -68,17 +68,27 @@ class ExtractTest(TestCase):
                 })
             )
         self.region1_map =  pd.DataFrame(
-            data=np.array([['seq1', 'seq1 | seq2', 'WANTCAT-CATCATCAT'],
-                           ['seq2', 'seq1 | seq2', 'WANTCAT-CATCATCAT'],
-                           ['seq3@0001', 'seq3@0001', 'WANTCAT-CATCATCAT'],
-                           ['seq3@0002', 'seq3@0002', 'WANTCAT-CATCATCAT'],
-                           ['seq5', 'seq5', 'WANTCAT-CATCATCAT'],
-                           ['seq6', 'seq6', 'WANTCAT-CATCATCAT'],
+            data=np.array([['seq1', 'seq1|seq2', 'WANTCAT-CATCATCAT', 
+                            'WANTCAT', 'CATCATCAT', 15],
+                           ['seq2', 'seq1|seq2', 'WANTCAT-CATCATCAT',
+                            'WANTCAT', 'CATCATCAT', 15],
+                           ['seq3@0001', 'seq3@0001', 'WANTCAT-CATCATCAT', 
+                            'WANTCAT', 'CATCATCAT', 15],
+                           ['seq3@0002', 'seq3@0002', 'WANTCAT-CATCATCAT',
+                            'WANTCAT', 'CATCATCAT', 15],
+                           ['seq5', 'seq5', 'WANTCAT-CATCATCAT', 'WANTCAT', 
+                            'CATCATCAT', 15],
+                           ['seq6', 'seq6', 'WANTCAT-CATCATCAT', 'WANTCAT',
+                            'CATCATCAT', 15],
                            ]),
             index=pd.Index(['seq1', 'seq2', 'seq3', 'seq3', 'seq5', 'seq6'], 
-                            name='db_seq'),
-            columns=['seq_name', 'kmer', 'region'],
+                            name='db-seq'),
+            columns=['seq-name', 'kmer', 'region', 'fwd-primer', 'rev-primer',
+                      'kmer-length'],
             )
+        self.region1_map['kmer-length'] = \
+            self.region1_map['kmer-length'].astype(int)
+
 
     def test_prepared_extracted_region(self):
         trimmed = Artifact.import_data('FeatureData[Sequence]',
@@ -95,6 +105,8 @@ class ExtractTest(TestCase):
                                      region='WANTCAT-CATCATCAT',
                                      trim_length=15,
                                      debug=True,
+                                     fwd_primer='WANTCAT',
+                                     rev_primer='CATCATCAT',
                                      )
         pdt.assert_series_equal(test_seqs.view(pd.Series).astype(str),
                                 self.region_1.view(pd.Series).astype(str))
@@ -106,6 +118,7 @@ class ExtractTest(TestCase):
             extract_regional_database(sequences=self.full_seqs,
                                       fwd_primer=self.fwd_primer,
                                       rev_primer=self.rev_primer,
+                                      region='WANTCAT-CATCATCAT',
                                       trim_length=15,
                                       primer_mismatch=1,
                                       debug=True,
@@ -166,6 +179,11 @@ class ExtractTest(TestCase):
                   list('TG')],
             index=pd.Index(['0', '1', '2', '4'], name='id_')
             )
+        pos = pd.DataFrame(
+            data=np.vstack([[1, 2]] * 4).astype(float),
+            columns=['start', 'end'],
+            index=pd.Index(['0', '1', '2', '4'], name='id_')
+            )
         start =pd.Series(
             data=[1, 1, 1, 1], 
             index=pd.Index(['0', '1', '2', '4'], name='id_')
@@ -175,9 +193,8 @@ class ExtractTest(TestCase):
             index=pd.Index(['0', '1', '2', '4'], name='id_')
             )
         test = _trim_masked(self.seq_array.loc[['0', '1', '2', '4']], 
-                           start, 
-                           end)
-        pdt.assert_frame_equal(known, test)
+                            pos, 'start', 'end')
+        pdt.assert_frame_equal(known, test.compute())
 
     def test_reverse_complement(self):
         known = pd.DataFrame(
@@ -213,37 +230,40 @@ class ExtractTest(TestCase):
 
     def test_extract_region_trim(self):
         k_trim = pd.DataFrame(
-            data=np.array([list('GGACAATGTA'),
-                           list('TATACTCTGA'),
-                           list('CCGCGTAGCG'),
-                           list('TTGAGCTTGC'),
-                           list('TTTACTTTGT')]),
+            data=np.array([[9, 0, 18, 0, 18],
+                           [9, 0, 18, 0, 18],
+                           [9, 0, 18, 0, 18],
+                           [9, 0, 18, 0, 18],
+                           [9, 0, 18, 0, 18],
+                           ], dtype=float),    
             index=pd.Index(self.seqs.index, name='kmer'),
-            )
+            columns=['fwd_pos', 'fwd_mis', 'rev_pos', 'rev_mis', 'new_rev_pos'],
+        )
         t_trim = _extract_region(self.seqs, self.fwd_primer, self.rev_primer)
         pdt.assert_frame_equal(k_trim, t_trim.compute())
 
     def test_extract_region_no_trim(self):
         k_trim = pd.DataFrame(
-            data=np.array([list('TACTCATGGACAATGTAATGATGAT'),
-                           list('TACTCATTATACTCTGAATGATGAT'),
-                           list('TAGTCATCCGCGTAGCGATGATGAT'),
-                           list('TATTCATTTGAGCTTGCATGATGAT'),
-                           list('AAGTCATTTTACTTTGTATGATGAT'),
-                           ]),
-            index=self.seqs.index,
+            data=np.array([[2, 0, 27, 0, 27],
+                           [2, 0, 27, 0, 27],
+                           [2, 0, 27, 0, 27],
+                           [2, 0, 27, 0, 27],
+                           [2, 0, 27, 0, 27],
+                           ], dtype=float),    
+            index=pd.Index(self.seqs.index, name='kmer'),
+            columns=['fwd_pos', 'fwd_mis', 'rev_pos', 'rev_mis', 'new_rev_pos'],
         )
-        k_trim.index.set_names('kmer', inplace=True)
         t_trim = _extract_region(self.seqs, self.fwd_primer, self.rev_primer, 
-                                trim_fwd=False, trim_rev=False, 
-                                trim_len='min')
+                                 trim_fwd=False, trim_rev=False, 
+                                 trim_len='min')
         pdt.assert_frame_equal(k_trim, t_trim.compute())
 
     def test_extract_region_too_short(self):
         k_trim = pd.DataFrame(
-            columns=self.seqs.columns,
+            columns=['fwd_pos', 'fwd_mis', 'rev_pos', 'rev_mis', 'new_rev_pos'],
             index=pd.Index([], name='kmer')
             )
+        k_trim = k_trim.astype(float)
         t_trim = _extract_region(
             self.seqs, self.fwd_primer, self.rev_primer, 
             trim_fwd=False, 
@@ -254,14 +274,16 @@ class ExtractTest(TestCase):
 
     def test_extract_region_set_length(self):
         k_trim = pd.DataFrame(
-            data=np.array([list('GGACA'),
-                           list('TATAC'),
-                           list('CCGCG'),
-                           list('TTGAG'),
-                           list('TTTAC')]),
-            index=self.seqs.index
-            )
-        k_trim.index.set_names('kmer', inplace=True)
+            data=np.array([[9, 0, 18, 0, 13],
+                           [9, 0, 18, 0, 13],
+                           [9, 0, 18, 0, 13],
+                           [9, 0, 18, 0, 13],
+                           [9, 0, 18, 0, 13],
+                           ], dtype=float),    
+            index=pd.Index(self.seqs.index, name='kmer'),
+            columns=['fwd_pos', 'fwd_mis', 'rev_pos', 'rev_mis', 'new_rev_pos'],
+        )
+
         t_trim = _extract_region(self.seqs, self.fwd_primer, self.rev_primer, 
                                 trim_len=5)
         pdt.assert_frame_equal(k_trim, t_trim.compute())
@@ -282,44 +304,44 @@ class ExtractTest(TestCase):
                 '11': list('CGTTTATGTATGCCT'),
                 })
         known_dups = pd.DataFrame.from_dict(orient='index', data={
-            '0 | 1 | 2' : list('GCGAAGCGGCTCAGG'),
-            '10 | 11': list('CGTTTATGTATGCCT'),
-            '3@0001 | 4 | 7@0001 | 8@0001': list('ATCCGCGTTGGAGTT'),
-            '3@0002 | 8@0003':  list('TTCCGCGTTGGAGTT'),
+            '0|1|2' : list('GCGAAGCGGCTCAGG'),
+            '10|11': list('CGTTTATGTATGCCT'),
+            '3@0001|4|7@0001|8@0001': list('ATCCGCGTTGGAGTT'),
+            '3@0002|8@0003':  list('TTCCGCGTTGGAGTT'),
             '5@0001': list('ATCCGCGTTGGAGTC'),
             '5@0002': list('ATCCGCGTTGGAGTG'),
-            '6 | 7@0002': list('CTCCGCGTTGGAGTT'),
+            '6|7@0002': list('CTCCGCGTTGGAGTT'),
             '8@0002':  list('GTCCGCGTTGGAGTT'),
             '9': list('CGTTTATGTATGCCC'),
             })
-        known_dups.index.set_names('seq_name', inplace=True)
+        known_dups.index.set_names('seq-name', inplace=True)
         known_map = pd.DataFrame(
-            data=np.array([['0', '0', '0 | 1 | 2', 'Bludhaven'],
-                           ['1', '1', '0 | 1 | 2', 'Bludhaven'],
-                           ['10', '10', '10 | 11', 'Bludhaven'],
-                           ['11', '11', '10 | 11', "Bludhaven"],
-                           ['2', '2', '0 | 1 | 2', 'Bludhaven'],
-                           ['3', '3@0001', '3@0001 | 4 | 7@0001 | 8@0001', 
+            data=np.array([['0', '0', '0|1|2', 'Bludhaven'],
+                           ['1', '1', '0|1|2', 'Bludhaven'],
+                           ['10', '10', '10|11', 'Bludhaven'],
+                           ['11', '11', '10|11', "Bludhaven"],
+                           ['2', '2', '0|1|2', 'Bludhaven'],
+                           ['3', '3@0001', '3@0001|4|7@0001|8@0001', 
                             'Bludhaven'],
-                           ['3', '3@0002', '3@0002 | 8@0003', 'Bludhaven'],
-                           ['4', '4', '3@0001 | 4 | 7@0001 | 8@0001', 
+                           ['3', '3@0002', '3@0002|8@0003', 'Bludhaven'],
+                           ['4', '4', '3@0001|4|7@0001|8@0001', 
                             'Bludhaven'],
                            ['5', '5@0001', '5@0001', 'Bludhaven'],
                            ['5', '5@0002', '5@0002', 'Bludhaven'],
-                           ['6', '6', '6 | 7@0002', 'Bludhaven'],
-                           ['7', '7@0001', '3@0001 | 4 | 7@0001 | 8@0001', 
+                           ['6', '6', '6|7@0002', 'Bludhaven'],
+                           ['7', '7@0001', '3@0001|4|7@0001|8@0001', 
                             'Bludhaven'],
-                           ['7', '7@0002', '6 | 7@0002', 'Bludhaven'],
-                           ['8', '8@0001', '3@0001 | 4 | 7@0001 | 8@0001', 
+                           ['7', '7@0002', '6|7@0002', 'Bludhaven'],
+                           ['8', '8@0001', '3@0001|4|7@0001|8@0001', 
                             'Bludhaven'],
                            ['8', '8@0002', '8@0002', 'Bludhaven'],
-                           ['8', '8@0003', '3@0002 | 8@0003', "Bludhaven"],
+                           ['8', '8@0003', '3@0002|8@0003', "Bludhaven"],
                            ['9', '9', '9', 'Bludhaven']], dtype=object),
-            columns=['db_seq', 'seq_name', 'kmer', 'region'],
+            columns=['db-seq', 'seq-name', 'kmer', 'region'],
             )
         collapsed, map_ = _tidy_sequences([sequences], 'Bludhaven', 15)
         pdt.assert_frame_equal(collapsed, known_dups)
-        pdt.assert_frame_equal(map_, known_map.set_index('db_seq'))
+        pdt.assert_frame_equal(map_, known_map.set_index('db-seq'))
 
     def test_collapse_duplicates_sequences(self):
         expand_seqs = pd.DataFrame.from_dict(orient='index', data={
@@ -343,52 +365,52 @@ class ExtractTest(TestCase):
                 })
 
         known_dups = pd.DataFrame.from_dict(orient='index', data={
-            '0 | 1 | 2' : list('GCGAAGCGGCTCAGG'),
-            '10 | 11': list('CGTTTATGTATGCCT'),
-            '3@0001 | 4 | 7@0001 | 8@0001': list('ATCCGCGTTGGAGTT'),
-            '3@0002 | 8@0003':  list('TTCCGCGTTGGAGTT'),
+            '0|1|2' : list('GCGAAGCGGCTCAGG'),
+            '10|11': list('CGTTTATGTATGCCT'),
+            '3@0001|4|7@0001|8@0001': list('ATCCGCGTTGGAGTT'),
+            '3@0002|8@0003':  list('TTCCGCGTTGGAGTT'),
             '5@0001': list('ATCCGCGTTGGAGTC'),
             '5@0002': list('ATCCGCGTTGGAGTG'),
-            '6 | 7@0002': list('CTCCGCGTTGGAGTT'),
+            '6|7@0002': list('CTCCGCGTTGGAGTT'),
             '8@0002':  list('GTCCGCGTTGGAGTT'),
             '9': list('CGTTTATGTATGCCC'),
             })
-        known_dups.index.set_names('seq_name', inplace=True)
+        known_dups.index.set_names('seq-name', inplace=True)
 
         test_dup = _collapse_duplicates(expand_seqs).compute()
         pdt.assert_frame_equal(known_dups, test_dup)
 
     def test_build_id_map(self):
-        kmer = ['0 | 1 | 2', '10 | 11', '3@0001 | 4 | 7@0001 | 8@0001',
-                '3@0002 | 8@0003', '5@0001', '5@0002', '6 | 7@0002',
+        kmer = ['0|1|2', '10|11', '3@0001|4|7@0001|8@0001',
+                '3@0002|8@0003', '5@0001', '5@0002', '6|7@0002',
                 '8@0002', '9']
         known = pd.DataFrame(
-            data=np.array([['0', '0', '0 | 1 | 2', 'Bludhaven'],
-                           ['1', '1', '0 | 1 | 2', 'Bludhaven'],
-                           ['10', '10', '10 | 11', 'Bludhaven'],
-                           ['11', '11', '10 | 11', "Bludhaven"],
-                           ['2', '2', '0 | 1 | 2', 'Bludhaven'],
-                           ['3', '3@0001', '3@0001 | 4 | 7@0001 | 8@0001', 
+            data=np.array([['0', '0', '0|1|2', 'Bludhaven'],
+                           ['1', '1', '0|1|2', 'Bludhaven'],
+                           ['10', '10', '10|11', 'Bludhaven'],
+                           ['11', '11', '10|11', "Bludhaven"],
+                           ['2', '2', '0|1|2', 'Bludhaven'],
+                           ['3', '3@0001', '3@0001|4|7@0001|8@0001', 
                             'Bludhaven'],
-                           ['3', '3@0002', '3@0002 | 8@0003', 'Bludhaven'],
-                           ['4', '4', '3@0001 | 4 | 7@0001 | 8@0001', 
+                           ['3', '3@0002', '3@0002|8@0003', 'Bludhaven'],
+                           ['4', '4', '3@0001|4|7@0001|8@0001', 
                             'Bludhaven'],
                            ['5', '5@0001', '5@0001', 'Bludhaven'],
                            ['5', '5@0002', '5@0002', 'Bludhaven'],
-                           ['6', '6', '6 | 7@0002', 'Bludhaven'],
-                           ['7', '7@0001', '3@0001 | 4 | 7@0001 | 8@0001', 
+                           ['6', '6', '6|7@0002', 'Bludhaven'],
+                           ['7', '7@0001', '3@0001|4|7@0001|8@0001', 
                             'Bludhaven'],
-                           ['7', '7@0002', '6 | 7@0002', 'Bludhaven'],
-                           ['8', '8@0001', '3@0001 | 4 | 7@0001 | 8@0001', 
+                           ['7', '7@0002', '6|7@0002', 'Bludhaven'],
+                           ['8', '8@0001', '3@0001|4|7@0001|8@0001', 
                             'Bludhaven'],
                            ['8', '8@0002', '8@0002', 'Bludhaven'],
-                           ['8', '8@0003', '3@0002 | 8@0003', "Bludhaven"],
+                           ['8', '8@0003', '3@0002|8@0003', "Bludhaven"],
                            ['9', '9', '9', 'Bludhaven']], dtype=object),
-            columns=['db_seq', 'seq_name', 'kmer', 'region'],
+            columns=['db-seq', 'seq-name', 'kmer', 'region'],
             )
 
         test = _build_id_map(kmer, 'Bludhaven')
-        pdt.assert_frame_equal(test, known.set_index('db_seq'))
+        pdt.assert_frame_equal(test, known.set_index('db-seq'))
 
 seq1 = 'ACTAGTCATGCGAAGCGGCTCAGGATGATGATGAAGACACCTCGTAAGAGAGGCTGAATCCTGACGTGAAC'
 # #seq2: same first region as seq1, 3 nt difference in second

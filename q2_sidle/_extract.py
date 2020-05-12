@@ -39,10 +39,15 @@ degen_sub = {'R': 'AG',
              }
 
 
-def prepare_extracted_region(sequences: DNAFASTAFormat, region:str, 
-    trim_length:int, chunk_size:int=10000, 
-    debug:bool=False, n_workers:int=0
-    ) -> (DNAFASTAFormat, pd.DataFrame):
+def prepare_extracted_region(sequences: DNAFASTAFormat, 
+                             region:str, 
+                             trim_length:int, 
+                             fwd_primer:str, 
+                             rev_primer:str, 
+                             chunk_size:int=10000, 
+                             debug:bool=False, 
+                             n_workers:int=0
+                             ) -> (DNAFASTAFormat, pd.DataFrame):
     """
     Prepares and extracted database for regional alignment
 
@@ -87,6 +92,9 @@ def prepare_extracted_region(sequences: DNAFASTAFormat, region:str,
 
     # Collapses the sequences
     collapse, map_ = _tidy_sequences(seq_block, region, trim_length)
+    map_['fwd-primer'] = fwd_primer
+    map_['rev-primer'] = rev_primer
+    map_['kmer-length'] = trim_length
 
     # Converts the sequences back to a nicely behaved qiime artifact
     ff = _convert_seq_block_to_dna_fasta_format([collapse])
@@ -97,8 +105,8 @@ def prepare_extracted_region(sequences: DNAFASTAFormat, region:str,
 def extract_regional_database(sequences: DNAFASTAFormat, 
     fwd_primer: str,
     rev_primer: str,
-    trim_length:int=-1, 
-    region:str=None, 
+    trim_length:int, 
+    region:str, 
     primer_mismatch:int=2,
     trim_primers:bool=True,
     reverse_complement_rev:bool=True,
@@ -146,7 +154,7 @@ def extract_regional_database(sequences: DNAFASTAFormat,
     seq_block = _convert_generator_to_seq_block(sequences, chunk_size)
 
     # Extracts the regional sequence
-    regional_seqs = []
+    regional_pos = []
     for seq_ in seq_block:
         regional = _extract_region(
             full_seqs=seq_,
@@ -158,11 +166,14 @@ def extract_regional_database(sequences: DNAFASTAFormat,
             trim_rev=trim_primers, 
             reverse_complement_rev=reverse_complement_rev,
             )
-        regional_seqs.append(regional)
+        regional_pos.append(regional)
+    regional_seqs = [_trim_masked(seq_, pos_, 'fwd_pos', 'rev_pos')
+                     for (seq_, pos_) in zip(*(seq_block, regional_pos))]
 
-    if region is None:
-        region = '%s-%s' % (fwd_primer, rev_primer)
     collapse, map_ = _tidy_sequences(regional_seqs, region)
+    map_['fwd-primer'] = fwd_primer
+    map_['rev-primer'] = rev_primer
+    map_['kmer-length'] = trim_length
 
     ff = _convert_seq_block_to_dna_fasta_format([collapse])
 
@@ -295,7 +306,7 @@ def _extract_region(full_seqs, primer_fwd, primer_rev, mismatch=2,
 
     # determines the trim length and final position
     if trim_len == 'min':
-        trim_len = (fwd_and_rev['rev_pos'] - fwd_and_rev['fwd_pos']).min()
+        trim_len = (fwd_and_rev['rev_pos'] - fwd_and_rev['fwd_pos']).min() + 1
 
     if trim_len is not None:
         fwd_and_rev['new_rev_pos'] = fwd_and_rev['fwd_pos'] + (trim_len - 1)
@@ -307,12 +318,14 @@ def _extract_region(full_seqs, primer_fwd, primer_rev, mismatch=2,
                     'new_rev_pos'] = np.nan
     fwd_and_rev.dropna(inplace=True, how='any')
 
-    ### Extracts reads
-    trimmed = _trim_masked(full_seqs.loc[fwd_and_rev.index], 
-                           fwd_and_rev['fwd_pos'], 
-                           fwd_and_rev['new_rev_pos'])
+    return fwd_and_rev.drop(columns=['read_length']).astype(float)
 
-    return trimmed.dropna(how='any')
+    # ### Extracts reads
+    # trimmed = _trim_masked(full_seqs.loc[fwd_and_rev.index], 
+    #                        fwd_and_rev['fwd_pos'], 
+    #                        fwd_and_rev['new_rev_pos'])
+
+    # return trimmed.dropna(how='any')
 
 
 def _find_primer_end(seq_, primer, prefix=''):
@@ -363,7 +376,7 @@ def _tidy_sequences(seqs, region, trim_length=None):
         each column (m columns) is a basepair in that sequence without 
         duplicated sequences
     DataFrame
-        A mapping betweent the `db_seq`, its associated kmers, and the
+        A mapping betweent the `db-seq`, its associated kmers, and the
         individual sequence name, and the region.
     """
 
@@ -433,7 +446,7 @@ def _collapse_duplicates(*seq_array):
     seq_array.tail()
     def rep_f(x):
         if x == seq_name: 
-            return 'seq_name' 
+            return 'seq-name' 
         else:
             return 'sequence'
     
@@ -441,9 +454,8 @@ def _collapse_duplicates(*seq_array):
         lambda x: '|'.join(sorted(x.values))
         ).reset_index()
     groups = groups.rename(columns=rep_f)
-    groups = groups.set_index('seq_name')
+    groups = groups.set_index('seq-name')
     # Prevents resource warning about open files with groupby? We hope
-    groups.tail()
     group2 = groups.apply(lambda x: pd.Series(list(x['sequence'])), axis=1)
 
     return group2.sort_index()
@@ -565,8 +577,8 @@ def _reverse_complement(seq_array):
 
     return rc
 
-
-def _trim_masked(seqs, start, end):
+@dask.delayed
+def _trim_masked(seqs, positions, start_col, end_col):
     """
     Extracts the sequence between `start` and `end`
 
@@ -589,7 +601,10 @@ def _trim_masked(seqs, start, end):
         sequence ID) and each column is a basepair. The represented sequence
         will be the sequence between `start_` and `end_`
     """
-   # Looks only at places where the position has been defined.
+    # Looks only at places where the position has been defined.
+    seqs = seqs.loc[positions.index]
+    start = positions[start_col]
+    end = positions[end_col]
 
     # Gets the positions
     pos_ref = (np.ones((seqs.shape[0], 1)) * 
@@ -627,7 +642,7 @@ def _build_id_map(kmers, region):
     Returns
     -------
     DataFrame
-        A mapping betweent the `db_seq`, its associated kmers, and the
+        A mapping betweent the `db-seq`, its associated kmers, and the
         individual sequence name, and the region.
     """
     expansion = pd.DataFrame.from_dict(orient='index', data={
@@ -635,11 +650,11 @@ def _build_id_map(kmers, region):
         })
     expansion.index.set_names('kmer', inplace=True)
     expansion.reset_index(inplace=True)
-    long_ = expansion.melt(id_vars=['kmer'], value_name='seq_name').dropna()
+    long_ = expansion.melt(id_vars=['kmer'], value_name='seq-name').dropna()
     long_.drop(columns=['variable'], inplace=True)
-    long_['db_seq'] = long_['seq_name'].apply(lambda x: x.split("@")[0])
+    long_['db-seq'] = long_['seq-name'].apply(lambda x: x.split("@")[0])
     long_['region'] = region
-    long_.sort_values(['db_seq', 'seq_name'], inplace=True)
-    long_.drop_duplicates(['db_seq', 'seq_name'], inplace=True)
-    return long_.set_index('db_seq')[['seq_name', 'kmer', 'region']]
+    long_.sort_values(['db-seq', 'seq-name'], inplace=True)
+    long_.drop_duplicates(['db-seq', 'seq-name'], inplace=True)
+    return long_.set_index('db-seq')[['seq-name', 'kmer', 'region']]
 

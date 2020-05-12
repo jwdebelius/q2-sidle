@@ -111,7 +111,7 @@ class AlignTest(TestCase):
 
     def test_align_regional_kmers(self):
         kmers = Artifact.import_data('FeatureData[Sequence]', pd.Series({
-            'seq1 | seq2': skbio.DNA('GCGAAGCGGCTCAGG', 
+            'seq1|seq2': skbio.DNA('GCGAAGCGGCTCAGG', 
                                      metadata={'id': 'seq1 | seq2'}),
             'seq3@0001': skbio.DNA('ATCCGCGTTGGAGTT', 
                                    metadata={'id': 'seq3@0001'}),
@@ -132,7 +132,7 @@ class AlignTest(TestCase):
             }))
 
         known = pd.DataFrame(
-            data=np.array([['seq1 | seq2', 'asv01', 0, 15, 'Bludhaven'],
+            data=np.array([['seq1|seq2', 'asv01', 0, 15, 'Bludhaven'],
                            ['seq3@0001', 'asv02', 0, 15, 'Bludhaven'],
                            ['seq3@0001', 'asv03', 1, 15, 'Bludhaven'],
                            ['seq3@0002', 'asv02', 1, 15, 'Bludhaven'],
@@ -152,11 +152,11 @@ class AlignTest(TestCase):
                                               region='Bludhaven', 
                                               debug=True)
         pdt.assert_frame_equal(known, match)
-        pdt.assert_series_equal(discard, pd.Series(['asv06']))
+        pdt.assert_series_equal(
+            discard.view(pd.Series).astype(str), 
+            pd.Series({'asv06': 'AGAGTTTCTGAATCC'}), 
+        )
 
-
-
-        
 
 if __name__ == '__main__':
     main()

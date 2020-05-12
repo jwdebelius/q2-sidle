@@ -161,6 +161,8 @@ plugin.methods.register_function(
     parameters={
         'trim_length': Int,
         'region': Str,
+        'fwd_primer': Str,
+        'rev_primer': Str,
         'chunk_size':  (Int % Range(1, None)),
         'n_workers': Int % Range(0, None),
         'debug': Bool,
@@ -181,6 +183,10 @@ plugin.methods.register_function(
         'region': ('A unique description of the hypervariable region being '
                    'extracted.'),
         'trim_length': ('The length of the extracted regional kmers.'),
+        'fwd_primer': ('The forward primer used to amplify the region of '
+                       'interest'),
+        'rev_primer': ('The reverse primer used to amplify the region of '
+                       "interest"),
         'chunk_size': ('The number of sequences to be analyzed in parallel '
                        'blocks'),
         'n_workers': ('The number of jobs to initiate. When `n_workers` is 0,'
