@@ -189,11 +189,11 @@ class ReconstructTest(TestCase):
                            ['seq6', 15, 15, 'WANTCAT', 'CACGTCAK'],
                            ]),
             index=pd.Index(['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 'seq6'], name='db-seq'),
-            columns=['clean_name', 'length_Bludhaven', 'length_Gotham', 
+            columns=['clean_name', 'length-Bludhaven', 'length-Gotham', 
                      'fwd-primer', 'rev-primer']
             )
-        known_map[['length_Bludhaven', 'length_Gotham']] = \
-            known_map[['length_Bludhaven', 'length_Gotham']].astype(float)
+        known_map[['length-Bludhaven', 'length-Gotham']] = \
+            known_map[['length-Bludhaven', 'length-Gotham']].astype(float)
 
         known_summary = pd.DataFrame.from_dict(orient='index', data={
             'seq1': {'num-regions': 2., 
