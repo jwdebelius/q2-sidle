@@ -6,6 +6,8 @@ from q2_sidle import (KmerMapFormat,
                       SidleReconFormat,
                       ReconSummaryFormat,
                       )
+from q2_types.feature_data import  AlignedDNAFASTAFormat
+from q2_types.feature_data._transformer import _dnafastaformats_to_series
 from q2_sidle.plugin_setup import plugin
 
 @plugin.register_transformer
@@ -85,3 +87,8 @@ def _11(obj:Metadata) -> ReconSummaryFormat:
     ff = ReconSummaryFormat()
     obj.save(str(ff))
     return ff
+
+@plugin.register_transformer
+def _12(ff: AlignedDNAFASTAFormat) -> pd.Series:
+    return _dnafastaformats_to_series(str(ff))
+
