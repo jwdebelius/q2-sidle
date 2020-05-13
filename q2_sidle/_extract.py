@@ -167,7 +167,7 @@ def extract_regional_database(sequences: DNAFASTAFormat,
             reverse_complement_rev=reverse_complement_rev,
             )
         regional_pos.append(regional)
-    regional_seqs = [_trim_masked(seq_, pos_, 'fwd_pos', 'rev_pos')
+    regional_seqs = [_trim_masked(seq_, pos_, 'fwd_pos', 'new_rev_pos')
                      for (seq_, pos_) in zip(*(seq_block, regional_pos))]
 
     collapse, map_ = _tidy_sequences(regional_seqs, region)
