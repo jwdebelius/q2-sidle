@@ -98,34 +98,3 @@ def _degen_filter(sequences, max_degen):
     return sub_seq
 
 
-def _undefined_taxa_filtered(sequences, taxonomy, database, level):
-    """
-    Filters undefined taxonomy according to a provided database
-
-    Parameters
-    ----------
-    sequences: list of DataFrames or delayed DataFrames
-        The reference sequences represented in pd.DataFrames where each row is
-        a sequence and each column is a nucleotide position
-    taxonomy : DataFrame
-        The taxonomy represented as a DataFrame
-    database: ("greengenes", "silva", "homd", "none"):
-        A description of the database the taxonomy comes from
-    level: int
-        The taxonomy level being filtered
-
-    Returns
-    -------
-    sub_seqs
-        A list of filtered sequences 
-    """
-    # Gets the database information and functions for processing the data
-    db_params = database_params.get(database, dict([]))
-    delim = db_params.get('delim', ';')
-    defined_f = db_params.get('defined', lambda x: True)
-
-    # 
-
-
-
-
