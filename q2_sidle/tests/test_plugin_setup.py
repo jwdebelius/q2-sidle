@@ -347,10 +347,7 @@ class PluginSetupTest(TestCase):
             )
         known = \
             Artifact.load(os.path.join(known_dir, 'sidle-reconstruction.qza'))
-        pdt.assert_frame_equal(
-            known.view(pd.DataFrame),
-            map_.view(pd.DataFrame)
-            )
+        pdt.assert_series_equal(known.view(pd.Series), map_.view(pd.Series))
 
         shutil.rmtree(test_dir)
 

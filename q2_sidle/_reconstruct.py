@@ -149,18 +149,15 @@ def reconstruct_counts(manifest: Metadata,
     kmer_map.drop_duplicates(['db-seq', 'region'], inplace=True)
     kmer_map['region'] = kmer_map['region'].astype(int)
 
-    covered = kmer_map.pivot('db-seq', 'region', 'kmer-length')
     first_fwd = kmer_map.drop_duplicates('db-seq', keep='first')
-    first_fwd = first_fwd.set_index('db-seq')['fwd-primer']
+    first_fwd = first_fwd.set_index('db-seq')[['fwd-primer']]
     last_rev = kmer_map.drop_duplicates('db-seq', keep='last')
-    last_rev = last_rev.set_index('db-seq')['rev-primer']
+    last_rev = last_rev.set_index('db-seq')[['fwd-primer', 'kmer-length']]
     
     mapping = pd.concat(axis=1, sort=False, objs=[
         db_map[db_map.isin(count_table.ids(axis='observation'))],
-        covered.rename(columns={i: 'length-%s' % region_names[i] 
-                                for i in covered.columns}),
-        first_fwd,
-        last_rev,
+        first_fwd.add_prefix('first-'),
+        last_rev.add_prefix('last-'),
         ])
     mapping.index.set_names('db-seq', inplace=True)
     mapping.dropna(subset=['clean_name'], inplace=True)
