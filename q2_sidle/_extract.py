@@ -112,7 +112,7 @@ def extract_regional_database(sequences: DNAFASTAFormat,
     reverse_complement_rev:bool=True,
     chunk_size:int=10000, 
     debug:bool=False, 
-    n_workers:int=1
+    n_workers:int=0,
     ) -> (DNAFASTAFormat,
          pd.DataFrame):
     """
