@@ -2,6 +2,7 @@ from unittest import TestCase, main
 
 import os
 
+import dask
 import numpy as np
 import numpy.testing as npt
 import pandas as pd
@@ -271,9 +272,10 @@ class ReconstructTest(TestCase):
     def test_map_id_set(self):
         tangled = pd.DataFrame(
             data=[['seq00', 0, 'seq00',  np.nan,  np.nan],
-                  ['seq00', 1, 'seq00', 'seq01',  np.nan],
-                  ['seq01', 1, 'seq00', 'seq01',  np.nan],
+                  ['seq00', 1, 'seq00', 'seq01',  'seq02'],
+                  ['seq01', 1, 'seq00', 'seq01',  'seq02'],
                   ['seq01', 2, 'seq01',  np.nan,  np.nan],
+                  ['seq02', 1, 'seq00', 'seq01', 'seq02'],
                   ['seq03', 0, 'seq03', 'seq04',  np.nan],
                   ['seq03', 1, 'seq03', 'seq04', 'seq05'],
                   ['seq04', 0, 'seq03', 'seq04',  np.nan],
@@ -288,8 +290,8 @@ class ReconstructTest(TestCase):
             columns=['db-seq', 'region', '0', '1', '2']
             )
 
-        known = pd.Series({'seq00': 'seq00|seq01',
-                           'seq01': 'seq00|seq01',
+        known = pd.Series({'seq00': 'seq00',
+                           'seq01': 'seq01',
                            'seq03': 'seq03|seq04|seq05',
                            'seq04': 'seq03|seq04|seq05',
                            'seq05': 'seq03|seq04|seq05',
@@ -298,7 +300,8 @@ class ReconstructTest(TestCase):
                            }, name='clean_name')
         known.index.set_names('db-seq', inplace=True)
 
-        sub_map = _map_id_set(id_set=['seq00', 'seq01', 'seq03', 'seq04', 
+        sub_map = _map_id_set(id_set=['seq00', 'seq01', 'seq02', 
+                                      'seq03', 'seq04', 
                                       'seq05', 'seq06', 'seq07'],
                               tangle=tangled,
                               )
@@ -577,7 +580,10 @@ class ReconstructTest(TestCase):
         known_seq.index.set_names('db-seq', inplace=True)
         # Generates the renaming
         seq_ = _untangle_database_ids(matches)
-        pdt.assert_series_equal(known_seq, seq_[0].compute())
+        pdt.assert_series_equal(
+            known_seq, 
+            pd.concat(dask.compute(*seq_)).sort_index()
+            )
 
     def test_expand_duplicate_sequences(self):
         original = pd.DataFrame(data=[['1', '2|3', '3|4|5', '6'],
