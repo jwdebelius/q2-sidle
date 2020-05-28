@@ -15,7 +15,7 @@ def _1(ff:KmerMapFormat) -> pd.DataFrame:
     df = pd.read_csv(str(ff), sep='\t', dtype=str)
     df = df[['db-seq', 'seq-name', 'kmer', 'region', 'fwd-primer', 
              'rev-primer', 'kmer-length']]
-    df[['kmer-length']] = df[['kmer-length']].astype(int)
+    df[['kmer-length']] = df[['kmer-length']].astype(float)
     return df.set_index('db-seq')
 
 @plugin.register_transformer
@@ -23,7 +23,7 @@ def _2(ff:KmerMapFormat) -> Metadata:
     df = pd.read_csv(str(ff), sep='\t', dtype=str)
     df = df[['db-seq', 'seq-name', 'kmer', 'region',
              'fwd-primer', 'rev-primer',  'kmer-length']]
-    df[['kmer-length']] = df[['kmer-length']].astype(int)
+    df[['kmer-length']] = df[['kmer-length']].astype(float)
     df.rename(columns={'kmer': 'id'}, inplace=True)
     return Metadata(df.set_index('id'))
 

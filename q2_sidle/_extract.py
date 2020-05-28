@@ -40,14 +40,14 @@ degen_sub = {'R': 'AG',
 
 
 def prepare_extracted_region(sequences: DNAFASTAFormat, 
-                             region:str, 
-                             trim_length:int, 
-                             fwd_primer:str, 
-                             rev_primer:str, 
-                             chunk_size:int=10000, 
-                             debug:bool=False, 
-                             n_workers:int=0
-                             ) -> (DNAFASTAFormat, pd.DataFrame):
+    region:str, 
+    trim_length:int, 
+    fwd_primer:str, 
+    rev_primer:str, 
+    chunk_size:int=10000, 
+    debug:bool=False, 
+    n_workers:int=0
+    ) -> (DNAFASTAFormat, pd.DataFrame):
     """
     Prepares and extracted database for regional alignment
 
@@ -110,6 +110,8 @@ def extract_regional_database(sequences: DNAFASTAFormat,
     primer_mismatch:int=2,
     trim_primers:bool=True,
     reverse_complement_rev:bool=True,
+    trim_from_right:bool=False,
+    reverse_complement_result:bool=False,
     chunk_size:int=10000, 
     debug:bool=False, 
     n_workers:int=0,
@@ -164,16 +166,20 @@ def extract_regional_database(sequences: DNAFASTAFormat,
             trim_len=trim_length, 
             trim_fwd=trim_primers, 
             trim_rev=trim_primers, 
+            trim_from_rev=trim_from_right,
             reverse_complement_rev=reverse_complement_rev,
             )
         regional_pos.append(regional)
-    regional_seqs = [_trim_masked(seq_, pos_, 'fwd_pos', 'new_rev_pos')
+    regional_seqs = [_trim_masked(seq_, pos_, 'new_fwd_pos', 'new_rev_pos')
                      for (seq_, pos_) in zip(*(seq_block, regional_pos))]
 
     collapse, map_ = _tidy_sequences(regional_seqs, region)
     map_['fwd-primer'] = fwd_primer
     map_['rev-primer'] = rev_primer
-    map_['kmer-length'] = trim_length
+    map_['kmer-length'] = ((trim_length * (trim_from_right == False)) + 
+                           (trim_length * (trim_from_right * -1.)))
+    if reverse_complement_result:
+        collaspe = _reverse_complement(collapse)
 
     ff = _convert_seq_block_to_dna_fasta_format([collapse])
 
@@ -182,7 +188,7 @@ def extract_regional_database(sequences: DNAFASTAFormat,
 
 @dask.delayed
 def _extract_region(full_seqs, primer_fwd, primer_rev, mismatch=2, 
-    trim_len=None, trim_fwd=True, trim_rev=True, 
+    trim_len=None, trim_from_rev=False, trim_fwd=True, trim_rev=True, 
     reverse_complement_rev=True):
     """
     Extracts a primer region from a full sequence
@@ -308,13 +314,18 @@ def _extract_region(full_seqs, primer_fwd, primer_rev, mismatch=2,
     if trim_len == 'min':
         trim_len = (fwd_and_rev['rev_pos'] - fwd_and_rev['fwd_pos']).min() + 1
 
-    if trim_len is not None:
+    if (trim_len is not None) and trim_from_rev:
+        fwd_and_rev['new_fwd_pos'] = fwd_and_rev['rev_pos'] - (trim_len - 1)
+        fwd_and_rev['new_rev_pos'] = fwd_and_rev['rev_pos']
+    elif (trim_len is not None):
+        fwd_and_rev['new_fwd_pos'] = fwd_and_rev['fwd_pos']
         fwd_and_rev['new_rev_pos'] = fwd_and_rev['fwd_pos'] + (trim_len - 1)
     else:
+        fwd_and_rev['new_fwd_pos'] = fwd_and_rev['fwd_pos']
         fwd_and_rev['new_rev_pos'] = fwd_and_rev['rev_pos']
 
     # And then we filter out any read that can't amplify
-    fwd_and_rev.loc[fwd_and_rev['read_length' ] < fwd_and_rev['new_rev_pos'],
+    fwd_and_rev.loc[fwd_and_rev['read_length'] < fwd_and_rev['new_rev_pos'],
                     'new_rev_pos'] = np.nan
     fwd_and_rev.dropna(inplace=True, how='any')
 

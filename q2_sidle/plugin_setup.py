@@ -99,6 +99,8 @@ plugin.methods.register_function(
         'primer_mismatch': Int,
         'trim_primers': Bool,
         'reverse_complement_rev': Bool,
+        'trim_from_right': Bool,
+        'reverse_complement_result': Bool,
         'chunk_size':  (Int % Range(1, None)),
         'n_workers': Int % Range(0, None),
         'debug': Bool,
@@ -133,6 +135,16 @@ plugin.methods.register_function(
                         'applied'),
         'reverse_complement_rev': ('Indicates the reverse primer should be '
                                    'reverse complemented'),
+        'trim_from_right': ("Trimming will be performed from the reverse "
+                            "primer (i.e. trimming from hte 3' end). This "
+                            "is useful in dealing with mixed orientation "
+                            "regions or regions which cannot be joined due"
+                            " to read length."),
+        'reverse_complement_result': ('When true, the extracted region will'
+                                      ' be reverse complemented. This is '
+                                      'ikely useful for mixed orientation '
+                                      'reads or regions which cannot be '
+                                      'joined.'),
         'chunk_size': ('The number of sequences to be analyzed in parallel '
                        'blocks'),
         'n_workers': ('The number of jobs to initiate. When `n_workers` is 0,'
