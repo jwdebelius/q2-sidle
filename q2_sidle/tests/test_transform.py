@@ -28,9 +28,9 @@ class TestTransform(TestCase):
 
     def test_kmer_map_to_dataframe(self):
         known = pd.DataFrame(
-            data=[['Batman', 'Batman', 'Gotham', 'WANTCAT', 'CATCATCAT', 50],
+            data=[['Batman', 'Batman', 'Gotham', 'WANTCAT', 'CATCATCAT', 50.],
                   ['Superman', 'Superman', 'Metropolis', 'CATDAD', 'DADCAT', 
-                   50]],
+                   50.]],
             columns=['seq-name', 'kmer', 'region', 'fwd-primer', 'rev-primer',
                      'kmer-length'],
             index=pd.Index(['Batman', 'Superman'], name='db-seq')
