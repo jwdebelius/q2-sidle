@@ -18,7 +18,7 @@ install: all
 	$(PYTHON) setup.py install
 
 dev: all
-	pip install -e .
+	pip install -e . --no-deps
 
 clean: distclean
 
