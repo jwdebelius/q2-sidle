@@ -18,7 +18,7 @@ install:
   - conda install --channel conda-forge --quiet sparse
   - pip install -q flake8 coveralls
   - pip install -q https://github.com/qiime2/q2lint/archive/master.zip
-  - pip install .
+  - pip install . --no-deps
   - make install
 script:
   - make test-cov
