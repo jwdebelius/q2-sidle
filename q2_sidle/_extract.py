@@ -6,7 +6,6 @@ warnings.filterwarnings('ignore', category=RuntimeWarning)
 import dask
 import numpy as np
 import pandas as pd
-import regex
 
 from qiime2 import Metadata
 from q2_types.feature_data import (DNAFASTAFormat, DNAIterator)
@@ -15,28 +14,15 @@ from q2_sidle._utils import (_setup_dask_client,
                              _convert_generator_to_delayed_seq_block, 
                              _convert_seq_block_to_dna_fasta_format,
                              _count_degenerates,
+                             degen_sub,
+                             _find_primer_end,
+                             _find_primer_start,
                              )
 
 complement = {'A': 'T', 'T': 'A', 'G': 'C',  'C': 'G',
               'R': 'Y', 'Y': 'R', 'S': 'S',  'W': 'W',
               'K': 'M', 'M': 'K', 'B': 'V', 'V': 'B',
               'D': 'H', 'H': 'D', 'N': 'N'}
-degen_sub = {'R': 'AG',
-             'Y': 'CT',
-             'S': 'CG',
-             'W': 'AT',
-             'K': 'GT',
-             'M': 'AC',
-             'B': 'CGT',
-             'D': 'AGT',
-             'H': 'ACT',
-             'V': 'ACG',
-             'N': 'ACGT',
-             'A': np.nan,
-             'C': np.nan,
-             'G': np.nan,
-             'T': np.nan,
-             }
 
 
 def prepare_extracted_region(sequences: DNAFASTAFormat, 
@@ -139,6 +125,12 @@ def extract_regional_database(sequences: DNAFASTAFormat,
     reverse_complement_rev:bool, optional
         When true, the reverse primer will be reverse complimented before
         extraction.
+    debug: bool
+        Whether the function should be run in debug mode (without a client)
+        or not. `debug` superceeds all options
+    n_workers: int, optional
+        The number of jobs to initiate. When `n_workers` is 0, the cluster 
+        will be able to access all avalaibel resources.
 
     Returns
     -------
@@ -170,14 +162,14 @@ def extract_regional_database(sequences: DNAFASTAFormat,
             reverse_complement_rev=reverse_complement_rev,
             )
         regional_pos.append(regional)
-    regional_seqs = [_trim_masked(seq_, pos_, 'new_fwd_pos', 'new_rev_pos')
+    regional_seqs = [dask.delayed(_trim_masked)(seq_, pos_, 'new_fwd_pos', 'new_rev_pos')
                      for (seq_, pos_) in zip(*(seq_block, regional_pos))]
 
     collapse, map_ = _tidy_sequences(regional_seqs, region)
     map_['fwd-primer'] = fwd_primer
     map_['rev-primer'] = rev_primer
     map_['kmer-length'] = ((trim_length * (trim_from_right == False)) + 
-                           (trim_length * (trim_from_right * -1.)))
+                           (trim_length * (trim_from_right * -1)))
     if reverse_complement_result:
         collaspe = _reverse_complement(collapse)
 
@@ -257,7 +249,7 @@ def _extract_region(full_seqs, primer_fwd, primer_rev, mismatch=2,
 
     ### Finds the reverse position
     if trim_rev:
-        rev_func =_find_primer_start
+        rev_func = _find_primer_start
     else:
         rev_func = _find_primer_end
 
@@ -330,39 +322,6 @@ def _extract_region(full_seqs, primer_fwd, primer_rev, mismatch=2,
     fwd_and_rev.dropna(inplace=True, how='any')
 
     return fwd_and_rev.drop(columns=['read_length']).astype(float)
-
-    # ### Extracts reads
-    # trimmed = _trim_masked(full_seqs.loc[fwd_and_rev.index], 
-    #                        fwd_and_rev['fwd_pos'], 
-    #                        fwd_and_rev['new_rev_pos'])
-
-    # return trimmed.dropna(how='any')
-
-
-def _find_primer_end(seq_, primer, prefix=''):
-    """
-    Finds the last position of a primer sequence
-    """
-    match = regex.search(primer, seq_)
-    if match is not None:
-        return pd.Series({'%spos' % prefix: match.end(),
-                          '%smis' % prefix: sum(match.fuzzy_counts)})
-    else:
-        return pd.Series({'%spos' % prefix: np.nan,
-                          '%smis' % prefix: np.nan})
-
-
-def _find_primer_start(seq_, primer, adj=1, prefix=''):
-    """
-    Finds the first position of a primer sequence
-    """
-    match = regex.search(primer, seq_)
-    if match is not None:
-        return pd.Series({'%spos' % prefix: match.start() - adj,
-                          '%smis' % prefix: sum(match.fuzzy_counts)})
-    else:
-        return pd.Series({'%spos' % prefix: np.nan,
-                          '%smis' % prefix: np.nan})
 
 
 def _tidy_sequences(seqs, region, trim_length=None):
@@ -588,7 +547,7 @@ def _reverse_complement(seq_array):
 
     return rc
 
-@dask.delayed
+# @dask.delayed
 def _trim_masked(seqs, positions, start_col, end_col):
     """
     Extracts the sequence between `start` and `end`
@@ -613,30 +572,19 @@ def _trim_masked(seqs, positions, start_col, end_col):
         will be the sequence between `start_` and `end_`
     """
     # Looks only at places where the position has been defined.
-    seqs = seqs.loc[positions.index]
-    start = positions[start_col]
-    end = positions[end_col]
+    seqs = seqs.loc[positions.index].apply(lambda x: ''.join(x), axis=1)
 
-    # Gets the positions
-    pos_ref = (np.ones((seqs.shape[0], 1)) * 
-        np.atleast_2d(np.arange(0, seqs.shape[1])))
-    start_mask = \
-        (np.ones((seqs.shape[1], 1)) * np.atleast_2d(start.values)).T
-    end_mask = \
-        (np.ones((seqs.shape[1], 1)) * np.atleast_2d(end.values)).T
-    
-    # Generates a mask of places where the sequence is not contained
-    pos_mask = ((pos_ref < start_mask) | (pos_ref > end_mask) 
-                & ~(np.isnan(start_mask) | np.isnan(end_mask)))
-    
-    # Masks the sequence
-    wrk_seq = seqs.mask((pos_ref < start_mask) | (pos_ref > end_mask), '')
-    wrk_seq.dropna(inplace=True)
+    df_ = pd.DataFrame(
+        data=[seqs.loc[positions.index].apply(lambda x: ''.join(x)), 
+              positions[start_col], 
+              positions[end_col] + 1],
+        index=['seq', 'fwd', 'rev']
+        ).T
+    df_[['fwd', 'rev']] = df_[['fwd', 'rev']].astype(int)
+    df_.dropna(how='any', inplace=True)
+    sub_seq = df_.apply(lambda x: x['seq'][x['fwd']:x['rev']], axis=1)
 
-    # String comprenhsion hack to get what we need... 
-    sub_seq = wrk_seq.apply(lambda x: pd.Series(list(''.join(x))), axis=1)
-
-    return sub_seq
+    return sub_seq.apply(lambda x: pd.Series(list(x)))
 
 
 def _build_id_map(kmers, region):

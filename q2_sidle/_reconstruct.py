@@ -13,7 +13,9 @@ from q2_sidle._utils import (_setup_dask_client,
                              _convert_generator_to_seq_block,
                              _convert_generator_to_delayed_seq_block, 
                              _convert_seq_block_to_dna_fasta_format,
+                             _check_manifest,
                              degen_reps,
+                             _read_manifest_files
                              )
 
 def reconstruct_counts(manifest: Metadata,
@@ -29,19 +31,52 @@ def reconstruct_counts(manifest: Metadata,
 
     Parameters
     ----------
-    kmer_map : DataFrame
-        Okay, technically if this works, this is a list of the per-region 
-        dataframes that describe the relationship between kmer names and the 
-        original database sequence names
-    regional_alignment : DataFrame
-        Again, a list of dataframes that map the regional kmers ot an ASV 
-        label
-    count_table : biom.Table
-        Once again, a list of 
+    manifest: Metadata
+         A manifest file describing the relationship between regions and their
+        alignment mapping. The manifest must have at least three columns
+        (`kmer-map`, `alignment-map` and `frequency-table`) each of which
+        contains a unique filepath. The regions should be sorted and the 
+        region labels must match between the kmer map and the alignment map.
+    count_degenerates: bool
+        Whether degenerate sequences should be counted as unique kmers during
+        reconstruction or only unique sequences should be counted.
+    per_nucleotide_error: float
+        The assumed per-nucleotide error rate from amplifican and sequencing.
+        The value used here is based on benchmarking from the original smurf
+        paper
+    max_mismatch: int
+        The maximum number of nucleotides that can differ between a kmer and
+        a sequence for it to be considered a match
+    min_abund: float
+        The minimum relative abundance for a feature to be retained during 
+        reconstruction. The default from the original smurf algorithm is '
+          '1e-10, the number here may depend on the total number of '
+          'sequences in your sample.
+    debug: bool
+        Whether the function should be run in debug mode (without a client)
+        or not. `debug` superceeds all options
+    n_workers: int, optional
+        The number of jobs to initiate. When `n_workers` is 0, the cluster 
+        will be able to access all avalaibel resources.
+
+    Returns
+    -------
+    biom.Table
+        The reconstructed, region normalized counts
+    Metadata
+        A summary of the statitics for the regional map describing the number
+        of regions mapped to each reference sequence and the number of kmers.
+        The kmer mapping estimate can account for degeneracy when the 
+        `count_degenerates` flag is used or can ignore degenrate sequences in
+        mapping
+    DataFrame
+        A map between the final kmer name and the original database sequence.
+        Useful for reconstructing taxonomy and trees.
     """
-    # # Sets up the client
-    # _setup_dask_client(debug=debug, cluster_config=None,  
-    #                    n_workers=n_workers)
+    
+    # Sets up the client
+    _setup_dask_client(debug=debug, cluster_config=None,  
+                       n_workers=n_workers)
 
     # Checks the manifest
     _check_manifest(manifest)
@@ -232,44 +267,6 @@ def _build_id_set(tangle, block_size=500):
         all_ids = all_ids[~np.isin(all_ids, list(skip))]
 
     return id_set
-
-
-def _check_manifest(manifest):
-    """
-    Makes sure that everything is in the manifest
-
-    Parameters
-    ---------
-    Manifest : qiime2.Metadata
-        A manifest file describing the relationship between regions and their
-        alignment mapping. The manifest must have at least three columns
-        (`kmer-map`, `alignment-map` and `frequency-table`) each of which
-        contains a unique filepath. 
-    """
-    manifest = manifest.to_dataframe()
-    cols = manifest.columns
-    if not (('kmer-map' in cols) & ('alignment-map' in cols) & 
-            ('frequency-table' in cols) & ('region-order' in cols)):
-        raise ValidationError('The manifest must contain the columns '
-                              'kmer-map, alignment-map and frequency-table.\n'
-                              'Please check the manifest and make sure all'
-                              ' column names are spelled correctly')
-    manifest = manifest[['kmer-map', 'alignment-map', 'frequency-table']]
-    if pd.isnull(manifest).any().any():
-        raise ValidationError('All regions must have a kmer-map, '
-                              'alignment-map and frequency-table. Please '
-                              'check and make sure that you have provided '
-                              'all the files you need')
-    if (len(manifest.values.flatten()) != 
-            len(np.unique(manifest.values.flatten()))):
-        raise ValidationError('All paths in the manifest must be unique.'
-                             ' Please check your filepaths')
-    if not np.all([os.path.exists(fp_) for fp_ in manifest.values.flatten()]):
-        raise ValidationError('All the paths in the manifest must exist.'
-                             ' Please check your filepaths')
-    if not np.all([os.path.isfile(fp_) for fp_ in manifest.values.flatten()]):
-        raise ValidationError('All the paths in the manifest must be files.'
-                             ' Please check your filepaths')
 
 
 @dask.delayed
@@ -644,30 +641,6 @@ def _map_singletons(unique):
         name='clean_name'
     )
     return seq_map.reset_index()
-
-
-def _read_manifest_files(manifest, dataset, semantic_type=None, view=None):
-    """
-    Extracts files from the manifest and turns them into a list of objects
-    for analysis
-    """
-    paths = manifest.get_column(dataset).to_series()
-    artifacts = [Artifact.load(path) for path in paths]
-    if semantic_type is not None:
-        type_check = np.array([str(a.type) == semantic_type 
-                               for a in artifacts])
-        if not np.all(type_check):
-            err_ = '\n'.join([
-                'Not all %s Artifacts are of the %s semantic type.' 
-                    % (dataset.replace('-', ' '),   semantic_type),
-                'Please review semantic types for these regions:',
-                '\n'.join(paths.index[type_check == False])
-                ])
-            raise TypeError(err_)
-    if view is not None:
-        return [a.view(view) for a in artifacts]
-    else:
-        return artifacts
 
 
 def _scale_relative_abundance(align_mat, relative, counts, seq_summary,

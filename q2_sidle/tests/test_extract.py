@@ -12,8 +12,6 @@ from q2_types.feature_data import DNAIterator, DNAFASTAFormat
 from q2_sidle._extract import (extract_regional_database,
                                prepare_extracted_region,
                                _extract_region,
-                               _find_primer_end,
-                               _find_primer_start,
                                _tidy_sequences,
                                _collapse_duplicates,
                                _expand_degenerates,
@@ -68,40 +66,42 @@ class ExtractTest(TestCase):
                 })
             )
         self.region1_map =  pd.DataFrame(
-            data=[['seq1', 'seq1|seq2', 'WANTCAT-CATCATCAT', 'WANTCAT', 'CATCATCAT', 15.],
-                  ['seq2', 'seq1|seq2', 'WANTCAT-CATCATCAT', 'WANTCAT', 'CATCATCAT', 15.],
-                  ['seq3@0001', 'seq3@0001', 'WANTCAT-CATCATCAT', 'WANTCAT', 'CATCATCAT', 15.],
-                  ['seq3@0002', 'seq3@0002', 'WANTCAT-CATCATCAT', 'WANTCAT', 'CATCATCAT', 15.],
-                  ['seq5', 'seq5', 'WANTCAT-CATCATCAT', 'WANTCAT', 'CATCATCAT', 15.],
-                  ['seq6', 'seq6', 'WANTCAT-CATCATCAT', 'WANTCAT', 'CATCATCAT', 15.],
+            data=[['seq1', 'seq1|seq2', 'WANTCAT-CATCATCAT', 'WANTCAT', 'CATCATCAT', 15],
+                  ['seq2', 'seq1|seq2', 'WANTCAT-CATCATCAT', 'WANTCAT', 'CATCATCAT', 15],
+                  ['seq3@0001', 'seq3@0001', 'WANTCAT-CATCATCAT', 'WANTCAT', 'CATCATCAT', 15],
+                  ['seq3@0002', 'seq3@0002', 'WANTCAT-CATCATCAT', 'WANTCAT', 'CATCATCAT', 15],
+                  ['seq5', 'seq5', 'WANTCAT-CATCATCAT', 'WANTCAT', 'CATCATCAT', 15],
+                  ['seq6', 'seq6', 'WANTCAT-CATCATCAT', 'WANTCAT', 'CATCATCAT', 15],
                   ],
             index=pd.Index(['seq1', 'seq2', 'seq3', 'seq3', 'seq5', 'seq6'], 
                             name='db-seq'),
             columns=['seq-name', 'kmer', 'region', 'fwd-primer', 'rev-primer',
                       'kmer-length'],
             )
+        self.region1_map['kmer-length'] = \
+          self.region1_map['kmer-length'].astype(np.int64)
 
-    # def test_prepared_extracted_region(self):
-    #     trimmed = Artifact.import_data('FeatureData[Sequence]',
-    #         pd.Series({
-    #             'seq1': skbio.DNA('GCGAAGCGGCTCAGG', metadata={'id': 'seq1'}),
-    #             'seq2': skbio.DNA('GCGAAGCGGCTCAGG', metadata={'id': 'seq2'}),
-    #             'seq3': skbio.DNA('WTCCGCGTTGGAGTT', metadata={'id': 'seq3'}),
-    #             'seq5': skbio.DNA('CGTTTATGTATGCCC', metadata={'id': 'seq5'}),
-    #             'seq6': skbio.DNA('CGTTTATGTATGCCT', metadata={'id': 'seq6'}),
-    #             })
-    #         )
-    #     test_seqs, test_map = \
-    #         prepare_extracted_region(sequences=trimmed, 
-    #                                  region='WANTCAT-CATCATCAT',
-    #                                  trim_length=15,
-    #                                  debug=True,
-    #                                  fwd_primer='WANTCAT',
-    #                                  rev_primer='CATCATCAT',
-    #                                  )
-    #     pdt.assert_series_equal(test_seqs.view(pd.Series).astype(str),
-    #                             self.region_1.view(pd.Series).astype(str))
-    #     pdt.assert_frame_equal(test_map,  self.region1_map)
+    def test_prepared_extracted_region(self):
+        trimmed = Artifact.import_data('FeatureData[Sequence]',
+            pd.Series({
+                'seq1': skbio.DNA('GCGAAGCGGCTCAGG', metadata={'id': 'seq1'}),
+                'seq2': skbio.DNA('GCGAAGCGGCTCAGG', metadata={'id': 'seq2'}),
+                'seq3': skbio.DNA('WTCCGCGTTGGAGTT', metadata={'id': 'seq3'}),
+                'seq5': skbio.DNA('CGTTTATGTATGCCC', metadata={'id': 'seq5'}),
+                'seq6': skbio.DNA('CGTTTATGTATGCCT', metadata={'id': 'seq6'}),
+                })
+            )
+        test_seqs, test_map = \
+            prepare_extracted_region(sequences=trimmed, 
+                                     region='WANTCAT-CATCATCAT',
+                                     trim_length=15,
+                                     debug=True,
+                                     fwd_primer='WANTCAT',
+                                     rev_primer='CATCATCAT',
+                                     )
+        pdt.assert_series_equal(test_seqs.view(pd.Series).astype(str),
+                                self.region_1.view(pd.Series).astype(str))
+        pdt.assert_frame_equal(test_map,  self.region1_map)
 
     def test_extract_regional_database(self):
         test_seqs, test_map = \
@@ -135,11 +135,11 @@ class ExtractTest(TestCase):
                                 'seq6': 'TGCCT',
                                 })
         known_map = pd.DataFrame(
-            data=[['seq1', 'seq1|seq2', 'Bludhaven-rev', 'WANTCAT', 'CATCATCAT', -5.],
-                  ['seq2', 'seq1|seq2', 'Bludhaven-rev', 'WANTCAT', 'CATCATCAT', -5.],
-                  ['seq3', 'seq3', 'Bludhaven-rev', 'WANTCAT', 'CATCATCAT', -5.],
-                  ['seq5', 'seq5', 'Bludhaven-rev', 'WANTCAT', 'CATCATCAT', -5.],
-                  ['seq6', 'seq6', 'Bludhaven-rev', 'WANTCAT', 'CATCATCAT', -5.],
+            data=[['seq1', 'seq1|seq2', 'Bludhaven-rev', 'WANTCAT', 'CATCATCAT', -5],
+                  ['seq2', 'seq1|seq2', 'Bludhaven-rev', 'WANTCAT', 'CATCATCAT', -5],
+                  ['seq3', 'seq3', 'Bludhaven-rev', 'WANTCAT', 'CATCATCAT', -5],
+                  ['seq5', 'seq5', 'Bludhaven-rev', 'WANTCAT', 'CATCATCAT', -5],
+                  ['seq6', 'seq6', 'Bludhaven-rev', 'WANTCAT', 'CATCATCAT', -5],
                    ],
             index=pd.Index(['seq1', 'seq2', 'seq3', 'seq5', 'seq6'], 
                             name='db-seq'),
@@ -217,7 +217,7 @@ class ExtractTest(TestCase):
             )
         test = _trim_masked(self.seq_array.loc[['0', '1', '2', '4']], 
                             pos, 'start', 'end')
-        pdt.assert_frame_equal(known, test.compute())
+        pdt.assert_frame_equal(known, test)
 
     def test_reverse_complement(self):
         known = pd.DataFrame(
@@ -230,26 +230,6 @@ class ExtractTest(TestCase):
         test_ = _reverse_complement(self.seq_array)
 
         pdt.assert_frame_equal(known, test_)
-
-    def test_find_primer_start_match(self):
-        known = pd.Series({'pos': 0, 'mis': 0})
-        test = _find_primer_start('Cats are awesome', '(Cat){e<=1}', adj=0)
-        pdt.assert_series_equal(known, test)
-
-    def test_find_primer_start_no_match(self):
-        known = pd.Series({'pos': np.nan, 'mis': np.nan})
-        test = _find_primer_start('Dogs are awesome', '(Cat){e<=1}', adj=0)
-        pdt.assert_series_equal(known, test)
-
-    def test_find_primer_end_match(self):
-        known = pd.Series({'pos': 3, 'mis': 1})
-        test = _find_primer_end('Rats are awesome', '(Cat){e<=1}', )
-        pdt.assert_series_equal(known, test)
-
-    def test_find_primer_end_no_match(self):
-        known = pd.Series({'pos': np.nan, 'mis': np.nan})
-        test = _find_primer_end('Iguanas are awesome', '(Cat){e<=1}')
-        pdt.assert_series_equal(known, test)
 
     def test_extract_region_trim(self):
         k_trim = pd.DataFrame(

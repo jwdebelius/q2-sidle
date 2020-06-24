@@ -1,11 +1,15 @@
+import os
 
 import dask
 import numpy as np
 import pandas as pd
+import regex
 import skbio
 
 from dask.distributed import Client
 
+from qiime2 import Artifact, Metadata
+from qiime2.plugin import ValidationError
 from q2_feature_classifier._skl import _chunks
 from q2_types.feature_data import DNAIterator, DNAFASTAFormat
 
@@ -30,6 +34,22 @@ degen_reps = {'A': ['R', 'W', 'M', 'D', 'H', 'V', 'N'],
               'T': ['Y', 'W', 'K', 'B', 'D', 'H', 'N'],
               'C': ['Y', 'S', 'M', 'B', 'H', 'V', 'N'],
               }
+degen_sub = {'R': 'AG',
+             'Y': 'CT',
+             'S': 'CG',
+             'W': 'AT',
+             'K': 'GT',
+             'M': 'AC',
+             'B': 'CGT',
+             'D': 'AGT',
+             'H': 'ACT',
+             'V': 'ACG',
+             'N': 'ACGT',
+             'A': np.nan,
+             'C': np.nan,
+             'G': np.nan,
+             'T': np.nan,
+             }
 
 
 def _setup_dask_client(debug=False, cluster_config=None, n_workers=1):
@@ -103,7 +123,6 @@ def _to_seq_array(x):
     return seq_series.apply(lambda x: pd.Series(list(x)))
 
 
-
 def _count_degenerates(seq_array):
     """
     Determines the number of degenerate nt in a sequence
@@ -125,7 +144,95 @@ def _count_degenerates(seq_array):
     
     return num_degen
 
-    
+
+def _find_primer_end(seq_, primer, prefix=''):
+    """
+    Finds the last position of a primer sequence
+    """
+    match = regex.search(primer, seq_)
+    if match is not None:
+        return pd.Series({'%spos' % prefix: match.end(),
+                          '%smis' % prefix: sum(match.fuzzy_counts)})
+    else:
+        return pd.Series({'%spos' % prefix: np.nan,
+                          '%smis' % prefix: np.nan})
+
+
+def _find_primer_start(seq_, primer, adj=1, prefix=''):
+    """
+    Finds the first position of a primer sequence
+    """
+    match = regex.search(primer, seq_)
+    if match is not None:
+        return pd.Series({'%spos' % prefix: match.start() - adj,
+                          '%smis' % prefix: sum(match.fuzzy_counts)})
+    else:
+        return pd.Series({'%spos' % prefix: np.nan,
+                          '%smis' % prefix: np.nan})
+
+
+def _check_manifest(manifest):
+    """
+    Makes sure that everything is in the manifest
+
+    Parameters
+    ---------
+    Manifest : qiime2.Metadata
+        A manifest file describing the relationship between regions and their
+        alignment mapping. The manifest must have at least three columns
+        (`kmer-map`, `alignment-map` and `frequency-table`) each of which
+        contains a unique filepath. 
+    """
+    manifest = manifest.to_dataframe()
+    cols = manifest.columns
+    if not (('kmer-map' in cols) & ('alignment-map' in cols) & 
+            ('frequency-table' in cols) & ('region-order' in cols)):
+        raise ValidationError('The manifest must contain the columns '
+                              'kmer-map, alignment-map and frequency-table.\n'
+                              'Please check the manifest and make sure all'
+                              ' column names are spelled correctly')
+    manifest = manifest[['kmer-map', 'alignment-map', 'frequency-table']]
+    if pd.isnull(manifest).any().any():
+        raise ValidationError('All regions must have a kmer-map, '
+                              'alignment-map and frequency-table. Please '
+                              'check and make sure that you have provided '
+                              'all the files you need')
+    if (len(manifest.values.flatten()) != 
+            len(np.unique(manifest.values.flatten()))):
+        raise ValidationError('All paths in the manifest must be unique.'
+                             ' Please check your filepaths')
+    if not np.all([os.path.exists(fp_) for fp_ in manifest.values.flatten()]):
+        raise ValidationError('All the paths in the manifest must exist.'
+                             ' Please check your filepaths')
+    if not np.all([os.path.isfile(fp_) for fp_ in manifest.values.flatten()]):
+        raise ValidationError('All the paths in the manifest must be files.'
+                             ' Please check your filepaths')
+
+
+def _read_manifest_files(manifest, dataset, semantic_type=None, view=None):
+    """
+    Extracts files from the manifest and turns them into a list of objects
+    for analysis
+    """
+    paths = manifest.get_column(dataset).to_series()
+    artifacts = [Artifact.load(path) for path in paths]
+    if semantic_type is not None:
+        type_check = np.array([str(a.type) == semantic_type 
+                               for a in artifacts])
+        if not np.all(type_check):
+            err_ = '\n'.join([
+                'Not all %s Artifacts are of the %s semantic type.' 
+                    % (dataset.replace('-', ' '),   semantic_type),
+                'Please review semantic types for these regions:',
+                '\n'.join(paths.index[type_check == False])
+                ])
+            raise TypeError(err_)
+    if view is not None:
+        return [a.view(view) for a in artifacts]
+    else:
+        return artifacts
+
+
 
 database_params = {
     'greengenes': {
