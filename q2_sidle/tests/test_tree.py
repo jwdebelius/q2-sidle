@@ -56,11 +56,11 @@ class TreeTest(TestCase):
             index=pd.Index(['seq03|seq04'], name='clean_name')
             )
 
-    def reconstruct_fragment_rep_seqs(self):
+    def test_reconstruct_fragment_rep_seqs(self):
         recon_map = pd.Series(
             data=['seq01|seq02', 'seq01|seq02', 'seq03|seq04', 
                   'seq03|seq04', 'seq05'],
-            index=pd.index(['seq01', 'seq02', 'seq03', 'seq04', 'seq05'], 
+            index=pd.Index(['seq01', 'seq02', 'seq03', 'seq04', 'seq05'], 
                             name='db-seq'),
             name='clean_name'
             )
@@ -98,12 +98,12 @@ class TreeTest(TestCase):
             index=pd.Index(['seq01|seq02', 'seq03|seq04']),
             )
         test = reconstruct_fragment_rep_seqs(
-            reconstruct_map=recon_map,
+            reconstruction_map=recon_map,
             reconstruction_summary=recon_summary,
-            reconstruction_manifest=manifest,
+            manifest=manifest,
             aligned_sequences=aligned_seqs,
             trim_to_fragment=True,
-            debug=True,
+            # debug=True,
             )
         pdt.assert_series_equal(test.view(pd.Series).astype(str), known)
 
@@ -112,7 +112,10 @@ class TreeTest(TestCase):
         known = pd.Series({
             "seq03|seq04": 'WTCCGCGTTGGAGTTATGATGAADACCACCTCGTCCCAGTTCCGCGCTT'
             })
-        test =  _collapse_expanded('seq03|seq04', self.multiple_fragments, 'drop', trim=False)
+        test =  _collapse_expanded('seq03|seq04',
+                                    self.multiple_fragments.copy(), 
+                                    'drop', 
+                                    trim=False)
         pdt.assert_series_equal(known, test)
 
     def test_collapse_expanded_keep_no_trim(self):
@@ -121,12 +124,16 @@ class TreeTest(TestCase):
             "seq03|seq04": 
             'WTCCGCGTTGGAGTTATGATGATGADACCACCTCGTCCCAGTTCCGCGCTT'
             })
-        test = _collapse_expanded('seq03|seq04', self.multiple_fragments, 'keep', trim=False)
+        test = _collapse_expanded('seq03|seq04', 
+                                 self.multiple_fragments.copy(), 
+                                 'keep', 
+                                 trim=False)
         pdt.assert_series_equal(known, test)
 
     def _collapse_expanded_trim_drop(self):
         self.multiple_fragments.drop_duplicates(['db-seq'], inplace=True)
-        test = _collapse_expanded_trim('seq03|seq04', self.multiple_fragments,
+        test = _collapse_expanded_trim('seq03|seq04', 
+                                       self.multiple_fragments.copy(),
                                        gap_management='drop')
         pdt.assert_series_equal(test, self.multiple_fragments_trim)
     

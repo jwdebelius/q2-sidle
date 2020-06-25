@@ -19,15 +19,16 @@ from q2_sidle._utils import (_setup_dask_client,
 from q2_sidle._extract import _trim_masked
 
 
-def reconstruct_fragment_rep_seqs(reconstruct_map:pd.Series, 
+def reconstruct_fragment_rep_seqs(
+    reconstruction_map: pd.Series, 
     reconstruction_summary:pd.DataFrame,
-    reconstruction_manifest:Metadata,
     aligned_sequences:pd.Series,
+    manifest:Metadata,
     trim_to_fragment:bool=True,
     gap_handling:str='keep',
     primer_mismatch:int=2,
-    debug: bool=False, 
-    n_workers: int=0
+    # # debug: bool=False, 
+    # # n_workers: int=0
     ) -> pd.Series:
     """
     Assembles fragments from assemblies that include multiple sequences
@@ -88,8 +89,8 @@ def reconstruct_fragment_rep_seqs(reconstruct_map:pd.Series,
     # Filters down to only clusters that include multiple sequences 
     multiple_mapped = reconstruction_summary['num_seqs_mapped'] > 1
     multiple_mapped = multiple_mapped.index[multiple_mapped].values
-    reconstruct_map = \
-        reconstruct_map.loc[reconstruct_map.isin(multiple_mapped)].copy()
+    reconstruction_map = \
+        reconstruction_map.loc[reconstruction_map.isin(multiple_mapped)].copy()
     reconstruction_summary = reconstruction_summary.loc[multiple_mapped]
 
     # Loads the mapping of the regional kmers
@@ -99,23 +100,21 @@ def reconstruct_fragment_rep_seqs(reconstruct_map:pd.Series,
         objs=_read_manifest_files(manifest, 'kmer-map', 
                                  'FeatureData[KmerMap]', pd.DataFrame)
         )
-    kmer_map = kmer_map.loc[reconstruct_map.index]
+    kmer_map = kmer_map.loc[reconstruction_map.index].copy()
+    kmer_map['clean_name'] = reconstruction_map
+    kmer_map.replace({'region': region_order}, inplace=True)
+    kmer_map.reset_index(inplace=True)    
+    kmer_map['kmer-length'] = kmer_map['kmer-length'].astype(int)
+    
+    # Updates the kmer map with information about coverage and kmer length
+    kmer_map.set_index('clean_name', inplace=True)
+    kmer_map['final_coverage'] = reconstruction_summary['num-regions']
+    kmer_map.reset_index(inplace=True)
     kmer_map.sort_values(by=['clean_name', 'db-seq', 'seq-name', 'region'], 
                          ascending=True, 
                          inplace=True)
     kmer_map.drop_duplicates(['clean_name', 'db-seq', 'region'], inplace=True)
     kmer_map.drop(columns=['seq-name', 'kmer', 'region'], inplace=True)
-
-    # Updates the kmer map with information about coverage and kmer length
-    kmer_map['clean_name'] = reconstruct_map
-    kmer_map.reset_index(inplace=True)
-    kmer_map.set_index('clean_name', inplace=True)
-    kmer_map['final_coverage'] = reconstruction_summary['num-regions']
-    kmer_map.reset_index(inplace=True)
-    kmer_map['region'] = kmer_map['region'].replace(region_order)
-    kmer_map['kmer-length'] = kmer_map['kmer-length'].astype(int)
-    kmer_map.set_index('db-seq', inplace=True)
-
 
     # Switches kmer primers to expanded primers
     fwd_rep = {primer: _expand_primer(primer, primer_mismatch) 
@@ -125,8 +124,10 @@ def reconstruct_fragment_rep_seqs(reconstruct_map:pd.Series,
     kmer_map.replace({'fwd-primer': fwd_rep, 'rev-primer': rev_rep}, 
                      inplace=True)
 
-    # Adds in the full length aligned sequence
-    kmer_map['sequence'] = aligned_sequences[kmer_map.index]
+    # # Adds in the full length aligned sequence
+    kmer_map.reset_index(drop=True, inplace=True)
+    kmer_map['sequence'] = \
+        aligned_sequences[kmer_map['db-seq']].reset_index(drop=True)
 
     # Splits the data based on whether it covers a single region or 
     # multiple regions
@@ -134,18 +135,13 @@ def reconstruct_fragment_rep_seqs(reconstruct_map:pd.Series,
     multiple_regions = kmer_map.loc[kmer_map['final_coverage'] > 1].copy()
 
     # Sets up the function for multiple mapping
-    if trim_to_fragment:
-        collapse_f = partial(_collapse_expanded_trim,
-                             gap_management=gap_handling)
-    else:
-        collapse_f = partial(_collapse_expanded_all, 
-                             gap_management=gap_handling)
     fragment = pd.concat(axis=0, objs=[
         _find_single_region_fragments(single_region),
-        _find_multiple_region_fragments(multiple_regions),
+        _find_multiple_region_fragments(multiple_regions, trim_to_fragment,
+                                        gap_handling),
         ])
     fragment = pd.Series({id_: DNA(seq_, metadata={'id': id_})
-                          for id_, seq_ in fragment})
+                          for id_, seq_ in fragment.items()})
     return fragment
 
 
@@ -192,7 +188,7 @@ def _collapse_expanded(id_, g, gap_management='drop', trim=True,
     pd.Series
         The collapsed aligned sequence
     """
-    expanded2 = g['sequence'].apply(lambda x: pd.Series(list(x)))
+    expanded2 = g['sequence'].copy().apply(lambda x: pd.Series(list(x)))
     expanded2.replace(degen_sub2, inplace=True)
     
     # Expands the list of sequnces
@@ -257,8 +253,8 @@ def _find_multiple_region_fragments(seq_map, gap_management='keep',
     Collapses sequence fragments which cover multiple regions
     """
     # Gets the expanded sequences and tidies the gapped alignments
-    expand = seq_map.set_index('clean_name', append=True)['sequence'].apply(
-        lambda x: pd.Series(list(x)))
+    expand = seq_map.set_index('clean_name', append=True)['sequence'].copy()
+    expand = expand.apply(lambda x: pd.Series(list(x)))
     expand.replace({'-': np.nan}, inplace=True)
     expand.dropna(how='all', axis=1, inplace=True)
     expand.reset_index(level='clean_name', inplace=True)
@@ -293,13 +289,13 @@ def _find_multiple_region_fragments(seq_map, gap_management='keep',
 
     # Gets the grouped sequence
     fragment = pd.concat(axis=0, objs=[
-        _collapse_expanded(id_, g, gap_management, trim) 
+        _collapse_expanded(id_, g.copy(), gap_management, trim) 
         for id_, g in seq_map.groupby('clean_name')
         ])
     fragment.name = 'fragment'
     fragment.index.set_names('clean_name', inplace=True)
 
-    return fragment.sort_index(ascending=True)
+    return fragment
 
 
 def _find_single_region_fragments(seq_map):
@@ -324,7 +320,6 @@ def _find_single_region_fragments(seq_map):
         start_col='fwd-pos', 
         end_col='rev-pos'
         ).apply(lambda x: ''.join(x), axis=1)
-    # print(seq_map)
 
     return seq_map['fragment']
 
