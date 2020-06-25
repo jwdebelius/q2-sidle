@@ -572,6 +572,7 @@ def _trim_masked(seqs, positions, start_col, end_col):
         will be the sequence between `start_` and `end_`
     """
     # Looks only at places where the position has been defined.
+    seqs.fillna('', inplace=True)
     seqs = seqs.loc[positions.index].apply(lambda x: ''.join(x), axis=1)
 
     df_ = pd.DataFrame(
@@ -583,6 +584,8 @@ def _trim_masked(seqs, positions, start_col, end_col):
     df_[['fwd', 'rev']] = df_[['fwd', 'rev']].astype(int)
     df_.dropna(how='any', inplace=True)
     sub_seq = df_.apply(lambda x: x['seq'][x['fwd']:x['rev']], axis=1)
+    length_check = sub_seq.apply(lambda x: len(x)) >= (df_['rev'] - df_['fwd'])
+    sub_seq = sub_seq.loc[length_check]
 
     return sub_seq.apply(lambda x: pd.Series(list(x)))
 
