@@ -50,7 +50,18 @@ degen_sub = {'R': 'AG',
              'G': np.nan,
              'T': np.nan,
              }
-
+degen_sub2 = {k: '[%s]' % v for k, v in degen_sub.items() if (k in degen)}
+degen_undo = {'AG': 'R',
+              'CT': 'Y',
+              'CG': 'S',
+              'AT': 'W',
+              'GT': 'K',
+              'AC': 'M',
+              'CGT': 'B',
+              'AGT': 'D',
+              'ACT': 'H',
+              'ACG': 'V',
+              'ACGT': 'N'}
 
 def _setup_dask_client(debug=False, cluster_config=None, n_workers=1):
     """
