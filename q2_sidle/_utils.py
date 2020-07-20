@@ -63,7 +63,8 @@ degen_undo = {'AG': 'R',
               'ACG': 'V',
               'ACGT': 'N'}
 
-def _setup_dask_client(debug=False, cluster_config=None, n_workers=1):
+def _setup_dask_client(debug=False, cluster_config=None, n_workers=1,
+                       address=None):
     """
     Sets up a Dask client and daskboard
 
@@ -82,12 +83,16 @@ def _setup_dask_client(debug=False, cluster_config=None, n_workers=1):
     n_workers: int, optional
         The number of jobs to initiate. When `n_workers` is 0, the cluster 
         will be able to access all avalaibel resources.
+    address: str, optional
+        The IP address for the client
     """
 
     if debug:
         pass
     elif cluster_config is not None:
         client = Client(**client_config.to_dict())
+    elif address is not None:
+        client = Client(address)
     elif n_workers == 0:
         client = Client()
     else:

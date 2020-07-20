@@ -38,13 +38,13 @@ class TreeTest(TestCase):
         self.multiple_fragments = pd.DataFrame(
             data=[['seq03|seq04', 'seq03', 0, '[AT]A[ACGT]TCAT', 'ATGATGATG',
                    15, 2, ('CATAGTCATWTCCGCGTTGGAGTTATGATGATGAWACCACCTCGTCCCA'
-                   'GTTCCGCGCTTCTGACGTGCA-'), 9, 60, 9, 60],
+                   'GTTCCGCGCTTCTGACGTGCA-'), 9, 61, 9, 61],
                   ['seq03|seq04', 'seq03', 1, 'CACCTCGT[ACGT]', '[AC]TGACGTG',
                    15, 2, ('CATAGTCATWTCCGCGTTGGAGTTATGATGATGAWACCACCTCGTCCC'
-                    'AGTTCCGCGCTTCTGACGTGCA-'), 9, 60, 9, 60],
+                    'AGTTCCGCGCTTCTGACGTGCA-'), 9, 61, 9, 61],
                   ['seq03|seq04', 'seq04', 1, 'CACCTCGT[ACGT]', '[AC]TGACGTG',
                    15, 2, ('------------------GGAGTTATGATGA--AGACCACCTCGTCCC'
-                    'AGTTCCGCGCTTCTGACGTGCAC'), 46, 60, 9, 60]],
+                    'AGTTCCGCGCTTCTGACGTGCAC'), 46, 61, 9, 61]],
             columns=['clean_name', 'db-seq', 'region', 'fwd-primer', 
                      'rev-primer', 'kmer-length', 'final_coverage', 
                      'sequence', 'fwd-pos', 'rev-pos', 'group-fwd', 
@@ -155,7 +155,7 @@ class TreeTest(TestCase):
                            name='db-seq')
             )
         known = pd.DataFrame(
-            data=np.vstack([np.array([9, 13])] * 5),
+            data=np.vstack([np.array([9, 14])] * 5),
             columns=['fwd_pos', 'rev_pos'],
             index=seqs.index
             )

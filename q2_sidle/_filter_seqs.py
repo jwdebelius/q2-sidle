@@ -19,7 +19,8 @@ def filter_degenerate_sequences(sequences: DNASequencesDirectoryFormat,
     max_degen:int=3,
     chunk_size:int=10000,
     debug:bool=False, 
-    n_workers:int=0
+    n_workers:int=0,
+    client_address: str=None,
     ) -> DNAFASTAFormat:
     """
     Prefilters the database to remove sequences with too many degenerates
@@ -51,7 +52,7 @@ def filter_degenerate_sequences(sequences: DNASequencesDirectoryFormat,
     # """
     # # Sets up the client
     _setup_dask_client(debug=debug, cluster_config=None,  
-                       n_workers=n_workers)
+                       n_workers=n_workers, address=client_address)
     # Reads in the sequences
     sequences = sequences.file.view(DNAIterator)
     seq_block = _convert_generator_to_delayed_seq_block(sequences, chunk_size)
