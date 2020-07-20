@@ -24,7 +24,8 @@ def reconstruct_counts(manifest: Metadata,
     max_mismatch: int=2,
     min_abund: float=1e-10,
     debug: bool=False, 
-    n_workers: int=0
+    n_workers: int=0,
+    client_address: str=None,
     ) -> (biom.Table, Metadata, pd.DataFrame):
     """
     Reconstructs regional alignments into a full length 16s sequence
@@ -58,6 +59,8 @@ def reconstruct_counts(manifest: Metadata,
     n_workers: int, optional
         The number of jobs to initiate. When `n_workers` is 0, the cluster 
         will be able to access all avalaibel resources.
+    client_address: str
+        The IP address for an existing dask client/cluster
 
     Returns
     -------
@@ -76,7 +79,7 @@ def reconstruct_counts(manifest: Metadata,
     
     # Sets up the client
     _setup_dask_client(debug=debug, cluster_config=None,  
-                       n_workers=n_workers)
+                       n_workers=n_workers, address=client_address)
 
     # Checks the manifest
     _check_manifest(manifest)
@@ -456,7 +459,10 @@ def _detangle_names(long_):
 
     check_diff = overlap['clean_name'] != overlap['db-seq']
 
-    overlap['seq_count'] = overlap.loc[check_diff].apply(check_shared, axis=1)
+    if check_diff.any():
+        overlap['seq_count'] = overlap.loc[check_diff].apply(check_shared, axis=1)
+    else:
+        overlap['seq_count'] = np.nan
     overlap['matches'] = (overlap['seq_count'] == overlap[0]) | ~check_diff
 
     overlap.sort_values(['db-seq', 'clean_name'], 
@@ -570,9 +576,8 @@ def _map_id_set(id_set, tangle):
 
     horiz = np.dstack([cum_coverage.values] * num_seqs).swapaxes(1, 2)
     coverage_overlap = sp.as_coo(
-        ((horiz <= horiz.swapaxes(0, 1)).all(axis=2) | 
-         (horiz >= horiz.swapaxes(0, 1)).all(axis=2))
-        )#
+        (horiz == horiz.swapaxes(0, 1)).all(axis=2)
+        )
     # Finds where sequences are missing, which allows the possible mapping
     any_missing = sp.as_coo(np.dstack([
         miss_seq[[region]].values | miss_seq[[region]].values.T
@@ -990,7 +995,7 @@ def _untangle_database_ids(region_db, kmers=None, block_size=2000):
         okay_seqs = initial_names[initial_names.isin(okay_ids)].copy()
         tangled_seqs = \
             initial_names.index[~initial_names.isin(okay_ids)].copy()
-
+# 
         print('found initial sequence blocks. %i/%i seqs mapped, '
               '%i/%i remaining'  % (num_seqs - len(tangled_seqs), 
                                     num_seqs, len(tangled_seqs), num_seqs))

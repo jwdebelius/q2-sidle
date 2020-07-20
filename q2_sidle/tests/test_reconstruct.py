@@ -418,7 +418,6 @@ class ReconstructTest(TestCase):
                   ['seq03', 1, 'seq03', 'seq04', 'seq05'],
                   ['seq04', 0, 'seq03', 'seq04',  np.nan],
                   ['seq04', 1, 'seq03', 'seq04', 'seq05'],
-                  ['seq04', 2, 'seq04', 'seq05',  np.nan],
                   ['seq05', 1, 'seq03', 'seq04', 'seq05'],
                   ['seq05', 2, 'seq04', 'seq05',  np.nan],
                   ['seq06', 0, 'seq06',  np.nan,  np.nan],
@@ -430,18 +429,12 @@ class ReconstructTest(TestCase):
 
         known = pd.DataFrame(
             data=[['seq00', 'seq00'],
-                  ['seq00', 'seq02'],
                   ['seq01', 'seq01'], 
-                  ['seq01', 'seq02'], 
-                  ['seq02', 'seq00'],
-                  ['seq02', 'seq01'],
                   ['seq02', 'seq02'],
                   ['seq03', 'seq03'],
                   ['seq03', 'seq04'],
                   ['seq04', 'seq03'],
                   ['seq04', 'seq04'],
-                  ['seq04', 'seq05'],
-                  ['seq05', 'seq04'],
                   ['seq05', 'seq05'],
                   ['seq06', 'seq06'],
                   ['seq07', 'seq07']],
@@ -591,17 +584,17 @@ class ReconstructTest(TestCase):
                                 'seq05': 'seq05',
                                 'seq06': 'seq06',
                                 'seq07': 'seq07',
-                                'seq08': 'seq08|seq09',
-                                'seq09': 'seq08|seq09',
+                                'seq08': 'seq08',
+                                'seq09': 'seq09',
                                 'seq10': 'seq10|seq11',
                                 'seq11': 'seq10|seq11',
-                                'seq12': 'seq12|seq14|seq15',
+                                'seq12': 'seq12',
                                 'seq13': 'seq13',
-                                'seq14': 'seq12|seq14|seq15',
-                                'seq15': 'seq12|seq14|seq15',
+                                'seq14': 'seq14',
+                                'seq15': 'seq15',
                                 'seq16': 'seq16',
-                                'seq17': 'seq17|seq18',
-                                'seq18': 'seq17|seq18',
+                                'seq17': 'seq17',
+                                'seq18': 'seq18',
                                 'seq19': 'seq19|seq20',
                                 'seq20': 'seq19|seq20',
                                 'seq21': 'seq21',
@@ -612,7 +605,7 @@ class ReconstructTest(TestCase):
         # Generates the renaming
         seq_ = _untangle_database_ids(matches)
 
-        # pdt.assert_series_equal(known_seq, seq_.sort_index())
+        pdt.assert_series_equal(known_seq, seq_.sort_index())
 
 
 
