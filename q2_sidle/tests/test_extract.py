@@ -1,6 +1,7 @@
 from unittest import TestCase, main
 import warnings
 
+import dask.dataframe as dd
 import numpy as np
 import pandas as pd
 import pandas.util.testing as pdt
@@ -9,16 +10,17 @@ import skbio
 from qiime2 import Artifact
 from q2_types.feature_data import DNAIterator, DNAFASTAFormat
 
-from q2_sidle._extract import (extract_regional_database,
-                               prepare_extracted_region,
-                               _extract_region,
-                               _tidy_sequences,
-                               _collapse_duplicates,
-                               _expand_degenerates,
+from q2_sidle._extract import (prepare_extracted_region,
+                               _artifical_trim,
+                               _block_seqs,
+                               _collapse_all_sequences,
+                               _condense_seqs,
+                               _expand_degenerate_gen,
+                               _expand_ids,
                                _reverse_complement,
-                               _trim_masked,
-                               _build_id_map,
+                               _split_ids,
                                )
+from q2_sidle.tests import test_set as ts
 
 
 class ExtractTest(TestCase):
@@ -34,55 +36,7 @@ class ExtractTest(TestCase):
         self.fwd_primer = 'WANTCAT'
         self.rev_primer = 'CATCATCAT'
 
-        self.seqs = pd.DataFrame.from_dict(orient='index', data={
-            'ref1': list('TGTACTCATGGACAATGTAATGATGATGGAT'),
-            'ref2': list('ATTACTCATTATACTCTGAATGATGATGGCG'),
-            'ref3': list('GCTAGTCATCCGCGTAGCGATGATGATGAAA'),
-            'ref4': list('GATATTCATTTGAGCTTGCATGATGATGCTA'),
-            'ref5': list('ACAAGTCATTTTACTTTGTATGATGATGCCC'),
-            })
-        self.seqs.index.set_names('kmer', inplace=True)
-
-        self.full_seqs = Artifact.import_data(
-            'FeatureData[Sequence]',
-            pd.Series({'seq1': skbio.DNA(seq1, metadata={'id': 'seq1'}), 
-                       'seq2': skbio.DNA(seq2, metadata={'id': 'seq2'}),
-                       'seq3': skbio.DNA(seq3, metadata={'id': 'seq3'}), 
-                       'seq4': skbio.DNA(seq4, metadata={'id': 'seq4'}),
-                       'seq5': skbio.DNA(seq5, metadata={'id': 'seq5'}), 
-                       'seq6': skbio.DNA(seq6, metadata={'id': 'seq6'})})
-            )
-        self.region_1 = Artifact.import_data(
-            'FeatureData[Sequence]',
-            pd.Series({
-                'seq1|seq2': skbio.DNA('GCGAAGCGGCTCAGG', 
-                                         metadata={'id': 'seq1|seq2'}),
-                'seq3@0001': skbio.DNA('ATCCGCGTTGGAGTT', 
-                                       metadata={'id': 'seq3@0001'}),
-                'seq3@0002': skbio.DNA('TTCCGCGTTGGAGTT', 
-                                       metadata={'id': 'seq3@0002'}),
-                'seq5': skbio.DNA('CGTTTATGTATGCCC', metadata={'id': 'seq5'}),
-                'seq6': skbio.DNA('CGTTTATGTATGCCT', metadata={'id': 'seq6'}),
-                })
-            )
-        self.region1_map =  pd.DataFrame(
-            data=[['seq1', 'seq1|seq2', 'WANTCAT-CATCATCAT', 'WANTCAT', 'CATCATCAT', 15],
-                  ['seq2', 'seq1|seq2', 'WANTCAT-CATCATCAT', 'WANTCAT', 'CATCATCAT', 15],
-                  ['seq3@0001', 'seq3@0001', 'WANTCAT-CATCATCAT', 'WANTCAT', 'CATCATCAT', 15],
-                  ['seq3@0002', 'seq3@0002', 'WANTCAT-CATCATCAT', 'WANTCAT', 'CATCATCAT', 15],
-                  ['seq5', 'seq5', 'WANTCAT-CATCATCAT', 'WANTCAT', 'CATCATCAT', 15],
-                  ['seq6', 'seq6', 'WANTCAT-CATCATCAT', 'WANTCAT', 'CATCATCAT', 15],
-                  ],
-            index=pd.Index(['seq1', 'seq2', 'seq3', 'seq3', 'seq5', 'seq6'], 
-                            name='db-seq'),
-            columns=['seq-name', 'kmer', 'region', 'fwd-primer', 'rev-primer',
-                      'kmer-length'],
-            )
-        self.region1_map['kmer-length'] = \
-          self.region1_map['kmer-length'].astype(np.int64)
-
-    def test_prepared_extracted_region(self):
-        trimmed = Artifact.import_data('FeatureData[Sequence]',
+        self.trimmed = Artifact.import_data('FeatureData[Sequence]',
             pd.Series({
                 'seq1': skbio.DNA('GCGAAGCGGCTCAGG', metadata={'id': 'seq1'}),
                 'seq2': skbio.DNA('GCGAAGCGGCTCAGG', metadata={'id': 'seq2'}),
@@ -91,133 +45,95 @@ class ExtractTest(TestCase):
                 'seq6': skbio.DNA('CGTTTATGTATGCCT', metadata={'id': 'seq6'}),
                 })
             )
+        self.region_1 = ts.region1_db_seqs
+        self.region1_map = ts.region1_db_map
+
+        self.seq_block = pd.DataFrame(
+            data=[['seq1', 'GCGAAGCGGCTCAGG', 'seq1'],
+                  ['seq2', 'GCGAAGCGGCTCAGG', 'seq2'],
+                  ['seq3@0001', 'ATCCGCGTTGGAGTT', 'seq3'],
+                  ['seq3@0002', 'TTCCGCGTTGGAGTT', 'seq3'],
+                  ['seq5', 'CGTTTATGTATGCCC', 'seq5'],
+                  ['seq6', 'CGTTTATGTATGCCT', 'seq6'],
+                  ],
+            columns=['seq-name', 'sequence', 'db-seq']
+            )
+        self.amplicon = pd.DataFrame(
+            data=[['seq1', 'GCGAAGCGGCTCAGG'],
+                  ['seq2', 'GCGAAGCGGCTCAGG'],
+                  ['seq3@0001', 'ATCCGCGTTGGAGTT'],
+                  ['seq3@0002', 'TTCCGCGTTGGAGTT'],
+                  ['seq5', 'CGTTTATGTATGCCC'],
+                  ['seq6', 'CGTTTATGTATGCCT'],
+                  ],
+            columns=['seq-name', 'amplicon']
+            )
+        self.amplicon_r = pd.DataFrame(
+            data=[['seq1', 'TCAGG'], ['seq2', 'TCAGG'], ['seq3@0001', 'GAGTT'],
+                  ['seq5', 'TGCCC'], ['seq6', 'TGCCT']],
+            columns=['seq-name', 'amplicon'],
+            index=np.array([0, 1, 2, 4, 5]),
+            )
+        self.reverse_seqs = pd.Series({
+            'seq1|seq2': 'CCTGA',
+            'seq3@0001': 'AACTC',
+            'seq5': 'GGGCA',
+            'seq6': 'AGGCA',
+            })
+        self.group_forward = \
+            self.region_1.view(pd.Series).astype(str).reset_index()
+        self.group_forward.columns = ['seq-name', 'seq']
+        self.group_forward['seq-name'] = \
+            self.group_forward['seq-name'].apply(lambda x: '>%s' % x)
+        self.group_forward['amplicon'] = self.group_forward['seq']
+
+    def test_prepared_extracted_region(self):
         test_seqs, test_map = \
-            prepare_extracted_region(sequences=trimmed, 
-                                     region='WANTCAT-CATCATCAT',
+            prepare_extracted_region(sequences=self.trimmed, 
+                                     region='Bludhaven',
                                      trim_length=15,
                                      debug=True,
                                      fwd_primer='WANTCAT',
                                      rev_primer='CATCATCAT',
                                      )
-        pdt.assert_series_equal(test_seqs.view(pd.Series).astype(str),
-                                self.region_1.view(pd.Series).astype(str))
-        pdt.assert_frame_equal(test_map,  self.region1_map)
 
-    def test_extract_regional_database(self):
-        test_seqs, test_map = \
-            extract_regional_database(sequences=self.full_seqs,
-                                      fwd_primer=self.fwd_primer,
-                                      rev_primer=self.rev_primer,
-                                      region='WANTCAT-CATCATCAT',
-                                      trim_length=15,
-                                      primer_mismatch=1,
-                                      debug=True,
-                                      )
-        pdt.assert_series_equal(test_seqs.view(pd.Series).astype(str),
-                                self.region_1.view(pd.Series).astype(str))
-        pdt.assert_frame_equal(test_map,  self.region1_map)
-
-    def test_extract_regional_database_rc(self):
-        test_seqs, test_map = \
-            extract_regional_database(sequences=self.full_seqs,
-                                      fwd_primer=self.fwd_primer,
-                                      rev_primer=self.rev_primer,
-                                      region='Bludhaven-rev',
-                                      trim_length=5,
-                                      trim_from_right=True,
-                                      reverse_complement_result=True,
-                                      primer_mismatch=1,
-                                      debug=True,
-                                      )
-        known_seqs = pd.Series({'seq1|seq2':  'TCAGG',
-                                'seq3': 'GAGTT',
-                                'seq5': 'TGCCC',
-                                'seq6': 'TGCCT',
-                                })
-        known_map = pd.DataFrame(
-            data=[['seq1', 'seq1|seq2', 'Bludhaven-rev', 'WANTCAT', 'CATCATCAT', -5],
-                  ['seq2', 'seq1|seq2', 'Bludhaven-rev', 'WANTCAT', 'CATCATCAT', -5],
-                  ['seq3', 'seq3', 'Bludhaven-rev', 'WANTCAT', 'CATCATCAT', -5],
-                  ['seq5', 'seq5', 'Bludhaven-rev', 'WANTCAT', 'CATCATCAT', -5],
-                  ['seq6', 'seq6', 'Bludhaven-rev', 'WANTCAT', 'CATCATCAT', -5],
-                   ],
-            index=pd.Index(['seq1', 'seq2', 'seq3', 'seq5', 'seq6'], 
-                            name='db-seq'),
-            columns=['seq-name', 'kmer', 'region', 'fwd-primer', 'rev-primer',
-                      'kmer-length'],
+        pdt.assert_series_equal(
+            test_seqs.view(pd.Series).astype(str).sort_values(),
+            self.region_1.view(pd.Series).astype(str).sort_values()
         )
-        pdt.assert_series_equal(test_seqs.view(pd.Series).astype(str),
-                                known_seqs)
-        pdt.assert_frame_equal(test_map,  known_map)
+        test_map.sort_values(['db-seq', 'seq-name'], inplace=True)
+        test_map = test_map[['seq-name', 'kmer', 'region', 
+                             'fwd-primer', 'rev-primer', 'kmer-length']]
+        pdt.assert_frame_equal(test_map,  
+                              self.region1_map.view(pd.DataFrame))
 
-    def test_expand_degenerates_no_degen(self):
-        in_mer = pd.DataFrame(
-            data=np.array([list('AGTCCATGC'), 
-                           list('TACGAGTGA'),
-                           list('ACTCCATGC'),
-                           list('AAAAAAAGT')]),
-            )
-        test = _expand_degenerates(in_mer.copy())
-        pdt.assert_frame_equal(
-            test.compute(), in_mer.rename({i: str(i) for i in in_mer.index}))
-
-    def test_expand_degenerates(self):
-        known = pd.DataFrame(
-            data=np.array([['A', 'G', 'T', 'C'], # 0-0
-                           ['A', 'A', 'A', 'C'], # 1-0
-                           ['A', 'A', 'A', 'G'], # 1-1
-                           ['A', 'A', 'T', 'C'], # 1-2
-                           ['A', 'A', 'T', 'G'], # 1-3
-                           ['A', 'G', 'A', 'C'], # 1-4
-                           ['A', 'G', 'A', 'G'], # 1-5
-                           ['A', 'G', 'T', 'C'], # 1-6
-                           ['A', 'G', 'T', 'G'], # 1-7 
-                           ['C', 'T', 'A', 'G'], # 2-0
-                           ['C', 'T', 'A', 'T'], # 2-1
-                           ['C', 'T', 'T', 'G'], # 2-2
-                           ['C', 'T', 'T', 'T'], # 2-3
-                           ['G', 'T', 'C', 'A'], # 3-0
-                           ['G', 'T', 'C', 'C'], # 3-1
-                           ['A', 'T', 'G', 'A'], # 4-0
-                           ['A', 'T', 'G', 'C'], # 4-1
-                           ['A', 'T', 'G', 'G'], # 4-2
-                           ['A', 'T', 'G', 'T'], # 4-3
-                           ]),
-            index=pd.Index([u'0', 
-                            u'1@01', u'1@02', u'1@03', u'1@04', u'1@05', 
-                            u'1@06', u'1@07',u'1@08', 
-                            u'2@01', u'2@02', u'2@03', u'2@04', 
-                            u'3@01', u'3@02',
-                            u'4@01', u'4@02', u'4@03', u'4@04',
-                            ]),
-        ).T.reset_index(drop=True).T
-
-        test = _expand_degenerates(self.seq_array, pad=2)
-        # Gets arund some delightful casting weirdness
-        pdt.assert_frame_equal(known, test.compute(), check_index_type=False)
-
-    def test_trim_masked(self):
-        known = pd.DataFrame(
-            data=[list('GT'),  list('RW'),  list('TW'),  
-                  list('TG')],
-            index=pd.Index(['0', '1', '2', '4'], name='id_')
-            )
-        pos = pd.DataFrame(
-            data=np.vstack([[1, 2]] * 4).astype(float),
-            columns=['start', 'end'],
-            index=pd.Index(['0', '1', '2', '4'], name='id_')
-            )
-        start =pd.Series(
-            data=[1, 1, 1, 1], 
-            index=pd.Index(['0', '1', '2', '4'], name='id_')
-            )
-        end = pd.Series(
-            data=[2, 2, 2, 2], 
-            index=pd.Index(['0', '1', '2', '4'], name='id_')
-            )
-        test = _trim_masked(self.seq_array.loc[['0', '1', '2', '4']], 
-                            pos, 'start', 'end')
-        pdt.assert_frame_equal(known, test)
+    def test_prepared_extracted_region_rc(self):
+        test_seqs, test_map = \
+            prepare_extracted_region(sequences=self.trimmed, 
+                                     region='Bludhaven-rev',
+                                     trim_length=-5,
+                                     debug=True,
+                                     fwd_primer='ATGATGATG',
+                                     rev_primer='ATCANTW',
+                                     reverse_complement_rev=False,
+                                     reverse_complement_result=True,
+                                     )
+        known_map = pd.DataFrame(
+            data=[['seq1', 'seq1|seq2', 'Bludhaven-rev', 'ATGATGATG', 'ATCANTW', -5],
+                  ['seq2', 'seq1|seq2', 'Bludhaven-rev', 'ATGATGATG', 'ATCANTW', -5],
+                  ['seq3@0001', 'seq3@0001', 'Bludhaven-rev', 'ATGATGATG', 'ATCANTW', -5],
+                  ['seq5', 'seq5', 'Bludhaven-rev', 'ATGATGATG', 'ATCANTW', -5],
+                  ['seq6', 'seq6', 'Bludhaven-rev', 'ATGATGATG', 'ATCANTW', -5]],
+            index=pd.Index(['seq1', 'seq2', 'seq3', 'seq5', 'seq6'], name='db-seq'),
+            columns=['seq-name', 'kmer', 'region', 'fwd-primer', 'rev-primer', 'kmer-length']
+        )
+        pdt.assert_series_equal(
+            test_seqs.view(pd.Series).astype(str).sort_index(), 
+            self.reverse_seqs)
+        test_map.sort_values(['db-seq', 'seq-name'], inplace=True)
+        test_map = test_map[['seq-name', 'kmer', 'region', 
+                             'fwd-primer', 'rev-primer', 'kmer-length']]
+        pdt.assert_frame_equal(test_map, known_map)
 
     def test_reverse_complement(self):
         known = pd.DataFrame(
@@ -231,219 +147,96 @@ class ExtractTest(TestCase):
 
         pdt.assert_frame_equal(known, test_)
 
-    def test_extract_region_trim(self):
-        k_trim = pd.DataFrame(
-            data=np.array([[9, 0, 18, 0, 9, 18],
-                           [9, 0, 18, 0, 9, 18],
-                           [9, 0, 18, 0, 9, 18],
-                           [9, 0, 18, 0, 9, 18],
-                           [9, 0, 18, 0, 9, 18],
-                           ], dtype=float),    
-            index=pd.Index(self.seqs.index, name='kmer'),
-            columns=['fwd_pos', 'fwd_mis', 'rev_pos', 'rev_mis', 
-                     'new_fwd_pos', 'new_rev_pos'],
-        )
-        t_trim = _extract_region(self.seqs, self.fwd_primer, self.rev_primer)
-        pdt.assert_frame_equal(k_trim, t_trim.compute())
+    def test_artifical_trim_fwd(self):
+        test = _artifical_trim(self.seq_block, 15).compute()
+        pdt.assert_frame_equal(test, self.amplicon)
 
-    def test_extract_region_no_trim(self):
-        k_trim = pd.DataFrame(
-            data=np.array([[2, 0, 27, 0, 2, 27],
-                           [2, 0, 27, 0, 2, 27],
-                           [2, 0, 27, 0, 2, 27],
-                           [2, 0, 27, 0, 2, 27],
-                           [2, 0, 27, 0, 2, 27],
-                           ], dtype=float),    
-            index=pd.Index(self.seqs.index, name='kmer'),
-            columns=['fwd_pos', 'fwd_mis', 'rev_pos', 'rev_mis', 
-                     'new_fwd_pos', 'new_rev_pos'],
-        )
-        t_trim = _extract_region(self.seqs, self.fwd_primer, self.rev_primer, 
-                                 trim_fwd=False, trim_rev=False, 
-                                 trim_len='min')
-        pdt.assert_frame_equal(k_trim, t_trim.compute())
+    def test_artifical_trim_rev(self):
+        test = _artifical_trim(self.seq_block, -5).compute()
+        pdt.assert_frame_equal(test, self.amplicon_r)
 
-    def test_extract_region_too_short(self):
-        k_trim = pd.DataFrame(
-            columns=['fwd_pos', 'fwd_mis', 'rev_pos', 'rev_mis', 
-                     'new_fwd_pos', 'new_rev_pos'],
-            index=pd.Index([], name='kmer')
+    def test_block_seqs(self):
+        test = _block_seqs(self.trimmed.view(pd.Series).values).compute()
+        pdt.assert_frame_equal(self.seq_block, test)
+
+    def test_condense_seqs(self):
+        test = _condense_seqs(self.amplicon).compute()
+        known = self.region_1.view(pd.Series).astype(str).reset_index()
+        known.columns = ['seq-name', 'amplicon']
+        known.sort_values('amplicon', inplace=True)
+        known.reset_index(inplace=True, drop=True)
+        pdt.assert_frame_equal(
+            test.reset_index(drop=True), 
+            known[['amplicon', 'seq-name']].sort_values('amplicon')
             )
-        k_trim = k_trim.astype(float)
-        t_trim = _extract_region(
-            self.seqs, self.fwd_primer, self.rev_primer, 
-            trim_fwd=False, 
-            trim_rev=False, 
-            trim_len=40
-            )
-        pdt.assert_frame_equal(k_trim, t_trim.compute())
 
-    def test_extract_region_set_length(self):
-        k_trim = pd.DataFrame(
-            data=np.array([[9, 0, 18, 0, 9, 13],
-                           [9, 0, 18, 0, 9, 13],
-                           [9, 0, 18, 0, 9, 13],
-                           [9, 0, 18, 0, 9, 13],
-                           [9, 0, 18, 0, 9, 13],
-                           ], dtype=float),    
-            index=pd.Index(self.seqs.index, name='kmer'),
-            columns=['fwd_pos', 'fwd_mis', 'rev_pos', 'rev_mis', 
-                     'new_fwd_pos', 'new_rev_pos'],
-        )
-        t_trim = _extract_region(self.seqs, self.fwd_primer, self.rev_primer, 
-                                trim_len=5)
-        pdt.assert_frame_equal(k_trim, t_trim.compute())
-
-    def test_extract_region_from_right(self):
-        k_trim = pd.DataFrame(
-            data=np.array([[9, 0, 18, 0, 14, 18],
-                           [9, 0, 18, 0, 14, 18],
-                           [9, 0, 18, 0, 14, 18],
-                           [9, 0, 18, 0, 14, 18],
-                           [9, 0, 18, 0, 14, 18],
-                           ], dtype=float),    
-            index=pd.Index(self.seqs.index, name='kmer'),
-            columns=['fwd_pos', 'fwd_mis', 'rev_pos', 'rev_mis', 
-                     'new_fwd_pos', 'new_rev_pos'],
-        )
-        t_trim = _extract_region(self.seqs, self.fwd_primer, self.rev_primer, 
-                                trim_len=5, trim_from_rev=True)
-        pdt.assert_frame_equal(k_trim, t_trim.compute())
-
-    def test_tidy_region(self):
-        sequences =   pd.DataFrame.from_dict(orient='index', data={
-                '0': list('GCGAAGCGGCTCAGG'),
-                '1': list('GCGAAGCGGCTCAGG'),
-                '2': list('GCGAAGCGGCTCAGG'),
-                '3': list('WTCCGCGTTGGAGTT'),
-                '4': list('ATCCGCGTTGGAGTT'),
-                '5': list('ATCCGCGTTGGAGTS'),
-                '6': list('CTCCGCGTTGGAGTT'),
-                '7': list('MTCCGCGTTGGAGTT'),
-                '8': list('DTCCGCGTTGGAGTT'),
-                '9': list('CGTTTATGTATGCCC'),
-                '10': list('CGTTTATGTATGCCT'),
-                '11': list('CGTTTATGTATGCCT'),
-                })
-        known_dups = pd.DataFrame.from_dict(orient='index', data={
-            '0|1|2' : list('GCGAAGCGGCTCAGG'),
-            '10|11': list('CGTTTATGTATGCCT'),
-            '3@0001|4|7@0001|8@0001': list('ATCCGCGTTGGAGTT'),
-            '3@0002|8@0003':  list('TTCCGCGTTGGAGTT'),
-            '5@0001': list('ATCCGCGTTGGAGTC'),
-            '5@0002': list('ATCCGCGTTGGAGTG'),
-            '6|7@0002': list('CTCCGCGTTGGAGTT'),
-            '8@0002':  list('GTCCGCGTTGGAGTT'),
-            '9': list('CGTTTATGTATGCCC'),
-            })
-        known_dups.index.set_names('seq-name', inplace=True)
-        known_map = pd.DataFrame(
-            data=np.array([['0', '0', '0|1|2', 'Bludhaven'],
-                           ['1', '1', '0|1|2', 'Bludhaven'],
-                           ['10', '10', '10|11', 'Bludhaven'],
-                           ['11', '11', '10|11', "Bludhaven"],
-                           ['2', '2', '0|1|2', 'Bludhaven'],
-                           ['3', '3@0001', '3@0001|4|7@0001|8@0001', 
-                            'Bludhaven'],
-                           ['3', '3@0002', '3@0002|8@0003', 'Bludhaven'],
-                           ['4', '4', '3@0001|4|7@0001|8@0001', 
-                            'Bludhaven'],
-                           ['5', '5@0001', '5@0001', 'Bludhaven'],
-                           ['5', '5@0002', '5@0002', 'Bludhaven'],
-                           ['6', '6', '6|7@0002', 'Bludhaven'],
-                           ['7', '7@0001', '3@0001|4|7@0001|8@0001', 
-                            'Bludhaven'],
-                           ['7', '7@0002', '6|7@0002', 'Bludhaven'],
-                           ['8', '8@0001', '3@0001|4|7@0001|8@0001', 
-                            'Bludhaven'],
-                           ['8', '8@0002', '8@0002', 'Bludhaven'],
-                           ['8', '8@0003', '3@0002|8@0003', "Bludhaven"],
-                           ['9', '9', '9', 'Bludhaven']], dtype=object),
-            columns=['db-seq', 'seq-name', 'kmer', 'region'],
-            )
-        collapsed, map_ = _tidy_sequences([sequences], 'Bludhaven', 15)
-        pdt.assert_frame_equal(collapsed, known_dups)
-        pdt.assert_frame_equal(map_, known_map.set_index('db-seq'))
-
-    def test_collapse_duplicates_sequences(self):
-        expand_seqs = pd.DataFrame.from_dict(orient='index', data={
-                '0' : list('GCGAAGCGGCTCAGG'),
-                '1' : list('GCGAAGCGGCTCAGG'),
-                '2' : list('GCGAAGCGGCTCAGG'),
-                '3@0001': list('ATCCGCGTTGGAGTT'),
-                '3@0002': list('TTCCGCGTTGGAGTT'),
-                '4': list('ATCCGCGTTGGAGTT'),
-                '5@0001': list('ATCCGCGTTGGAGTC'),
-                '5@0002': list('ATCCGCGTTGGAGTG'),
-                '6': list('CTCCGCGTTGGAGTT'),
-                '7@0001': list('ATCCGCGTTGGAGTT'),
-                '7@0002': list('CTCCGCGTTGGAGTT'),
-                '8@0001': list('ATCCGCGTTGGAGTT'),
-                '8@0002':  list('GTCCGCGTTGGAGTT'),
-                '8@0003':  list('TTCCGCGTTGGAGTT'),
-                '9': list('CGTTTATGTATGCCC'),
-                '10': list('CGTTTATGTATGCCT'),
-                '11': list('CGTTTATGTATGCCT'),
-                })
-
-        known_dups = pd.DataFrame.from_dict(orient='index', data={
-            '0|1|2' : list('GCGAAGCGGCTCAGG'),
-            '10|11': list('CGTTTATGTATGCCT'),
-            '3@0001|4|7@0001|8@0001': list('ATCCGCGTTGGAGTT'),
-            '3@0002|8@0003':  list('TTCCGCGTTGGAGTT'),
-            '5@0001': list('ATCCGCGTTGGAGTC'),
-            '5@0002': list('ATCCGCGTTGGAGTG'),
-            '6|7@0002': list('CTCCGCGTTGGAGTT'),
-            '8@0002':  list('GTCCGCGTTGGAGTT'),
-            '9': list('CGTTTATGTATGCCC'),
-            })
-        known_dups.index.set_names('seq-name', inplace=True)
-
-        test_dup = _collapse_duplicates(expand_seqs).compute()
-        pdt.assert_frame_equal(known_dups, test_dup)
-
-    def test_build_id_map(self):
-        kmer = ['0|1|2', '10|11', '3@0001|4|7@0001|8@0001',
-                '3@0002|8@0003', '5@0001', '5@0002', '6|7@0002',
-                '8@0002', '9']
+    def test_split_ids(self):
+        ids = pd.Series(['seq1|seq2', 'seq3@0001', 'seq3@0002', 
+                         'seq5', 'seq6'], name='kmer')
         known = pd.DataFrame(
-            data=np.array([['0', '0', '0|1|2', 'Bludhaven'],
-                           ['1', '1', '0|1|2', 'Bludhaven'],
-                           ['10', '10', '10|11', 'Bludhaven'],
-                           ['11', '11', '10|11', "Bludhaven"],
-                           ['2', '2', '0|1|2', 'Bludhaven'],
-                           ['3', '3@0001', '3@0001|4|7@0001|8@0001', 
-                            'Bludhaven'],
-                           ['3', '3@0002', '3@0002|8@0003', 'Bludhaven'],
-                           ['4', '4', '3@0001|4|7@0001|8@0001', 
-                            'Bludhaven'],
-                           ['5', '5@0001', '5@0001', 'Bludhaven'],
-                           ['5', '5@0002', '5@0002', 'Bludhaven'],
-                           ['6', '6', '6|7@0002', 'Bludhaven'],
-                           ['7', '7@0001', '3@0001|4|7@0001|8@0001', 
-                            'Bludhaven'],
-                           ['7', '7@0002', '6|7@0002', 'Bludhaven'],
-                           ['8', '8@0001', '3@0001|4|7@0001|8@0001', 
-                            'Bludhaven'],
-                           ['8', '8@0002', '8@0002', 'Bludhaven'],
-                           ['8', '8@0003', '3@0002|8@0003', "Bludhaven"],
-                           ['9', '9', '9', 'Bludhaven']], dtype=object),
-            columns=['db-seq', 'seq-name', 'kmer', 'region'],
+            data=[['seq1|seq2', 'seq1'],
+                  ['seq1|seq2', 'seq2'],
+                  ['seq3@0001', 'seq3@0001'],
+                  ['seq3@0002', 'seq3@0002'],
+                  ['seq5', 'seq5'],
+                  ['seq6', 'seq6'],
+                  ],
+            columns=['kmer', 'seq-name']
             )
+        test = _split_ids(ids).compute()
+        test.sort_values(['kmer', 'seq-name'], inplace=True)
+        test.reset_index(drop=True, inplace=True)
+        pdt.assert_frame_equal(known, test)
 
-        test = _build_id_map(kmer, 'Bludhaven')
-        pdt.assert_frame_equal(test, known.set_index('db-seq'))
+    def test_expand_degenerate_gen_no_degen(self):
+        seq = skbio.DNA('GCGAAGCGGCTCAGG', metadata={'id': 'seq1'})
+        known = pd.Series({'seq1': 'GCGAAGCGGCTCAGG'})
+        test = _expand_degenerate_gen(seq)
+        pdt.assert_series_equal(test, known)
 
-seq1 = 'ACTAGTCATGCGAAGCGGCTCAGGATGATGATGAAGACACCTCGTAAGAGAGGCTGAATCCTGACGTGAAC'
-# #seq2: same first region as seq1, 3 nt difference in second
-seq2 = 'ACTAGTCATGCGAAGCGGCTCAGGATGATGATGAAGACACCTCGTAAGAGTTTCTGAATCCTGACGTGAAC'
-# seq3: degeneracy in first region
-seq3 = 'CATAGTCATWTCCGCGTTGGAGTTATGATGATGAAACCACCTCGTCCCAGTTCCGCGCTTCTGACGTGCAC'
-# Skipped in 1st region
-seq4 = 'GATTTTTTTATGTTCGCATGCGGAATGATGATGCCGACACCTCGTCCCGGAGACGAGAGGCTGACGTGAGC'
-seq5 = 'CATAGTCATCGTTTATGTATGCCCATGATGATGCGAGCACCTCGTATGGATGTAGAGCCACTGACGTGCGG'
-# # seq6: 1 nt diff in region 1, 3 nt in region 2
-seq6 = 'CATAGTCATCGTTTATGTATGCCTATGATGATGCGAGCACCTCGTAAAAATGTAGAGCCACTGACGTGCGG'
+    def test_expand_degenerate_gen_degen(self):
+        seq = skbio.DNA('WTCCGCGTTGGAGTT', metadata={'id': 'seq3'})
+        known = pd.Series({'seq3@0001': 'ATCCGCGTTGGAGTT',
+                           'seq3@0002': 'TTCCGCGTTGGAGTT'})
+        test = _expand_degenerate_gen(seq)
+        pdt.assert_series_equal(test, known)
+
+    def test_collapse_all_sequences_fwd(self):
+        condensed = dd.from_pandas(self.amplicon, chunksize=5000)
+        test_ff, test_group2 = _collapse_all_sequences(condensed, False)
+        self.assertTrue(isinstance(test_ff, DNAFASTAFormat))
+        pdt.assert_series_equal(
+            test_ff.view(pd.Series).astype(str), 
+            self.region_1.view(pd.Series).astype(str)
+            )
+        pdt.assert_frame_equal(
+            test_group2.reset_index(drop=True), 
+            self.group_forward[['amplicon', 'seq-name', 'seq']])
+
+    def test_collapse_all_seqs_rev(self):
+        condensed = dd.from_pandas(chunksize=5000, data=self.amplicon_r)
+        known_grouped = self.reverse_seqs.reset_index()
+        known_grouped.columns = ['seq-name', 'seq']
+        known_grouped['seq-name'] = \
+            known_grouped['seq-name'].apply(lambda x: '>%s' % x)
+        known_grouped['amplicon'] = ['TCAGG', 'GAGTT', 'TGCCC', 'TGCCT']
+
+        test_ff, test_group2 = _collapse_all_sequences(condensed, True)
+        pdt.assert_series_equal(self.reverse_seqs, 
+                                test_ff.view(pd.Series).astype(str))
+        pdt.assert_frame_equal(known_grouped[['amplicon', 'seq-name', 'seq']],
+                               test_group2.reset_index(drop=True))
+
+    def test_expand_ids(self):
+        test = _expand_ids(self.group_forward, self.fwd_primer, 'ATGATGATG',
+                           'Bludhaven', 15, 1000).compute()
+        test = test[['db-seq', 'seq-name', 'kmer', 'region', 
+                     'fwd-primer', 'rev-primer', 'kmer-length']]
+        test.set_index('db-seq', inplace=True)
+        pdt.assert_frame_equal(test.sort_index(), 
+                               self.region1_map.view(pd.DataFrame))
+
+
 
 if __name__ == '__main__':
     main()

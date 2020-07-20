@@ -6,7 +6,7 @@ from q2_sidle import (KmerMapFormat,
                       SidleReconFormat,
                       ReconSummaryFormat,
                       )
-from q2_types.feature_data import  AlignedDNAFASTAFormat
+from q2_types.feature_data import  AlignedDNAFASTAFormat, DNAFASTAFormat
 from q2_types.feature_data._transformer import _dnafastaformats_to_series
 from q2_sidle.plugin_setup import plugin
 
@@ -16,6 +16,7 @@ def _1(ff:KmerMapFormat) -> pd.DataFrame:
     df = df[['db-seq', 'seq-name', 'kmer', 'region', 'fwd-primer', 
              'rev-primer', 'kmer-length']]
     df[['kmer-length']] = df[['kmer-length']].astype(int)
+    df.sort_values(['db-seq', 'seq-name', 'kmer'], inplace=True)
     return df.set_index('db-seq')
 
 @plugin.register_transformer
@@ -24,6 +25,7 @@ def _2(ff:KmerMapFormat) -> Metadata:
     df = df[['db-seq', 'seq-name', 'kmer', 'region',
              'fwd-primer', 'rev-primer',  'kmer-length']]
     df[['kmer-length']] = df[['kmer-length']].astype(int)
+    df.sort_values(['db-seq', 'seq-name', 'kmer'], inplace=True)
     df.rename(columns={'kmer': 'id'}, inplace=True)
     return Metadata(df.set_index('id'))
 

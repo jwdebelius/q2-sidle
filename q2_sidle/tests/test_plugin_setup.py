@@ -10,6 +10,7 @@ import numpy.testing as npt
 import pandas as pd
 import pandas.util.testing as pdt
 import skbio
+from skbio import DNA
 
 from qiime2 import Artifact, Metadata
 from qiime2.plugins.sidle import methods as sidle
@@ -61,23 +62,6 @@ class PluginSetupTest(TestCase):
             )
         test = test.filtered_sequences.view(pd.Series).astype(str)
         pdt.assert_series_equal(known, test)
-
-    def test_extract_regional_database(self):
-        test_seqs, test_map = \
-            sidle.extract_regional_database(self.ref_seqs,
-                                            fwd_primer='WANTCAT',
-                                            rev_primer='CATCATCAT',
-                                            region='Bludhaven',
-                                            trim_length=15,
-                                            primer_mismatch=1,
-                                            debug=True,
-                                            )
-        pdt.assert_series_equal(
-            self.region1_db_seqs.view(pd.Series).astype(str),
-            test_seqs.view(pd.Series).astype(str)
-            )
-        pdt.assert_frame_equal(self.region1_db_map.view(pd.DataFrame),
-                               test_map.view(pd.DataFrame))
 
     def test_prepare_extracted_region(self):
         test_seqs, test_map = \
@@ -173,7 +157,8 @@ class PluginSetupTest(TestCase):
                   [os.path.join(self.base_dir, 'region2_db_map.qza'),
                    os.path.join(self.base_dir, 'region2_align.qza'),
                    os.path.join(self.base_dir, 'region2_counts.qza'), '1']],
-            columns=['kmer-map', 'alignment-map', 'frequency-table', 'region-order'],
+            columns=['kmer-map', 'alignment-map', 'frequency-table', 
+                     'region-order'],
             index=pd.Index(['Bludhaven', 'Gotham'], name='id')
             ))
         count_table, summary, mapping = \
@@ -188,7 +173,8 @@ class PluginSetupTest(TestCase):
                 columns=['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 'seq6']
             )
         )
-        pdt.assert_series_equal(self.seq_map.view(pd.Series), mapping.view(pd.Series))
+        pdt.assert_series_equal(self.seq_map.view(pd.Series), 
+                               mapping.view(pd.Series))
         pdt.assert_frame_equal(known_summary, summary.view(pd.DataFrame))
 
     def test_reconstruct_taxonomy(self):
@@ -199,6 +185,67 @@ class PluginSetupTest(TestCase):
                                           ).reconstructed_taxonomy
         pdt.assert_series_equal(self.taxonomy.view(pd.Series),
                                 test.view(pd.Series))
+
+    def test_reconstruct_fragment_rep_seqs(self):
+        recon_map = Artifact.import_data(
+            'FeatureData[SidleReconstruction]', 
+            pd.DataFrame(data=[['seq01|seq02'], 
+                               ['seq01|seq02'], 
+                               ['seq03|seq04'], 
+                               ['seq03|seq04'], 
+                               ['seq05']],
+                      index=pd.Index(['seq01', 'seq02', 'seq03', 'seq04', 
+                                      'seq05'], name='db-seq'),
+                      columns=['clean_name'])
+            )
+        recon_summary = Artifact.import_data(
+            'FeatureData[ReconstructionSummary]',
+            Metadata(pd.DataFrame(data=[[1, 2, 2, 0, 'asv01|asv02'],
+                                        [2, 3, 1.5, np.std([1, 2], ddof=1), 
+                                         'asv03|asv04'],
+                                        [2, 2, 1, 0, 'asv07|asv08']],
+                                 index=pd.Index(['seq01|seq02', 'seq03|seq04', 
+                                                 'seq05'], name='feature-id'),
+                                columns=['num-regions', 'total-kmers-mapped', 
+                                         'mean-kmer-per-region', 
+                                         'stdv-kmer-per-region', 
+                                         'mapped-asvs']))
+        )
+        manifest = Metadata(pd.DataFrame(
+            data=[[os.path.join(self.base_dir, 'frag_r1_db_map.qza'),
+                   os.path.join(self.base_dir, 'region1_align.qza'),
+                   os.path.join(self.base_dir, 'region1_counts.qza'), 0],
+                  [os.path.join(self.base_dir, 'frag_r2_db_map.qza'),
+                   os.path.join(self.base_dir, 'region2_align.qza'),
+                   os.path.join(self.base_dir, 'region2_counts.qza'), 1]],
+            columns=['kmer-map', 'alignment-map', 'frequency-table', 
+                     'region-order'],
+            index=pd.Index(['Gotham', 'Bludhaven'], name='id')
+        ))
+        aligned_seqs = Artifact.import_data(
+            'FeatureData[AlignedSequence]', 
+            skbio.TabularMSA([
+                DNA('CTAGTCATGCGAAGCGGCTCAGGATGATGATGAAGAC-------------------'
+                    '--------------', metadata={'id': 'seq01'}),
+                DNA('CTAGTCATGCGAAGCGGCTCAGGATGATGATGAAGAC-------------------'
+                    '--------------', metadata={'id': 'seq02'}),
+                DNA('CATAGTCATWTCCGCGTTGGAGTTATGATGATGAWACCACCTCGTCCCAGTTCCGC'
+                    'GCTTCTGACGTGC-', metadata={'id': 'seq03'}),
+                DNA('------------------GGAGTTATGATGA--AGACCACCTCGTCCCAGTTCCGC'
+                    'GCTTCTGACGTGCC', metadata={'id': 'seq04'}),
+                DNA('CATAGTCATCGTTTATGTATGCCCATGATGATGCGAGCACCTCGTATGGATGTAGA'
+                    'GCCACTGACGTGCG', metadata={'id': 'seq05'}),
+            ])
+        )
+        known = pd.Series(
+            data=['GCGAAGCGGCTCAGG',
+                  'WTCCGCGTTGGAGTTATGATGATGAWACCACCTCGTCCCAGTTCCGCGCTT'],
+            index=pd.Index(['seq01|seq02', 'seq03|seq04']),
+            )
+        test = sidle.reconstruct_fragment_rep_seqs(recon_map, recon_summary, 
+                                                   aligned_seqs, manifest
+                                                   ).representative_fragments
+        pdt.assert_series_equal(known, test.view(pd.Series).astype(str))
 
     def test_integration(self):
         # This will run through a slightly more complex dataset...
@@ -227,12 +274,11 @@ class PluginSetupTest(TestCase):
         ))    
 
         ### Sequence extraction
-        region1_seqs, region1_map = sidle.extract_regional_database(
-            Artifact.load(os.path.join(data_dir, 'database_sequences.qza')),
+        region1_seqs, region1_map = sidle.prepare_extracted_region(
+            Artifact.load(os.path.join(data_dir, 'region1-extract-seqs.qza')),
             fwd_primer='TGGCGGACGGGTGAGTAA',
             rev_primer='CTGCTGCCTCCCGTAGGA',
             trim_length=50,
-            primer_mismatch=1,
             region='1',
             debug=True,
             )
@@ -242,15 +288,14 @@ class PluginSetupTest(TestCase):
                                 known.view(pd.Series).astype(str))
         known = \
             Artifact.load(os.path.join(known_dir, 'region1-kmer-map.qza'))
-        pdt.assert_frame_equal(known.view(pd.DataFrame), 
-                              region1_map.view(pd.DataFrame))
+        pdt.assert_frame_equal(known.view(pd.DataFrame).sort_index(), 
+                              region1_map.view(pd.DataFrame).sort_index())
 
-        region2_seqs, region2_map = sidle.extract_regional_database(
-            Artifact.load(os.path.join(data_dir, 'database_sequences.qza')),
+        region2_seqs, region2_map = sidle.prepare_extracted_region(
+            Artifact.load(os.path.join(data_dir, 'region2-extract-seqs.qza')),
             fwd_primer='CAGCAGCCGCGGTAATAC',
             rev_primer='CGCATTTCACCGCTACAC',
             trim_length=50,
-            primer_mismatch=1,
             region='2',
             debug=True,
             )
@@ -262,12 +307,11 @@ class PluginSetupTest(TestCase):
             Artifact.load(os.path.join(known_dir, 'region2-kmer-map.qza'))
         pdt.assert_frame_equal(known.view(pd.DataFrame), 
                               region2_map.view(pd.DataFrame))
-        region3_seqs, region3_map = sidle.extract_regional_database(
-            Artifact.load(os.path.join(data_dir, 'database_sequences.qza')),
+        region3_seqs, region3_map = sidle.prepare_extracted_region(
+            Artifact.load(os.path.join(data_dir, 'region3-extract-seqs.qza')),
             fwd_primer='GCACAAGCGGTGGAGCAT',
             rev_primer='CGCTCGTTGCGGGACTTA',
             trim_length=50,
-            primer_mismatch=1,
             region='3',
             debug=True,
             )
@@ -350,6 +394,8 @@ class PluginSetupTest(TestCase):
         pdt.assert_series_equal(known.view(pd.Series), map_.view(pd.Series))
 
         shutil.rmtree(test_dir)
+
+
 
 if __name__ == '__main__':
     main()

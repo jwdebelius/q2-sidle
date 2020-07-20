@@ -55,6 +55,7 @@ plugin.methods.register_function(
         'chunk_size':  (Int % Range(1, None)),
         'n_workers': Int % Range(0, None),
         'debug': Bool,
+        'client_address': Str,
     },
     input_descriptions={
         'sequences': 'The sequences to be filtered.'
@@ -72,87 +73,14 @@ plugin.methods.register_function(
         'n_workers': ('The number of jobs to initiate. When `n_workers` is 0,'
                       ' the cluster will be able to access all avaliable'
                       ' resources.'),
+        'client_address': ('The IP address for an existing cluster. '
+                          'Please see the dask client documentation for more'
+                          ' information: '
+                          'https://distributed.dask.org/en/latest/client.html'
+                          ),
         'debug': ('Whether the function should be run in debug mode (without '
                   'a client) or not. `debug` superceeds all options'),
     }
-)
-
-
-plugin.methods.register_function(
-    function=q2_sidle.extract_regional_database,
-    name='Extract and expand regional kmer database',
-    description=('Performs in silico PCR to extract a region of the full '
-                 'length sequence, and then expands degenerate sequences '
-                 'and collapses duplicated sequences.'),
-    inputs={
-        'sequences': FeatureData[Sequence]
-    },
-    outputs=[
-        ('collapsed_kmers', FeatureData[Sequence]), 
-        ('kmer_map', FeatureData[KmerMap]),
-    ],
-    parameters={
-        'fwd_primer': Str,
-        'rev_primer': Str,
-        'trim_length': Int,
-        'region': Str,
-        'primer_mismatch': Int,
-        'trim_primers': Bool,
-        'reverse_complement_rev': Bool,
-        'trim_from_right': Bool,
-        'reverse_complement_result': Bool,
-        'chunk_size':  (Int % Range(1, None)),
-        'n_workers': Int % Range(0, None),
-        'debug': Bool,
-    },
-    input_descriptions={
-        'sequences': 'The full length sequences from the reference database',
-    },
-    output_descriptions={
-        'collapsed_kmers': ('Reference kmer sequences for the region with'
-                            ' the degenerate sequences expanded and '
-                            'duplicated sequences identified'
-                            ),
-        'kmer_map': ('A mapping relationship between the name of the '
-                     'sequence in the database and the kmer identifier used'
-                     ' in this region.'),
-    },
-    parameter_descriptions={
-        'fwd_primer': ('The forward primer used to amplify the region of '
-                       'interest'),
-        'rev_primer': ('The reverse primer used to amplify the region of '
-                       "interest. If this is 3'-5' anti-sense primer, then "
-                       'the `reverse-complement-rev` parameter should be '
-                       'used'),
-        'region': ('A unique description of the hypervariable region being '
-                   'extracted. If no region is provided, the primers will'
-                   ' be used'),
-        'trim_length': ('The length of the extracted regional kmers.'),
-        'primer_mismatch': ('The allowed mismatch between the database '
-                            'sequence and the primer'),
-        'trim_primers': ('Whether the primer should be trimmed from the '
-                        'region. This is removed before `trim_length` is '
-                        'applied'),
-        'reverse_complement_rev': ('Indicates the reverse primer should be '
-                                   'reverse complemented'),
-        'trim_from_right': ("Trimming will be performed from the reverse "
-                            "primer (i.e. trimming from hte 3' end). This "
-                            "is useful in dealing with mixed orientation "
-                            "regions or regions which cannot be joined due"
-                            " to read length."),
-        'reverse_complement_result': ('When true, the extracted region will'
-                                      ' be reverse complemented. This is '
-                                      'ikely useful for mixed orientation '
-                                      'reads or regions which cannot be '
-                                      'joined.'),
-        'chunk_size': ('The number of sequences to be analyzed in parallel '
-                       'blocks'),
-        'n_workers': ('The number of jobs to initiate. When `n_workers` is 0,'
-                      ' the cluster will be able to access all avaliable'
-                      ' resources.'),
-        'debug': ('Whether the function should be run in debug mode (without '
-                  'a client) or not. `debug` superceeds all options'),
-    },
 )
 
 
@@ -175,9 +103,13 @@ plugin.methods.register_function(
         'region': Str,
         'fwd_primer': Str,
         'rev_primer': Str,
+        'reverse_complement_rev': Bool,
+        'reverse_complement_result': Bool,
         'chunk_size':  (Int % Range(1, None)),
         'n_workers': Int % Range(0, None),
+        'client_address': Str,
         'debug': Bool,
+
     },
     input_descriptions={
         'sequences': 'The full length sequences from the reference database',
@@ -199,6 +131,16 @@ plugin.methods.register_function(
                        'interest'),
         'rev_primer': ('The reverse primer used to amplify the region of '
                        "interest"),
+        'reverse_complement_rev': ('If the reverse primer was reverse '
+                                   'complemented during sequence extraction. '
+                                   'This is used to later generate fragments '
+                                   'for the phylogenetic tree.'),
+        'reverse_complement_result': ('Whether the sequences for alignment '
+                                      'should be reverse complemented for '
+                                      'alignment, for example, in cases where'
+                                      ' the forward and reverse primers do '
+                                      'not overlap and you want to align with'
+                                      ' the reverse sequence.'),
         'chunk_size': ('The number of sequences to be analyzed in parallel '
                        'blocks'),
         'n_workers': ('The number of jobs to initiate. When `n_workers` is 0,'
@@ -206,6 +148,11 @@ plugin.methods.register_function(
                       ' resources.'),
         'debug': ('Whether the function should be run in debug mode (without '
                   'a client) or not. `debug` superceeds all options'),
+        'client_address': ('The IP address for an existing cluster. '
+                           'Please see the dask client documentation for more'
+                           ' information: '
+                           'https://distributed.dask.org/en/latest/client.html'
+                           ),
     },
 )
 
@@ -231,6 +178,7 @@ plugin.methods.register_function(
         'region': Str,
         'max_mismatch': Int % Range(1, None),
         'chunk_size':  (Int % Range(1, 5000)),
+        'client_address': Str,
         'n_workers': Int % Range(0, None),
         'debug': Bool,
     },
@@ -261,6 +209,11 @@ plugin.methods.register_function(
         'n_workers': ('The number of jobs to initiate. When `n_workers` is 0,'
                       ' the cluster will be able to access all avaliable'
                       ' resources.'),
+        'client_address': ('The IP address for an existing cluster. '
+                          'Please see the dask client documentation for more'
+                          ' information: '
+                          'https://distributed.dask.org/en/latest/client.html'
+                          ),
         'debug': ('Whether the function should be run in debug mode (without '
                   'a client) or not. `debug` superceeds all options'),
     },
@@ -287,6 +240,7 @@ plugin.methods.register_function(
         'min_abund': Float % Range(0, 1),
         'count_degenerates': Bool,
         'n_workers': Int % Range(0, None),
+        'client_address': Str,
         'debug': Bool,
     },
     output_descriptions={
@@ -332,6 +286,11 @@ plugin.methods.register_function(
         'n_workers': ('The number of jobs to initiate. When `n_workers` is 0,'
                       ' the cluster will be able to access all avaliable'
                       ' resources.'),
+        'client_address': ('The IP address for an existing cluster. '
+                          'Please see the dask client documentation for more'
+                          ' information: '
+                          'https://distributed.dask.org/en/latest/client.html'
+                          ),
         'debug': ('Whether the function should be run in debug mode (without '
                   'a client) or not. `debug` superceeds all options'),
     }
