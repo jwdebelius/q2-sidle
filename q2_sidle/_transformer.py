@@ -28,8 +28,10 @@ def _2(ff:KmerMapFormat) -> Metadata:
              'fwd-primer', 'rev-primer',  'kmer-length']]
     df[['kmer-length']] = df[['kmer-length']].astype(int)
     df.sort_values(['db-seq', 'seq-name', 'kmer'], inplace=True)
-    df.rename(columns={'kmer': 'id'}, inplace=True)
-    return Metadata(df.set_index('id'))
+    df.reset_index(drop=True, inplace=True)
+    df.index = df.index.astype(str)
+    df.index.set_names('id', inplace=True)
+    return Metadata(df)
 
 
 @plugin.register_transformer

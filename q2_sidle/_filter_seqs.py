@@ -1,6 +1,9 @@
 import dask
+import dask.dataframe as dd
 import numpy as np
+import regex
 import pandas as pd
+from skbio import DNA
 
 from q2_sidle._utils import (_setup_dask_client, 
                              _convert_generator_to_delayed_seq_block,
@@ -21,7 +24,7 @@ def filter_degenerate_sequences(sequences: DNASequencesDirectoryFormat,
     debug:bool=False, 
     n_workers:int=0,
     client_address: str=None,
-    ) -> DNAFASTAFormat:
+    ) -> pd.Series:
     """
     Prefilters the database to remove sequences with too many degenerates
 
@@ -53,49 +56,28 @@ def filter_degenerate_sequences(sequences: DNASequencesDirectoryFormat,
     # # Sets up the client
     _setup_dask_client(debug=debug, cluster_config=None,  
                        n_workers=n_workers, address=client_address)
-    # Reads in the sequences
-    sequences = sequences.file.view(DNAIterator)
-    seq_block = _convert_generator_to_delayed_seq_block(sequences, chunk_size)
-    # Performs degenrate filtering
-    sub_seq = \
-        dask.compute(*_degen_filter(seq_block, max_degen))
-    # Converts the sequences back to a file for saving
-    ff = _convert_seq_block_to_dna_fasta_format(sub_seq)
     
-    return ff
+    # Reads in the sequences
+    sequences = dd.from_pandas(
+        sequences.file.view(pd.Series).reset_index(), 
+        chunksize=chunk_size)
+    sequences.columns = ['id', 'sequence']
+    sequences['sequence'] = sequences['sequence'].astype(str)
+    def _count_degen(x):
+        return len(regex.findall('[RYSWKMBDHVN]', x)) <= max_degen
 
+    sequences['count'] = sequences['sequence'].apply(_count_degen, 
+                                                     meta=('sequence', bool))
+    sequences = sequences.loc[sequences['count']]
 
+    sequences['skbio'] = \
+        sequences.apply(
+            lambda x: DNA(x['sequence'], metadata={'id': x['id']}), 
+            axis=1,
+            meta=(None, 'object')
+            )
+    sequences = sequences.set_index('id')
 
-def _degen_filter(sequences, max_degen):
-    """
-    Prefilters the database to remove sequences with too many degenerates
-
-    Parameters
-    ----------
-    sequences: SequenceBlocks
-        A SequenceBlock object with the reference sequences represented in
-        pd.DataFrames where each row is a sequence and each column is a 
-        nucleotide position
-    max_degen : int, optional
-        The maximum number of degenerate nucleotides necessary to retain the
-        sequence in the database
-
-    Returns
-    -------
-    lists of DataFrames
-        The filter sequences
-    """
-    degen_count = [_count_degenerates(seq_) for seq_ in sequences]
-    degen_ids = [dask.delayed(lambda x: x.index[x <= max_degen])(count) for 
-                 count in degen_count]
-
-    @dask.delayed
-    def _filter_seqs(seqs, ids):
-        return seqs.loc[seqs.index.isin(ids)]
-
-    sub_seq =[_filter_seqs(seq_, id_) 
-              for seq_, id_ in zip(*(sequences, degen_ids))]
-
-    return sub_seq
+    return sequences['skbio'].compute()
 
 

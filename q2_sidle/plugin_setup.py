@@ -29,7 +29,7 @@ import q2_sidle
 
 plugin = Plugin(
     name='sidle',
-    version='0.0.1',
+    version='2020.08',
     website='https://github.com/jwdebelius/q2-sidle',
     package='q2_sidle',
     description=('This plugin reconstructs a full 16s sequence from short '

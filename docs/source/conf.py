@@ -22,7 +22,7 @@ copyright = '2020, Justine Debelius'
 author = 'Justine Debelius'
 
 # The full version, including alpha/beta/rc tags
-release = '2020'
+release = '2020.8'
 
 
 # -- General configuration ---------------------------------------------------
@@ -31,7 +31,8 @@ release = '2020'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-	'sphinx.ext.autodoc'
+	'sphinx.ext.autodoc',
+	'sphinx.ext.autosectionlabel'
 ]
 
 # Add any paths that contain templates here, relative to this directory.

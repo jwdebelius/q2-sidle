@@ -9,7 +9,6 @@ import skbio
 
 from qiime2 import Artifact
 from q2_sidle._filter_seqs import (filter_degenerate_sequences,
-                                   _degen_filter,
                                    _count_degenerates
                                    )
 
@@ -30,10 +29,6 @@ class FilterTest(TestCase):
         self.base_dir = \
             os.path.join(os.path.dirname(os.path.realpath(__file__)), 
                          'files/little_test')
-
-    def test_degen_filter(self):
-        test = _degen_filter([self.seqs], max_degen=10)
-        pdt.assert_frame_equal(dask.compute(*test)[0], self.seqs)
 
     def test_count_degenerates(self):
         seq_array = pd.DataFrame.from_dict(orient='index', data={
