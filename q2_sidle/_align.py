@@ -4,9 +4,10 @@ import warnings
 warnings.filterwarnings('ignore', category=RuntimeWarning)
 
 import dask
+import dask.dataframe as dd
 import numpy as np
 import pandas as pd
-import sparse as sp
+import regex
 
 from q2_types.feature_data import (DNAFASTAFormat, DNAIterator)
 
@@ -14,18 +15,18 @@ from q2_sidle._utils import (_setup_dask_client,
                              _convert_generator_to_seq_block,
                              _convert_generator_to_delayed_seq_block, 
                              _convert_seq_block_to_dna_fasta_format,
-                             degen_reps,
+                             degen_sub2
                              )
 
 
-def align_regional_kmers(kmers: DNAFASTAFormat, 
-    rep_seq: DNAFASTAFormat, 
+def align_regional_kmers(kmers: pd.Series, 
+    rep_seq: pd.Series, 
     region: str, 
     max_mismatch: int=2, 
     chunk_size:int=1000, 
     debug:bool=False, 
     n_workers:int=0,
-    client_address:str=None) -> (pd.DataFrame, DNAFASTAFormat):
+    client_address:str=None) -> (pd.DataFrame, pd.Series):
     """
     Performs regional alignment between database "kmers" and ASVs
 
@@ -66,33 +67,28 @@ def align_regional_kmers(kmers: DNAFASTAFormat,
      # Sets up the client
     _setup_dask_client(debug=debug, cluster_config=None,  
                        n_workers=n_workers, address=client_address)
+    
     # Gets the sequences
-    kmers = _convert_generator_to_delayed_seq_block(
-        kmers.view(DNAIterator), chunk_size
-        )
-    rep_set = _convert_generator_to_seq_block(
-        rep_seq.view(DNAIterator), chunk_size
-        )
+    kmers = kmers.astype(str)
 
     # Performs the alignment
-    aligned = np.hstack([
-        dask.delayed(_align_kmers)(kmer, asv, max_mismatch)
-        for kmer, asv in it.product(kmers, rep_set)
-        ])
-    aligned = pd.concat(axis=0, sort=False, objs=dask.compute(*aligned))
-
+    aligned = _align_kmers(kmers, rep_seq.astype(str), 
+                           allowed_mismatch=max_mismatch,
+                           block_size=chunk_size)
     aligned['region'] = region
-    aligned.sort_values(['kmer', 'asv'], inplace=True)
-    aligned.set_index('kmer', inplace=True)
-
-    rep_set = pd.concat(rep_set, axis=0, sort=False)
-    aligned_asvs = aligned['asv'].unique()
+    aligned = aligned.compute()
     
-    discard = _convert_seq_block_to_dna_fasta_format(
-        [rep_set.copy().drop(aligned_asvs)]
-    )
-
-    return aligned, discard
+    # Gets the discarded sequences
+    discard = aligned.groupby('asv')['discard'].all()
+    discard = discard.index[discard].values
+    
+    # Keeps only the aligned sequences
+    aligned = aligned.loc[~aligned['discard']]
+    aligned.drop(columns=['discard'], inplace=True)
+    
+    aligned.sort_values(['kmer', 'asv'], inplace=True)
+    
+    return aligned, rep_seq.loc[discard]
 
 
 def _align_kmers(reads1, reads2, allowed_mismatch=2, read1_label='kmer', 
@@ -133,101 +129,73 @@ def _align_kmers(reads1, reads2, allowed_mismatch=2, read1_label='kmer',
         kmers here that are different lengths).
 
     """
-    # Gets the dimensions of the reads
-    num_reads1, kmer_len = (reads1.shape)
-    num_reads2, length2 = (reads2.shape)
-
-    # Raises an error if the 
-    if kmer_len != length2:
+    
+    # Checks the read lengths of both reads
+    num_reads1, length1 = _check_read_lengths(reads1, read1_label)
+    num_reads2, length2 = _check_read_lengths(reads2, read2_label)
+    
+    # The read lengths must also be the same length
+    if length1 != length2:
         raise ValueError('The reads are different lengths. Alignment cannot'
-            ' be preformed.')
+                         ' be preformed.')
 
-    # Determines the mismatch threshhold
-    miss_thresh = (kmer_len - allowed_mismatch)
+    # Gets the threshhoold
+    miss_thresh = (length1 - allowed_mismatch)
+    
+    # Handles degenerate sequences if they should be replaced.
+    if allow_degen1:
+        reads1 = reads1.apply(lambda x: pd.Series(list(x)))
+        reads1.replace(degen_sub2, inplace=True)
+        reads1 = reads1.apply(lambda x: ''.join(x), axis=1)
 
-    # # gets the sequence identifiers
-    read1_ids = reads1.index
-    read2_ids = reads2.index
+    if allow_degen2:
+        reads2 = reads2.apply(lambda x: pd.Series(list(x)))
+        reads2.replace(degen_sub2, inplace=True)
+        reads2 = reads2.apply(lambda x: ''.join(x), axis=1)
+    
+    # Puts together a long dask delayed array for matching the sequences by
+    # first, converting to a delayed object and then introducing the secondary
+    # sequences as columns, and then melting them
+    read_joint = dd.from_pandas(reads1.reset_index(), chunksize=block_size)
+    read_joint.columns = [read1_label, 'sequence1']
+    read_joint = dd.concat(axis=1, dfs=[
+        read_joint,
+        read_joint[read1_label].apply(lambda x: reads2, 
+                                      meta={i: 'object' for i in reads2.index})
+    ])
+    read_joint = read_joint.melt(id_vars=[read1_label, 'sequence1'],
+                                 var_name=read2_label,
+                                 value_name='sequence2'
+                                 ) 
+    read_joint['length'] = length1
 
+    # Computes the number of sequences that are different between the two 
+    # sequences
+    def _compute_joint(x):
+        seq1 = '(%s){e<=%i}' % (x['sequence1'], x['length'])
+        seq2 = x['sequence2']
+        m = regex.match(seq1, seq2)
+        return m.fuzzy_counts[0]
+    read_joint['mismatch'] = \
+        read_joint.apply(_compute_joint, axis=1, meta=(None, 'int64'))
+    
+    # Drops out the sequences 
+    read_joint = read_joint.drop(columns=['sequence1', 'sequence2'])
+    
+    read_joint['discard'] = read_joint['mismatch'] > allowed_mismatch
 
-    # A couple of helper functions that just increase readability and throw things
-    # to sparse because that will hopefully decreaes the memory requirements
-    # because things hould be sparse 
-    def _expand1(x):
-        return sp.as_coo(np.dstack([x] * num_reads2).swapaxes(1, 2))
-    def _expand2(x):
-        return sp.as_coo(
-            np.dstack([x] * num_reads1).swapaxes(0, 2).swapaxes(2, 1))
+    return read_joint
 
-    if (allow_degen1 | allow_degen2):
-
-        def check_nt(reads, nt, allow):
-            return ((reads.isin([nt])) | 
-                    (reads.isin(degen_reps[nt]) & allow)).values
-
-        # Expands read1 to get positions and degeneracies
-        reads1_d = (_expand1(~reads1.isin(['A', 'C', 'T', 'G']).values) & 
-                             allow_degen1)
-        reads1_A = _expand1(check_nt(reads1, 'A', allow_degen1))
-        reads1_C = _expand1(check_nt(reads1, 'C', allow_degen1))
-        reads1_G = _expand1(check_nt(reads1, 'G', allow_degen1))
-        reads1_T = _expand1(check_nt(reads1, 'T', allow_degen1))
-
-        # Expands read2 to get positions and degeneracies
-        reads2_d = (_expand2(~reads2.isin(['A', 'C', 'T', 'G']).values) & 
-                             allow_degen2)
-        reads2_A = _expand2(check_nt(reads2, 'A', allow_degen2))
-        reads2_C = _expand2(check_nt(reads2, 'C', allow_degen2))
-        reads2_G = _expand2(check_nt(reads2, 'G', allow_degen2))
-        reads2_T = _expand2(check_nt(reads2, 'T', allow_degen2))
-
-        readsA = reads1_A & reads2_A
-        readsC = reads1_C & reads2_C
-        readsG = reads1_G & reads2_G
-        readsT = reads1_T & reads2_T
-
-        # Determines whether we allow mismatch between two degeneracies.
-        # We want to keep any position where there are not two degeneracies OR
-        # positions where there are two degeneries IF we flagged that with 
-        # `expand_match`. Basically, its a stupid complex way to multiply by 1.
-        # But, I think it will work here.
-        extend_mat = ((reads1_d & reads2_d & expand_match) | 
-                      ~(reads1_d & reads2_d))
-
-        # Builds matching array and determines the total matches in each sequence
-        # then filters down ot only positions that match above the threshhold
-        pos_match = ((readsA | readsC | readsG | readsT) & 
-                     extend_mat).sum(axis=-1)
-    else:
-        reads1_exp = np.dstack([reads1.values] * num_reads2).swapaxes(1, 2)
-        reads2_exp = np.dstack([reads2.values] * 
-                               num_reads1).swapaxes(0, 2).swapaxes(2, 1)
-
-        pos_match = sp.as_coo((reads1_exp == reads2_exp).sum(axis=-1))
-
-
-    pos_match = pos_match * (pos_match >= miss_thresh)
-
-    match_values = pd.DataFrame(
-        data=(kmer_len - pos_match.todense()), 
-        index=pd.Index(read1_ids, name=read1_label),
-        columns=pd.Index(read2_ids, name=read2_label)
-        ).reset_index()
-
-    match_long = match_values.melt(id_vars=read1_label, 
-                                   var_name=read2_label,
-                                   value_name='mismatch' 
-                                   )
-    match_long = match_long[match_long['mismatch'] <= allowed_mismatch].copy()
-    match_long['length'] = kmer_len
-    match_long.sort_values([read1_label, read2_label], inplace=True)
-
-    return match_long[[read1_label, read2_label, 'mismatch', 'length']]
-
-
-def _to_dask_array_3d(df, nstack):
+    
+def _check_read_lengths(reads, read_label):
     """
-    A function to convert from a dask dataframe to an array.
+    Checks the length of the sequences
     """
+    read_lengths = reads.apply(lambda x: len(x))
+    length_dist = read_lengths.value_counts()
+    if len(length_dist) > 1:
+        raise ValueError('The %s reads are not a consistent length' 
+                          % read_label)
 
-    return da.dstack([(df.to_dask_array()).compute_chunk_sizes()] * nstack)
+    return (length_dist.values[0], length_dist.index[0])
+    

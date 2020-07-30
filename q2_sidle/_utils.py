@@ -91,12 +91,17 @@ def _setup_dask_client(debug=False, cluster_config=None, n_workers=1,
         pass
     elif cluster_config is not None:
         client = Client(**client_config.to_dict())
+        print(client.dashboard_link)
     elif address is not None:
         client = Client(address)
+        print(client.dashboard_link)
     elif n_workers == 0:
         client = Client()
+        print(client.dashboard_link)
     else:
         client = Client(n_workers=n_workers, processes=True)
+        print(client.dashboard_link)
+
 
 
 def _convert_seq_block_to_dna_fasta_format(seqs):

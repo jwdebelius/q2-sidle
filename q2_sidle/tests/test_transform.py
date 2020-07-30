@@ -2,6 +2,7 @@ from unittest import TestCase, main
 
 import os
 
+import dask.dataframe as dd
 import numpy as np
 import numpy.testing as npt
 import pandas as pd
@@ -38,6 +39,7 @@ class TestTransform(TestCase):
         filepath = os.path.join(self.base_dir, 'kmer-map.tsv')
         format = KmerMapFormat(filepath, mode='r')
         test = t._1(format)
+        self.assertTrue(isinstance(test, pd.DataFrame))
         pdt.assert_frame_equal(known, test)
 
 
@@ -67,21 +69,74 @@ class TestTransform(TestCase):
         pdt.assert_frame_equal(known, test.to_dataframe())
 
 
+    def test_kmer_map_delayed_frame(self):
+        known = pd.DataFrame(
+            data=[['Batman', 'Batman', 'Gotham', 'WANTCAT', 'CATCATCAT', 50],
+                  ['Superman', 'Superman', 'Metropolis', 'CATDAD', 'DADCAT', 
+                   50]],
+            columns=['seq-name', 'kmer', 'region', 'fwd-primer', 'rev-primer',
+                     'kmer-length'],
+            index=pd.Index(['Batman', 'Superman'], name='db-seq')
+            )
+        filepath = os.path.join(self.base_dir, 'kmer-map.tsv')
+        format = KmerMapFormat(filepath, mode='r')
+        test = t._3(format)
+        self.assertTrue(isinstance(test, dd.DataFrame))
+        pdt.assert_frame_equal(known, test.compute())
+
     def test_dataframe_to_kmer_map(self):
         # tested in plugin setup
         pass
 
     def test_kmer_align_to_dataframe(self):
         known = pd.DataFrame(
-            data=[['Batman', 'Bruce Wayne', 2, 80, 'Gotham'],
-                  ['Flash', 'Barry Allen', 0, 50, 'Central City'],
-                  ['GreenArrow', 'Oliver Queen', 0, 30, 'Star City']],
-            columns=['kmer', 'asv', 'mismatch', 'length', 'region']
+            data=[['Batman', 'Bruce Wayne', 80, 2, 'Gotham'],
+                  ['Flash', 'Barry Allen', 50, 0, 'Central City'],
+                  ['GreenArrow', 'Oliver Queen', 30, 0, 'Star City']],
+            columns=['kmer', 'asv', 'length', 'mismatch', 'region']
             )
         filepath = os.path.join(self.base_dir, 'kmer-align.tsv')
         format = KmerAlignFormat(filepath, mode='r')
-        test = t._4(format)
+        test = t._5(format)
+        self.assertTrue(isinstance(test, pd.DataFrame))
         pdt.assert_frame_equal(test, known)
+
+
+    def test_kmer_align_to_metadata(self):
+        known = pd.DataFrame(
+            data=[['Batman', 'Bruce Wayne', 80., 2., 'Gotham'],
+                  ['Flash', 'Barry Allen', 50, 0, 'Central City'],
+                  ['GreenArrow', 'Oliver Queen', 30, 0, 'Star City']],
+            columns=['kmer', 'asv', 'length', 'mismatch', 'region']
+            )
+        filepath = os.path.join(self.base_dir, 'kmer-align.tsv')
+        format = KmerAlignFormat(filepath, mode='r')
+        test = t._6(format)
+        self.assertTrue(isinstance(test, Metadata))
+        columns = dict(test.columns)
+        npt.assert_array_equal(list(columns.keys()),
+                              ['kmer', 'asv', 'length',  'mismatch', 'region']
+                               )
+        for k, v in columns.items():
+            if k in {'mismatch', 'length'}:
+                self.assertEqual(v.type, 'numeric')
+            else:
+                self.assertEqual(v.type, 'categorical')
+        pdt.assert_frame_equal(test.to_dataframe().reset_index(drop=True), 
+                               known)
+
+    def test_kmer_align_to_dask_dataframe(self):
+        known = pd.DataFrame(
+            data=[['Batman', 'Bruce Wayne', 80, 2, 'Gotham'],
+                  ['Flash', 'Barry Allen', 50, 0, 'Central City'],
+                  ['GreenArrow', 'Oliver Queen', 30, 0, 'Star City']],
+            columns=['kmer', 'asv', 'length', 'mismatch', 'region']
+            )
+        filepath = os.path.join(self.base_dir, 'kmer-align.tsv')
+        format = KmerAlignFormat(filepath, mode='r')
+        test = t._7(format)
+        self.assertTrue(isinstance(test, dd.DataFrame))
+        pdt.assert_frame_equal(test.compute(), known)
 
     def test_dataframe_to_kmer_align(self):
         # tested in plugin setup
@@ -97,7 +152,7 @@ class TestTransform(TestCase):
         filepath = os.path.join(self.base_dir, 
                                 'sidle-reconstruction-mapping.tsv')
         format = SidleReconFormat(filepath, mode='r')
-        test = t._6(format)
+        test = t._9(format)
         pdt.assert_series_equal(test, known)
 
     def test_recon_map_to_dataframe(self):
@@ -113,7 +168,7 @@ class TestTransform(TestCase):
         filepath = os.path.join(self.base_dir, 
                                 'sidle-reconstruction-mapping.tsv')
         format = SidleReconFormat(filepath, mode='r')
-        test = t._7(format)
+        test = t._10(format)
         pdt.assert_frame_equal(test, known)
 
     def test_dataframe_recon_map(self):
@@ -132,7 +187,7 @@ class TestTransform(TestCase):
         )
         filepath = os.path.join(self.base_dir, 'sidle-summary.tsv')
         format = ReconSummaryFormat(filepath, mode='r')
-        test = t._9(format)
+        test = t._12(format)
         pdt.assert_frame_equal(test, known)
 
     def test_recon_summary_to_metadata(self):
@@ -147,7 +202,7 @@ class TestTransform(TestCase):
         )
         filepath = os.path.join(self.base_dir, 'sidle-summary.tsv')
         format = ReconSummaryFormat(filepath, mode='r')
-        test = t._10(format)
+        test = t._13(format)
         self.assertTrue(isinstance(test, Metadata))
         columns = dict(test.columns)
         npt.assert_array_equal(list(columns.keys()),
@@ -163,6 +218,10 @@ class TestTransform(TestCase):
         pdt.assert_frame_equal(test.to_dataframe(), known)
 
     def test_metadata_to_recon_summary(self):
+        # tested in plugin setup
+        pass
+
+    def test_aligned_fasta_to_series(self):
         # tested in plugin setup
         pass
 

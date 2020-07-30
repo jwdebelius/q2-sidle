@@ -3,29 +3,32 @@ from unittest import TestCase, main
 import os
 
 import dask
+import dask.dataframe as dd
 import numpy as np
 import numpy.testing as npt
 import pandas as pd
 import pandas.util.testing as pdt
 import skbio
-import sparse as sp
 
 from qiime2 import Artifact, Metadata
 from qiime2.plugin import ValidationError
 
 from q2_sidle._reconstruct import (reconstruct_counts,
-                                   _build_id_set,
                                    _construct_align_mat,
                                    _count_mapping,
                                    _detangle_names,
                                    _expand_duplicate_sequences,
+                                   _get_clean,
+                                   _get_shared_seqs,
                                    _get_unique_kmers,
-                                   _map_id_set,
-                                   _map_singletons,
-                                   _solve_iterative_noisy,
+                                   _scale_relative_abundance,
                                    _solve_ml_em_iterative_1_sample,
+                                   _solve_iterative_noisy,
+                                   _sort_untidy,
+                                   _tidy_sequence_set,
+
                                    _untangle_database_ids,
-                                   _scale_relative_abundance
+                                   
                                    )
 import q2_sidle.tests.test_set as ts
 
@@ -55,31 +58,10 @@ class ReconstructTest(TestCase):
                   ],
             columns=['kmer', 'region', 'db-seq', 'clean_name'],
             )
-        self.match1 = pd.DataFrame(
-            data=np.array([['seq1|seq2', 'asv01', 0, 15, 'Bludhaven'],
-                           ['seq3@0001', 'asv02', 0, 15, 'Bludhaven'],
-                           ['seq3@0002', 'asv02', 1, 15, 'Bludhaven'],
-                           ['seq5', 'asv04', 0, 15, 'Bludhaven'],
-                           ['seq5', 'asv05', 1, 15, 'Bludhaven'],
-                           ['seq6', 'asv04', 1, 15, 'Bludhaven'],
-                           ['seq6', 'asv05', 0, 15, 'Bludhaven']], 
-                           dtype=object),
-            columns=['kmer', 'asv', 'mismatch', 'length', 'region'],
-            )
-        self.match1[['length', 'mismatch']] = \
-            self.match1[['length', 'mismatch']].astype(int)
-        self.match2 = match2 = pd.DataFrame(
-            data=np.array([['seq1', 'asv06', 0, 15, 'Gotham'],
-                           ['seq2', 'asv07', 0, 15, 'Gotham'],
-                           ['seq3', 'asv08', 0, 15, 'Gotham'],
-                           ['seq4', 'asv09', 0, 15, 'Gotham'],
-                           ['seq5', 'asv10', 0, 15, 'Gotham'],
-                           ['seq6', 'asv11', 0, 15, 'Gotham']],
-                           dtype=object),
-            columns=['kmer', 'asv', 'mismatch', 'length', 'region']
-            )
-        self.match2[['length', 'mismatch']] = \
-            self.match2[['length', 'mismatch']].astype(int)
+        self.match1 = ts.region1_align.view(pd.DataFrame).copy()
+        self.match2 = ts.region2_align.view(pd.DataFrame).copy()
+        self.kmer1 = ts.region1_db_map.view(pd.DataFrame).copy()
+
         self.align1 = pd.DataFrame(
             data=np.array([['seq1', 'asv01', 'Bludhaven', 0, 15, 0.92757, 0.92757, 0.0, 0.92757,  True, 0.4638],
                            ['seq2', 'asv01', 'Bludhaven', 0, 15, 0.92757, 0.92757, 0.0, 0.92757,  True, 0.4638],
@@ -93,12 +75,12 @@ class ReconstructTest(TestCase):
                      'max_error_prob', 'error_thresh', 'perf_match', 'norm']
             )
         self.align2 = pd.DataFrame(
-            data=np.array([['seq1', 'asv06', 1, 0, 15, 0.92757, 0.92757, 0.0, 0.92757,  True, 0.4638],
-                           ['seq2', 'asv07', 1, 0, 15, 0.92757, 0.92757, 0.0, 0.92757,  True, 0.4638],
-                           ['seq3', 'asv08', 1, 0, 15, 0.92757, 0.92757, 0.0, 0.92757,  True, 0.4638],
-                           ['seq4', 'asv09', 1, 0, 15, 0.92757, 0.92757, 0.0, 0.92757,  True, 0.9276],
-                           ['seq5', 'asv10', 1, 0, 15, 0.92757, 0.92757, 0.0, 0.92757,  True, 0.4638],
-                           ['seq6', 'asv11', 1, 0, 15, 0.92757, 0.92757, 0.0, 0.92757,  True, 0.4638]], dtype=object),
+            data=np.array([['seq1', 'asv06', 'Gotham', 0, 15, 0.92757, 0.92757, 0.0, 0.92757,  True, 0.4638],
+                           ['seq2', 'asv07', 'Gotham', 0, 15, 0.92757, 0.92757, 0.0, 0.92757,  True, 0.4638],
+                           ['seq3', 'asv08', 'Gotham', 0, 15, 0.92757, 0.92757, 0.0, 0.92757,  True, 0.4638],
+                           ['seq4', 'asv09', 'Gotham', 0, 15, 0.92757, 0.92757, 0.0, 0.92757,  True, 0.9276],
+                           ['seq5', 'asv10', 'Gotham', 0, 15, 0.92757, 0.92757, 0.0, 0.92757,  True, 0.4638],
+                           ['seq6', 'asv11', 'Gotham', 0, 15, 0.92757, 0.92757, 0.0, 0.92757,  True, 0.4638]], dtype=object),
             columns=['clean_name', 'asv', 'region', 'mismatch', 'length', 
                      'match_prob', 'perfect_prob',  
                      'max_error_prob', 'error_thresh', 'perf_match', 'norm']
@@ -181,6 +163,17 @@ class ReconstructTest(TestCase):
             os.path.join(os.path.dirname(os.path.realpath(__file__)), 
                          'files/little_test')
 
+        self.shared_long = pd.DataFrame(
+            data=[['seq1', 'Bludhaven', 'seq1'],
+                  ['seq1', 'Bludhaven', 'seq2'],
+                  ['seq2', 'Bludhaven', 'seq1'],
+                  ['seq2', 'Bludhaven', 'seq2'],
+                  ['seq3', 'Bludhaven', 'seq3'],
+                  ['seq5', 'Bludhaven', 'seq5'],
+                  ['seq6', 'Bludhaven', 'seq6']],
+            columns=['db-seq', 'region', 'value']
+            )
+
     def test_reconstruct_counts(self):
         known_map = pd.DataFrame(
             data=[['seq1', 'WANTCAT', 'CACCTCGTN', 15],
@@ -247,7 +240,8 @@ class ReconstructTest(TestCase):
             index=pd.Index(['Bludhaven', 'Gotham'], name='id')
             ))
         count_table, summary, mapping = \
-            reconstruct_counts(manifest, debug=True)
+            reconstruct_counts(manifest, debug=True, min_abund=1e-2)
+
         npt.assert_array_equal(
             count_table.matrix_data.todense(),
             np.array([[100,  50,   0,  50,  50, 50],
@@ -265,16 +259,6 @@ class ReconstructTest(TestCase):
         pdt.assert_frame_equal(known_map, mapping)
         pdt.assert_frame_equal(known_summary, summary.to_dataframe())
 
-    def test_build_id_set(self):
-        sub_tangle = \
-            self.tangle.loc[self.tangle['db-seq'].isin(['seq05', 'seq06'])].copy()
-        sub_tangle.drop(columns=['region'], inplace=True)
-        test = _build_id_set(sub_tangle,
-                             block_size=3)
-        self.assertTrue(isinstance(test, list))
-        self.assertEqual(len(test), 1)
-        npt.assert_array_equal(self.id_set[0], test[0])
-
     def test_construct_align_mat(self):
         sequence_map = pd.Series({'seq1': 'seq1',
                                   'seq2': 'seq2',
@@ -283,15 +267,15 @@ class ReconstructTest(TestCase):
                                   'seq5': 'seq5',
                                   'seq6': 'seq6'}, name='clean_name')
         sequence_map.index.set_names('db-seq', inplace=True)
-        test_mat = _construct_align_mat(self.match1, 
+        test_mat = _construct_align_mat(self.match2, 
                                         sequence_map,
                                         self.seq_summary).compute()
-
         # Rounds for the sake of sanity
         test_mat[self.float_cols] = test_mat[self.float_cols].round(4)
         test_mat[self.int_cols] = test_mat[self.int_cols].astype(int)
-        pdt.assert_frame_equal(self.align1, test_mat)
-    
+
+        pdt.assert_frame_equal(self.align2, test_mat)
+
     def test_count_mapping_degen(self):
         known = pd.DataFrame.from_dict(orient='index', data={
             'seq05': {'num-regions': 2., 
@@ -387,7 +371,7 @@ class ReconstructTest(TestCase):
             )
         known.index.set_names(['db-seq'], inplace=True)
         test = _detangle_names(long_) 
-        pdt.assert_series_equal(known, test.compute())
+        pdt.assert_series_equal(known, test)
 
     def test_expand_duplicate_sequences(self):
         original = pd.DataFrame(data=[['1', '2|3', '3|4|5', '6'],
@@ -400,66 +384,30 @@ class ReconstructTest(TestCase):
 
         pdt.assert_frame_equal(test, known)
 
+    def test_get_clean(self):
+        known = pd.DataFrame(
+            data=[['seq1', 'Bludhaven', 'seq1|seq2'],
+                  ['seq2', 'Bludhaven', 'seq1|seq2'],
+                  ['seq3', 'Bludhaven', 'seq3'],
+                  ['seq5', 'Bludhaven', 'seq5'],
+                  ['seq6', 'Bludhaven', 'seq6']],
+            columns=['db-seq', 'region', 'value']
+            )
+        test = _get_clean(self.shared_long).compute()
+        pdt.assert_frame_equal(test, known)
+
+    def test_get_shared(self):
+        test = _get_shared_seqs(self.kmer1.reset_index()).compute()
+        test.sort_values(['db-seq', 'value'], inplace=True)
+        pdt.assert_frame_equal(test.reset_index(drop=True), 
+                               self.shared_long)
+
     def test_get_unique_kmers(self):
         test = pd.Series(['seq00', 'seq00|seq01@001', 'seq01@002', 
                           'seq01|seq02'])
         known = np.array(['seq00', 'seq01', 'seq02'])
         test = _get_unique_kmers(test)
         npt.assert_array_equal(test, known)
-
-    def test_map_id_set(self):
-        tangled = pd.DataFrame(
-            data=[['seq00', 0, 'seq00',  np.nan,  np.nan],
-                  ['seq00', 1, 'seq00', 'seq01',  'seq02'],
-                  ['seq01', 1, 'seq00', 'seq01',  'seq02'],
-                  ['seq01', 2, 'seq01',  np.nan,  np.nan],
-                  ['seq02', 1, 'seq00', 'seq01', 'seq02'],
-                  ['seq03', 0, 'seq03', 'seq04',  np.nan],
-                  ['seq03', 1, 'seq03', 'seq04', 'seq05'],
-                  ['seq04', 0, 'seq03', 'seq04',  np.nan],
-                  ['seq04', 1, 'seq03', 'seq04', 'seq05'],
-                  ['seq05', 1, 'seq03', 'seq04', 'seq05'],
-                  ['seq05', 2, 'seq04', 'seq05',  np.nan],
-                  ['seq06', 0, 'seq06',  np.nan,  np.nan],
-                  ['seq06', 1, 'seq06',  np.nan,  np.nan],
-                  ['seq07', 2, 'seq07',  np.nan,  np.nan],
-                  ],
-            columns=['db-seq', 'region', '0', '1', '2']
-            )
-
-        known = pd.DataFrame(
-            data=[['seq00', 'seq00'],
-                  ['seq01', 'seq01'], 
-                  ['seq02', 'seq02'],
-                  ['seq03', 'seq03'],
-                  ['seq03', 'seq04'],
-                  ['seq04', 'seq03'],
-                  ['seq04', 'seq04'],
-                  ['seq05', 'seq05'],
-                  ['seq06', 'seq06'],
-                  ['seq07', 'seq07']],
-            columns=['db-seq', 'clean_name']
-            )
-        sub_map = _map_id_set(id_set=['seq00', 'seq01', 'seq02', 
-                                      'seq03', 'seq04', 
-                                      'seq05', 'seq06', 'seq07'],
-                              tangle=tangled,
-                              )
-        pdt.assert_frame_equal(known, sub_map.compute())
-
-    def test_map_singletons(self):
-        in_ = pd.DataFrame(
-            data=[['seq06', 0, 'seq06'],
-                  ['seq06', 1, 'seq06'],
-                  ['seq07', 2, 'seq07']],
-            columns=['db-seq', 'region', '0'],
-            )
-        known = pd.Series(['seq06', 'seq07'],
-                          index=pd.Series(['seq06', 'seq07'], name='db-seq'),
-                          name='clean_name',
-                          )
-        test = _map_singletons(in_)
-        pdt.assert_frame_equal(known.reset_index(), test.compute())
 
     def test_scale_relative_abundance(self):
         known = pd.DataFrame(
@@ -482,34 +430,6 @@ class ReconstructTest(TestCase):
             )
         pdt.assert_frame_equal(known, test)
 
-    def test_solve_ml_em_iterative_1_sample(self):
-        abund = sp.as_coo(np.array([0.18181818, 0.09090909, 0.09090909,
-                                    0.09090909,  0.09090909, 0.09090909, 
-                                    0.09090909, 0.09090909,  0.09090909, 
-                                    0.09090909]))
-        align = sp.as_coo(np.array([
-            [0.4638, 0.4638, 0,      0,      0,      0     ],
-            [0,      0,      0.4638, 0,      0,      0     ],
-            [0,      0,      0,      0,      0.4638, 0.0008],
-            [0,      0,      0,      0,      0.0008, 0.4638],
-            [0.4638, 0,      0 ,     0,      0,      0     ],
-            [0,      0.4638, 0,      0,      0,      0     ],
-            [0,      0,      0.4638, 0,      0,      0     ],
-            [0,      0,      0,      0.9276, 0,      0     ],
-            [0,      0,      0,      0,      0.4638, 0     ],
-            [0,      0,      0,      0,      0,      0.4638]]))
-
-        t_freq = _solve_ml_em_iterative_1_sample(
-            align=align, 
-            abund=abund,
-            align_kmers=pd.Index(['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 
-                                  'seq6'], 
-                                 name='clean_name'),
-            sample='sample.1'
-            )
-        pdt.assert_series_equal(self.freq, t_freq.compute(), 
-                                check_less_precise=True)
-
     def test_solve_iterative_noisy(self):
         known = pd.DataFrame(
             data=np.array([[1] * 6]) / 6,
@@ -524,8 +444,117 @@ class ReconstructTest(TestCase):
             )
         pdt.assert_frame_equal(known, test)
 
+    def test_solve_ml_em_iterative_1_sample(self):
+        abund = np.array([0.18181818, 0.09090909, 0.09090909,
+                          0.09090909,  0.09090909, 0.09090909, 
+                          0.09090909, 0.09090909,  0.09090909, 
+                          0.09090909])
+        align = np.array([
+            [0.4638, 0.4638, 0,      0,      0,      0     ],
+            [0,      0,      0.4638, 0,      0,      0     ],
+            [0,      0,      0,      0,      0.4638, 0.0008],
+            [0,      0,      0,      0,      0.0008, 0.4638],
+            [0.4638, 0,      0 ,     0,      0,      0     ],
+            [0,      0.4638, 0,      0,      0,      0     ],
+            [0,      0,      0.4638, 0,      0,      0     ],
+            [0,      0,      0,      0.9276, 0,      0     ],
+            [0,      0,      0,      0,      0.4638, 0     ],
+            [0,      0,      0,      0,      0,      0.4638]])
+
+        t_freq = _solve_ml_em_iterative_1_sample(
+            align=align, 
+            abund=abund,
+            align_kmers=pd.Index(['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 
+                                  'seq6'], 
+                                 name='clean_name'),
+            sample='sample.1'
+            )
+        pdt.assert_series_equal(self.freq, t_freq.compute(), 
+                                check_less_precise=True)
+
+    def test_sort_untidy(self):
+        pass
+
+    def test_tidy_sequence_set(self):
+        clean_kmer = dd.from_pandas(npartitions=1, data=pd.DataFrame(
+            columns=['db-seq', 'region', 'shared-set'],
+            data=[['seq00', 0, {'seq00'}], ['seq00', 1, {'seq00'}],
+                  ['seq01', 0, {'seq01', 'seq02'}], ['seq01', 1, {'seq01'}],
+                  ['seq02', 0, {'seq01', 'seq02'}], ['seq02', 1, {'seq02'}],
+                  ['seq05', 0, {'seq05'}], ['seq05', 1, {'seq05', 'seq06'}],
+                  ['seq06', 0, {'seq06'}], ['seq06', 1, {'seq05', 'seq06'}],
+                  ['seq07', 0, {'seq07'}], 
+                  ['seq08', 0, {'seq08', 'seq09'}],
+                  ['seq09', 0, {'seq08', 'seq09'}], ['seq09', 1, {'seq09'}],
+                  ['seq10', 0, {'seq10', 'seq11'}], ['seq10', 1, {'seq10', 'seq11'}],
+                  ['seq11', 0, {'seq10', 'seq11'}], ['seq11', 1, {'seq10', 'seq11'}],
+                  ['seq12', 0, {'seq12', 'seq13', 'seq14'}], ['seq12', 1, {'seq12', 'seq14', 'seq15'}],
+                  ['seq13', 0, {'seq12', 'seq13', 'seq14'}], ['seq13', 1, {'seq13', 'seq14', 'seq15'}],
+                  ['seq14', 0, {'seq12', 'seq13', 'seq14'}], 
+                  ['seq14', 1, {'seq12', 'seq13', 'seq14', 'seq15'}],
+                  ['seq15', 1, {'seq12', 'seq13', 'seq14', 'seq15'}],
+                  ['seq16', 0, {'seq16'}], ['seq16', 1, {'seq16', 'seq17'}],
+                  ['seq17', 0, {'seq17', 'seq18'}], ['seq17', 1, {'seq16', 'seq17'}],
+                  ['seq18', 0, {'seq17', 'seq18'}], 
+                  ['seq19', 0, {'seq19', 'seq20'}], ['seq20', 0, {'seq19', 'seq20'}],
+                  ['seq21', 0, {'seq21'}], ['seq21', 1, {'seq21', 'seq22', 'seq23'}],
+                  ['seq22', 1, {'seq21', 'seq22', 'seq23'}],
+                  ['seq23', 1, {'seq21', 'seq22', 'seq23'}], ['seq23', 2, {'seq23'}]]
+            ))
+        clean_kmer['tidy'] = False
+        known_seqs = set(['seq00', 'seq01', 'seq02', 'seq05', 'seq06',
+                          'seq07', 'seq09', 'seq10', 'seq11', 'seq16', 'seq17', 
+                          'seq19', 'seq20', 'seq21', 'seq23'])
+        known_kmers = pd.DataFrame(
+            columns=['db-seq', 'region', 'shared-set', 'tidy'],
+            data=[['seq00', 0, 'seq00', True], 
+                  ['seq00', 1, 'seq00', True],
+                  ['seq01', 0, 'seq01|seq02', True], 
+                  ['seq01', 1, 'seq01', True],
+                  ['seq02', 0, 'seq01|seq02', True],
+                  ['seq02', 1, 'seq02', True],
+                  ['seq05', 0, 'seq05', True],
+                  ['seq05', 1, 'seq05|seq06', True],
+                  ['seq06', 0, 'seq06', True],
+                  ['seq06', 1, 'seq05|seq06', True],
+                  ['seq07', 0, 'seq07', True], 
+                  ['seq08', 0, 'seq08', False],
+                  ['seq09', 0, 'seq08|seq09', True],
+                  ['seq09', 1, 'seq09', True],
+                  ['seq10', 0, 'seq10|seq11', True],
+                  ['seq10', 1, 'seq10|seq11', True],
+                  ['seq11', 0, 'seq10|seq11', True], 
+                  ['seq11', 1, 'seq10|seq11', True],
+                  ['seq12', 0, 'seq12|seq13|seq14', False], 
+                  ['seq12', 1, 'seq12|seq14|seq15', False],
+                  ['seq13', 0, 'seq12|seq13|seq14', False], 
+                  ['seq13', 1, 'seq13|seq14|seq15', False],
+                  ['seq14', 0, 'seq12|seq13|seq14', False], 
+                  ['seq14', 1, 'seq12|seq13|seq14|seq15', False],
+                  ['seq15', 1, 'seq12|seq13|seq14|seq15', False],
+                  ['seq16', 0, 'seq16', True], 
+                  ['seq16', 1, 'seq16|seq17', True],
+                  ['seq17', 0, 'seq17|seq18', True], 
+                  ['seq17', 1, 'seq16|seq17', True],
+                  ['seq18', 0, 'seq18', False], 
+                  ['seq19', 0, 'seq19|seq20', True], 
+                  ['seq20', 0, 'seq19|seq20', True],
+                  ['seq21', 0, 'seq21', True], 
+                  ['seq21', 1, 'seq21|seq22|seq23', True],
+                  ['seq22', 1, 'seq22', False],
+                  ['seq23', 1, 'seq21|seq22|seq23', True], 
+                  ['seq23', 2, 'seq23', True]]
+            )
+        test_kmers, test_seqs = _tidy_sequence_set(clean_kmer, set([]))
+        self.assertEqual(test_seqs, known_seqs)
+        # Makes testing easier
+        test_kmers = test_kmers.compute()
+        test_kmers['shared-set'] =  \
+            test_kmers['shared-set'].apply(lambda x: "|".join(sorted(x)))
+        pdt.assert_frame_equal(known_kmers, test_kmers)
+
     def test_untangle_database_ids(self):
-        matches = pd.DataFrame(
+        matches = dd.from_pandas(npartitions=1, data=pd.DataFrame(
             data=np.array([['seq00', 'seq00', 'seq00', '0'],
                            ['seq01', 'seq01', 'seq01|seq02', '0'],
                            ['seq02', 'seq02', 'seq01|seq02', '0'],
@@ -562,11 +591,12 @@ class ReconstructTest(TestCase):
                            ['seq09', 'seq09', 'seq09', '1'],
                            ['seq10', 'seq10', 'seq10|seq11', '1'],
                            ['seq11', 'seq11', 'seq10|seq11', '1'],
-                           ['seq12', 'seq12', 'seq12|seq14|seq15|seq16', '1'],
-                           ['seq13', 'seq13', 'seq13|seq14|seq15|seq16', '1'],
-                           ['seq14', 'seq14', 'seq12|seq13|seq14|seq16', '1'],
-                           ['seq14', 'seq14', 'seq12|seq14|seq15', '1'],
-                           ['seq15', 'seq15', 'seq12|seq14|seq15', '1'],
+                           ['seq12', 'seq12@0001', 'seq12@0001', '1'],
+                           ['seq12', 'seq12@0002', 'seq12@0002|seq14|seq15', '1'],
+                           ['seq13', 'seq13@0001', 'seq13@0001|seq14|seq15', '1'],
+                           ['seq13', 'seq13@0002', 'seq13@002', '1'],
+                           ['seq14', 'seq14', 'seq12@0002|seq13@0001|seq14|seq15', '1'],
+                           ['seq15', 'seq15', 'seq12@0002|seq13@0001|seq14|seq15', '1'],
                            ['seq16', 'seq16', 'seq16|seq17',  '1'],
                            ['seq17', 'seq17', 'seq16|seq17', '1'],
                            ['seq21', 'seq21', 'seq21|seq22|seq23', '1'],
@@ -575,7 +605,8 @@ class ReconstructTest(TestCase):
                            ['seq22', 'seq22', 'seq22', '2'],
                            ], dtype=object),
             columns=['db-seq', 'seq-name', 'kmer', 'region'],
-            )
+            ))
+        matches['region'] =  matches['region'].astype(int)
         known_seq = pd.Series({'seq00': 'seq00', 
                                 'seq01': 'seq01',
                                 'seq02': 'seq02',
@@ -603,15 +634,10 @@ class ReconstructTest(TestCase):
                                 }, name='clean_name')
         known_seq.index.set_names('db-seq', inplace=True)
         # Generates the renaming
-        seq_ = _untangle_database_ids(matches)
+        seq_ = _untangle_database_ids(matches, num_regions=3)
 
         pdt.assert_series_equal(known_seq, seq_.sort_index())
 
 
-
-   
-
 if __name__ == '__main__':
     main()
-
-

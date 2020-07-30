@@ -3,9 +3,9 @@ import os
 
 import biom
 import dask
+import dask.dataframe as dd
 import numpy as np
 import pandas as pd
-import sparse as sp
 
 from qiime2 import Metadata, Artifact
 from qiime2.plugin import ValidationError
@@ -22,7 +22,7 @@ def reconstruct_counts(manifest: Metadata,
     count_degenerates: bool=True,
     per_nucleotide_error: float=0.005,
     max_mismatch: int=2,
-    min_abund: float=1e-10,
+    min_abund: float=1e-5,
     debug: bool=False, 
     n_workers: int=0,
     client_address: str=None,
@@ -76,6 +76,7 @@ def reconstruct_counts(manifest: Metadata,
         A map between the final kmer name and the original database sequence.
         Useful for reconstructing taxonomy and trees.
     """
+    blocksize=1e5
     
     # Sets up the client
     _setup_dask_client(debug=debug, cluster_config=None,  
@@ -88,6 +89,7 @@ def reconstruct_counts(manifest: Metadata,
     region_order = \
         manifest.get_column('region-order').to_series().astype(int).to_dict()
     region_names = {i: r for r, i in region_order.items()}
+    num_regions = len(region_order)
 
     # Imports the alignment maps and gets the kmers that were aligned
     align_map = pd.concat(
@@ -104,32 +106,36 @@ def reconstruct_counts(manifest: Metadata,
 
     print('Regional Alignments Loaded')
 
-    ### Untangles the database to get the unique regional mapping
+    # ### Untangles the database to get the unique regional mapping
 
     # Filters database down to kmers which are present in the sequences 
     # because otherwise we're trying to untangle a huge amount of data and it 
     # just gets memory intensive and slow
-    kmer_map = pd.concat(
-        axis=0, 
-        sort=False,
-        objs=_read_manifest_files(manifest, 'kmer-map', 
-                                 'FeatureData[KmerMap]', pd.DataFrame)
-        )
-    kmer_map.reset_index(inplace=True)
+    kmer_map = dd.concat(
+        axis=0,
+        dfs=_read_manifest_files(manifest, 'kmer-map', 
+                                 'FeatureData[KmerMap]', dd.DataFrame)
+    )
+    kmer_map = kmer_map.reset_index().set_index('db-seq').reset_index()
     kmer_map['region'] = kmer_map['region'].replace(region_order)
+    kmer_map  = kmer_map.loc[kmer_map['db-seq'].isin(kmers)]
     
     print('Regional Kmers Loaded')
 
     # Builds database mapping bettween the kmer, the original database
     # sequence and the original name
     db_map = _untangle_database_ids(kmer_map.copy(),
-                                    kmers=kmers,
-                                    block_size=100,
+                                    num_regions=num_regions,
+                                    block_size=500,
                                     )
     print('Database map assembled')    
 
     ### Summarizes the database
-    kmer_map['clean_name'] = kmer_map['db-seq'].replace(db_map.to_dict())
+    kmer_map = kmer_map.compute()
+    kmer_map.set_index('db-seq', inplace=True)
+    kmer_map['clean_name'] = db_map
+    kmer_map.reset_index(inplace=True)
+
     db_summary = _count_mapping(kmer_map.reset_index(), 
                                 count_degenerates, 
                                 kmer='seq-name')
@@ -167,13 +173,15 @@ def reconstruct_counts(manifest: Metadata,
     # Performs the maximum liklihood reconstruction on a per-sample basis. 
     # Im not sure if this could be refined to optimize the alogirthm
     # to allow multiple samples ot be solved together, but... eh?
+    sample_ids = n_table.columns.values
+    n_samples = len(sample_ids)
+
     rel_abund = _solve_iterative_noisy(align_mat=align_mat, 
                                        table=n_table,
                                        min_abund=min_abund,
-                                       seq_summary=db_summary,
-                                       ).fillna(0)
-    db_summary = db_summary.loc[rel_abund.index]
+                                       seq_summary=db_summary)
 
+    db_summary = db_summary.loc[rel_abund.index]
     print('Relative abundance calculated')
 
     # Puts together the regional normalized counts
@@ -213,63 +221,63 @@ def reconstruct_counts(manifest: Metadata,
     return count_table, summary, mapping
 
 
-def _build_id_set(tangle, block_size=500):
-    """
-    Identifies a set of sequences that exist together
+# def _build_id_set(tangle, block_size=500):
+#     """
+#     Identifies a set of sequences that exist together
 
-    Parameters
-    ----------
-    tangle: pd.DataFrame
-        A dataframe which describes the sequence (index) and the linked
-        sequences across all regions which still have partners
-    block_size
-        The number of sequences to be linked to the analysis block
-    Returns
-    -------
-    list
-        list of arrays of groups of sequences which are linked together for 
-        untangling
+#     Parameters
+#     ----------
+#     tangle: pd.DataFrame
+#         A dataframe which describes the sequence (index) and the linked
+#         sequences across all regions which still have partners
+#     block_size
+#         The number of sequences to be linked to the analysis block
+#     Returns
+#     -------
+#     list
+#         list of arrays of groups of sequences which are linked together for 
+#         untangling
 
-    """
-    tangle.sort_values(list(tangle.columns)[::-1], inplace=True)
+#     """
+#     tangle.sort_values(list(tangle.columns)[::-1], inplace=True)
 
-    def _check_ids(id_):
+#     def _check_ids(id_):
 
-        last_set = [id_]
-        new_set = set([])
-        stopper = 0
+#         last_set = [id_]
+#         new_set = set([])
+#         stopper = 0
 
-        while stopper < 2:
-            check = tangle.isin(last_set).any(axis=1).values
-            new_set = \
-                np.sort(tangle.loc[check].melt()['value'].dropna().unique())
-            stopper += 1.*(set(new_set) == set(last_set))
-            last_set = new_set
+#         while stopper < 2:
+#             check = tangle.isin(last_set).any(axis=1).values
+#             new_set = \
+#                 np.sort(tangle.loc[check].melt()['value'].dropna().unique())
+#             stopper += 1.*(set(new_set) == set(last_set))
+#             last_set = new_set
 
-        return last_set
+#         return last_set
 
-    # And now we untangle until we get the blocks of sequences.
-    # The while loops are a bit dirty, but the idea is that we dont know how
-    # many sequences are going to get linked or how many sets need to build
-    # the blocks. A for-loop might cause issues... 
-    all_ids = tangle['db-seq'].unique()
-    skip = set([])
-    id_set = []
-    while len(all_ids) > 0:
-        block = [] 
-        # For each remainig id 
-        for id_ in all_ids:
-            if (id_ in skip):
-                continue
-            seq_group = _check_ids(id_)
-            skip = skip.union(set(seq_group))
-            block = np.hstack([block, seq_group])
-            if (len(block) >= block_size):
-                break
-        id_set.append(block)
-        all_ids = all_ids[~np.isin(all_ids, list(skip))]
+#     # And now we untangle until we get the blocks of sequences.
+#     # The while loops are a bit dirty, but the idea is that we dont know how
+#     # many sequences are going to get linked or how many sets need to build
+#     # the blocks. A for-loop might cause issues... 
+#     all_ids = tangle['db-seq'].unique()
+#     skip = set([])
+#     id_set = []
+#     while len(all_ids) > 0:
+#         block = [] 
+#         # For each remainig id 
+#         for id_ in all_ids:
+#             if (id_ in skip):
+#                 continue
+#             seq_group = _check_ids(id_)
+#             skip = skip.union(set(seq_group))
+#             block = np.hstack([block, seq_group])
+#             if (len(block) >= block_size):
+#                 break
+#         id_set.append(block)
+#         all_ids = all_ids[~np.isin(all_ids, list(skip))]
 
-    return id_set
+#     return id_set
 
 
 @dask.delayed
@@ -350,6 +358,7 @@ def _construct_align_mat(match, sequence_map, seq_summary,
     # amplification
     region_amp = seq_summary['num-regions']
     region_norm = asv_ref[seq_name].replace(region_amp)
+
     asv_ref['norm'] = (asv_ref['match_prob'] / region_norm)
 
     return asv_ref
@@ -391,7 +400,6 @@ def _count_mapping(long_, count_degen, kmer='kmer', region='region',
     return counts
 
 
-@dask.delayed
 def _detangle_names(long_):
     """
     Splits up the mapping into clearer clusters
@@ -413,6 +421,8 @@ def _detangle_names(long_):
     """
 
     long_.sort_values(['db-seq', 'clean_name'], ascending=True, inplace=True)
+    long_['counter'] = 1
+    long_['counter'] = long_.groupby(['db-seq'])['counter'].cumsum() - 1
     
     # gets the horizontal mapping that pivots the dataframe into a square
     # distance/mapping matrix
@@ -513,139 +523,29 @@ def _expand_duplicate_sequences(df, id_col, delim='|'):
 
     return long_exp
 
+@dask.delayed
+def _get_clean(df):
+    clean_kmers = \
+        df.groupby(['db-seq', 'region'])['value'].apply(
+            lambda x: "|".join(x.values))
+    return clean_kmers.reset_index()
+
+
+@dask.delayed
+def _get_shared_seqs(df):
+    wide = df.set_index(['db-seq', 'region'])['kmer'].apply(
+            lambda x: pd.Series(x.split("|"))).reset_index()
+    long_ = wide.melt(id_vars=['db-seq', 'region']).dropna()
+    long_['value'] = long_['value'].apply(lambda x: x.split("@")[0])
+    long_.drop_duplicates(['db-seq', 'region', 'value'], inplace=True)
+    
+    return long_.drop(columns=['variable'])
+
 
 def _get_unique_kmers(series):
     kmers = np.hstack([[a.split("@")[0] for a in kmer.split('|')] 
                        for kmer in series])
     return np.sort(np.unique(kmers))
-
-
-@dask.delayed
-def _map_id_set(id_set, tangle):
-    """
-    Untangles a set of sequence ids back into a comprehensive identifier
-    Parmaters
-    ---------
-    id_set : array-like
-        The list of ids to be explored in tangle. Possibly generated using
-        `_build_id_set`.
-    tangle : DataFrame
-        An expanded dataframe mapping each database sequence `db_seq` to
-        the region (`region`) and all accompanying sequences
-    centroids : set
-        The set of possible sequences which may be centroid sequences
-    
-    Returns
-    -------
-    DataFrame
-        The mapping between the oringal database sequence (`db_seq`) and the 
-        name that will appear in the intermediate dataset (`clean_name`) and 
-        the number of regions the sequence covers (`num_regions`)
-    """
-
-    id_set = np.sort(np.unique(id_set))
-    tangle_filter = tangle.drop(columns=['region']).isin(id_set).any(axis=1)
-    exp1 = tangle.loc[tangle_filter].copy()
-    exp1 = exp1.set_index('db-seq').loc[(id_set)].reset_index()
-    exp1.dropna(axis=0, how='all', inplace=True)
-
-    # Minimizes the region in an attempt to make this make more sense for
-    # sparse. 
-    exp1.replace({r: i for i, r in 
-                  enumerate(sorted(exp1['region'].dropna().unique()))},
-                  inplace=True)
-    num_regions = len(exp1['region'].unique())
-    seq_coords = {seq: i for i, seq in enumerate(sorted(id_set))}
-    num_seqs = len(id_set)
-
-    # Identifies sequences which may be missing and compares the coverage of
-    # thsoe sequences, with the idea that sequences which intersect should 
-    # overlap along the full lenght of a sequence, rather than having a shared
-    # central sequence, and then missing the sequence on either end. We're
-    # assuming the coverage behavior based on the fact that our databases 
-    # should represent some level of clustering, and so if the database
-    # doesn't cover the region, we still treat the sequence as unqiue
-    miss_seq = exp1.drop_duplicates(['region', 'db-seq']).copy()
-    miss_seq = miss_seq.pivot(index='db-seq', 
-                              columns='region', 
-                              values='0').isna()
-
-    miss_seq = miss_seq.loc[id_set]
-    cum_coverage = (~miss_seq).cumsum(axis=1) * (~miss_seq)
-    cum_coverage = cum_coverage.loc[id_set]
-
-    horiz = np.dstack([cum_coverage.values] * num_seqs).swapaxes(1, 2)
-    coverage_overlap = sp.as_coo(
-        (horiz == horiz.swapaxes(0, 1)).all(axis=2)
-        )
-    # Finds where sequences are missing, which allows the possible mapping
-    any_missing = sp.as_coo(np.dstack([
-        miss_seq[[region]].values | miss_seq[[region]].values.T
-        for region in miss_seq.columns
-        ]))
-    
-
-    # Finds the regions and coordinates where the sequences overlap based 
-    # on the shared sequences
-    long_mat = exp1.drop_duplicates(['region', 'db-seq']).melt(
-        id_vars=['db-seq', 'region'],
-        value_vars=exp1.drop(columns=['db-seq', 'region']),
-        # value_name='',
-        ).dropna().copy()
-    long_mat.sort_values(['db-seq', 'region', 'value'], inplace=True)
-    long_mat.drop_duplicates(['db-seq', 'region', 'value'], inplace=True)
-
-    # Gets the alignment matrix
-    num_coords = len(id_set)
-    #  Builds a sparse matrix of the matches
-    match_array = sp.COO(
-        long_mat[['db-seq', 'value', 'region']].replace(seq_coords).values.T,
-        data=True,
-        shape=(num_coords, num_coords, num_regions)
-    )
-
-    # We find matching coordinates where we look for places that things are
-    # missing or matched given that there is at least one hard match between 
-    # the sequences in any region
-
-    ### Finds anything that overlaps
-    possible_match = (match_array | any_missing).all(axis=2)
-    match_coords = possible_match & coverage_overlap
-
-    # ...And we map the matches back to the database sequences
-    long_match = pd.DataFrame(match_coords.coords, 
-                              index=['db-seq', 'clean_name']).T
-    long_match.replace({i: seq for seq, i in seq_coords.items()},
-                       inplace=True)
-    long_match.rename(columns={0: 'db-seq', 1: 'clean_name'}, inplace=True)
-
-    return long_match
-
-
-@dask.delayed
-def _map_singletons(unique):
-    """
-    Maps the sequences which do not share any their region with any partners
-
-    Parameters
-    ----------
-    regional_data: DataFrame
-        the data which links sequences (kmers) to regions
-
-    Returns
-    -------
-    DataFrame
-        The mapping between the oringal database sequence (`db_seq`) and the 
-        name that will appear in the intermediate dataset (`clean_name`) and 
-        the number of regions the sequence covers (`num_regions`)
-    """
-    unique.drop_duplicates(['db-seq', 'region'], inplace=True)
-    seq_map = pd.Series(
-        unique['db-seq'].drop_duplicates().values, 
-        index=pd.Index(unique['db-seq'].drop_duplicates(), name='db-seq'),
-        name='clean_name'
-    )
-    return seq_map.reset_index()
 
 
 def _scale_relative_abundance(align_mat, relative, counts, seq_summary,
@@ -774,11 +674,11 @@ def _solve_iterative_noisy(align_mat, table, seq_summary, tolerance=1e-7,
     # references
     align_seqs = align.columns
     align_asvs = align.index
-    align = sp.as_coo(align.values)
+    align = align.values
 
     recon = []
     for sample, col_ in table.loc[align_asvs].iteritems():
-        abund = dask.delayed(sp.as_coo)(col_.values)
+        abund = dask.delayed(col_.values)
         freq_ = _solve_ml_em_iterative_1_sample(align=align,
                                                 abund=abund,
                                                 sample=sample,
@@ -789,23 +689,18 @@ def _solve_iterative_noisy(align_mat, table, seq_summary, tolerance=1e-7,
                                                 )
         df = dask.delayed(pd.DataFrame)(freq_, columns=[sample])
         recon.append(df)
+    # Puts together the table as optimiziation
     recon = pd.concat(axis=1, sort=False, objs=dask.compute(*recon))
-    recon.columns = table.columns
+    recon.dropna(how='all', axis=0, inplace=True)
+    recon.fillna(0, inplace=True)
 
-    # Tidies the table
-    def tidy_table(df):
-        df = df /  seq_summary.loc[df.index, ['num-regions']].values
-        df = df / df.sum(axis=0)
-        df.fillna(0, inplace=True)
-        df = df.loc[(df > 0).any(axis=1)]
-        df.sort_index(axis='index', inplace=True)
-        df.index.set_names(seq_name, inplace=True)
-        df.sort_index(axis='columns', inplace=True)
-        return df
+    # # Region normalization
+    recon = recon / seq_summary.loc[recon.index, ['num-regions']].values
+    recon = recon / recon.sum(axis=0)
+    recon.sort_index(axis='index', inplace=True)
+    recon.sort_index(axis='columns', inplace=True)
 
-    tidy = tidy_table(recon)
-
-    return tidy
+    return recon
 
 
 @dask.delayed
@@ -836,7 +731,7 @@ def _solve_ml_em_iterative_1_sample(align, abund, align_kmers, sample,
     """
 
     # Our starting bact_freq estimate is here.
-    bact_freq = sp.dot(align.T, abund) / np.sum(sp.dot(align.T, abund))
+    bact_freq = np.dot(align.T, abund) / np.sum(np.dot(align.T, abund))
 
     # Solves the mixture. I'm not sure if this can be reimplemented as a
     # gaussian mixed models problem if we have multiple samples? Because like
@@ -844,15 +739,15 @@ def _solve_ml_em_iterative_1_sample(align, abund, align_kmers, sample,
     for i in np.arange(0, num_iter):
         ### Expectation
         # assign theta estimate for each bacteria
-        theta_i = sp.dot(align, bact_freq)
+        theta_i = np.dot(align, bact_freq)
         
         ### Maximization
         # Adjusts the abundance and bacterial frequency
         r_weighted = abund / (theta_i + np.spacing(1))
-        bact_factor = sp.dot(r_weighted.T, align)
+        bact_factor = np.dot(r_weighted.T, align)
         
         # Computes errro 
-        error = np.dot(np.absolute(1 - bact_factor.todense()), bact_freq)
+        error = np.dot(np.absolute(1 - bact_factor), bact_freq)
         
         # And then we get the new frequency... 
         bact_freq = bact_freq * bact_factor
@@ -860,7 +755,7 @@ def _solve_ml_em_iterative_1_sample(align, abund, align_kmers, sample,
         if error < 1e-7:
             break
 
-        high_enough = bact_freq.todense() > min_abund
+        high_enough = bact_freq > min_abund
         # if sum(~high_enough) > 0:
             # print(np.arange(0, len(bact_freq))[~high_enough])
         align = align[:, high_enough]
@@ -868,14 +763,60 @@ def _solve_ml_em_iterative_1_sample(align, abund, align_kmers, sample,
         align_kmers = align_kmers[high_enough]
 
     # And then we do hard threshholding
-    bact_freq = bact_freq.todense()
     bact_freq[bact_freq <= min_abund] = 0
     bact_freq = bact_freq / bact_freq.sum()
 
     return pd.Series(bact_freq, align_kmers, name=sample)
 
 
-def _untangle_database_ids(region_db, kmers=None, block_size=2000):
+def _sort_untidy(df, clean_seqs):
+    if df['tidy']:
+        return df['shared-set']
+    else:
+        return df['shared-set'] - clean_seqs
+    
+
+def _tidy_sequence_set(clean_kmers, clean_seqs):
+    """
+    Iteratively cleans kmers by correcting overlapping sets
+    of sequences
+    """
+    
+    # Gets the sequences that are still shared with other sequences
+    shared_seqs = clean_kmers.loc[~clean_kmers['tidy']].copy()
+    shared_seqs = shared_seqs.groupby('db-seq')['shared-set'].apply(
+        lambda x: set.intersection(*x), 
+        meta=('shared-set', 'object')
+    )
+    shared_seqs = shared_seqs.reset_index()
+    shared_seqs.columns = ['db-seq', 'shared-set']
+    shared_seqs['kmer'] = shared_seqs['shared-set'].apply(
+        lambda x: '|'.join(sorted(x)), 
+        meta=('shared-set', 'str')
+    )
+    # Updates the mapped sequence
+    clean_check = shared_seqs.groupby('kmer').apply(
+        lambda x: (set.union(*x['shared-set'].values)) == set(x['db-seq']),
+        meta=(None, 'bool')).compute()
+    if clean_check.any():
+        cleaned = np.hstack([
+            x.split("|") for x in clean_check.index[clean_check].values
+        ])
+        clean_seqs = clean_seqs | set(cleaned)
+    else:
+        clean_seqs = clean_seqs
+
+    clean_kmers['tidy'] = clean_kmers['db-seq'].isin(clean_seqs)
+    clean_kmers['shared-set'] = \
+        clean_kmers.apply(_sort_untidy, 
+                          clean_seqs=clean_seqs,
+                          axis=1, 
+                          meta=(None, 'object')
+                         )
+    return clean_kmers, clean_seqs
+
+
+def _untangle_database_ids(region_db, num_regions, block_size=500):
     """
     Untangles regional sequence identifier to map sequences to each other
 
@@ -899,126 +840,53 @@ def _untangle_database_ids(region_db, kmers=None, block_size=2000):
         number of kmers mapped, the average and standard deviation in the 
         number per region.
     """
+    # Cleans up the kmers by pulling off shared labels
+    shared = [_get_shared_seqs(df) for df in region_db.to_delayed()]
+    clean_kmers = dd.from_delayed([_get_clean(df) for df in shared])
+    clean_kmers['tidy'] = False
+    # Formats for an id set
+    clean_kmers['shared-set'] = clean_kmers['value'].apply(
+        lambda x: set(x.split("|")), meta=('value', 'object'))
 
-    # Gets list of sequences that should be untangled together
-    region_db['region'] = region_db['region'].astype(int)
-    region_db['region'] = region_db['region'] - region_db['region'].min()
-    region_db.sort_values(['db-seq', 'region', 'seq-name'], inplace=True)
-    region_db.drop_duplicates(['db-seq', 'region', 'kmer'], inplace=True)
+    # Sets up a while loop. Because somehow it makes sense here?
+    untidy = True
+    clean_seqs = set([])
+    last_tidy = len(clean_kmers)
 
-    if kmers is None:
-        kmers = region_db['db-seq'].unique()
+    while untidy:
+        clean_kmers, clean_seqs = _tidy_sequence_set(clean_kmers, clean_seqs)
+        tidy_seqs = ~clean_kmers['tidy'].compute()
+        untidy = tidy_seqs.any()
+        if (last_tidy == tidy_seqs.sum()):
+            break
+        last_tidy = tidy_seqs.sum()
 
-    def _split_seq(x):
-        return pd.Series(np.unique([y.split('@')[0] for y in x.split('|')]))
+    # Maps the tidy kmers into a single kmer
+    db_map1 = clean_kmers.loc[clean_kmers['tidy']
+                             ].groupby('db-seq')['shared-set'].apply(
+        lambda x: '|'.join(sorted(set.intersection(*x))), 
+        meta=('shared-set', str)
+    )
+    db_map1.name = 'clean_name'
+    # If anything else remains untidy, we need to continue mapping...
+    if untidy:
+        # Finds the sequences that need to be mapped and pulls out the data
+        bad_ = ~clean_kmers['tidy']
+        to_map = clean_kmers.loc[bad_].compute()
+        unique_ids = to_map['db-seq'].unique()
 
-    # Gets the sequences that are shared across the kmers in the regions
-    shared = \
-        region_db.set_index(['db-seq', 'region'])['kmer'].apply(_split_seq)
-    shared.reset_index(inplace=True)
-    shared = shared.melt(id_vars=['db-seq', 'region']).dropna()
-    shared.sort_values(['db-seq', 'region', 'value'], inplace=True)
-    shared.drop_duplicates(['db-seq', 'region', 'value'], inplace=True)
-    shared['variable'] = 1.
-    shared['variable'] = \
-        shared.groupby(['db-seq', 'region'])['variable'].cumsum() - 1
-    shared['variable'] = shared['variable'].astype(int).astype(str)
-    shared = shared.set_index(['db-seq', 'region', 'variable']).unstack()
-    shared.columns = shared.columns.droplevel(None)
-    shared.reset_index(inplace=True)
+        to_map = to_map.groupby('db-seq')['shared-set'].apply(
+                lambda x: pd.Series(sorted(set.intersection(*x.values))),
+                ).reset_index()
+        to_map.columns = ['db-seq', 'counter', 'clean_name']
 
-    in_kmers = shared.drop(columns=['region']).isin(kmers).any(axis=1)
-    shared = shared.loc[in_kmers].copy()
-
-    # Finds all the sequences that are linked across all regions and checks
-    # sequences converage
-    def find_partners(g):
-        shared_seqs = g.values.flatten()[~pd.isnull(g.values.flatten())]
-        return pd.Series(np.sort(np.unique(shared_seqs)))
-    partners = \
-        shared.drop(columns=['region']).groupby('db-seq').apply(find_partners)
-    partners = partners.unstack()
-    num_seqs = len(partners)
-
-    print('finding all shared sequences. There are %i sequences.' % num_seqs)
-
-    # Splits out sequences that are never linked to other sequences. This way,
-    # we dont spend extra time findling sequences, etc.
-    share_coverage = \
-        ~partners.drop(columns=[0]).isin(partners.index.values).any(axis=1)
-
-    # Handles the sequences which do not share any regions with anything else
-    unique_seqs = share_coverage.index[share_coverage]
-    unique = region_db.loc[region_db['db-seq'].isin(unique_seqs)].copy()
-    unique_map = _map_singletons(unique)
-    
-    # Then, we need to deal with sequences that *are* linked to others. 
-    still_tangled = partners.loc[~share_coverage].copy()
-    print('found unique sequences. %i/%i seqs mapped, %i/%i remaining' 
-          % (len(unique_seqs), num_seqs, len(still_tangled), num_seqs))
-
-    seq_blocks = _build_id_set(still_tangled.reset_index(), 
-                               block_size=block_size)
-
-    # Builds the new sequence map
-    seq_map = [_map_id_set(id_set, shared.loc[shared['db-seq'].isin(id_set)])
-               for id_set in seq_blocks]
-    seq_map.append(unique_map)
-
-    # And now we get hte inital mapping to all the sequences.
-    initial_map = pd.concat(axis=0, objs=dask.compute(*seq_map))
-
-    # Tides up the mapping into something we'll use later to make pivoting easier
-    initial_map.sort_values(['db-seq', 'clean_name'], inplace=True)
-    initial_map['counter'] = 1
-    initial_map['counter'] = \
-        initial_map.groupby('db-seq')['counter'].cumsum() - 1
-    initial_names = \
-        initial_map.groupby('db-seq')['clean_name'].apply(lambda x: "|".join(x))
-
-    # Checks for correct associations. We assume there should be the same 
-    # number of instances of a sequence as there are sequences in a cluster
-    count_check = initial_names.value_counts().reset_index()
-    count_check['seq_count'] = \
-        count_check['index'].apply(lambda x: x.count("|") + 1)
-    count_check['okay'] = \
-        (count_check['seq_count'] == count_check['clean_name'])
-
-    @dask.delayed
-    def _pass_okay_clusters(okay_seqs):
-        return okay_seqs
-
-    if count_check['okay'].all():
-        seq_names = initial_names
+        db_map2 = _detangle_names(to_map) 
     else:
-        okay_ids = count_check.loc[count_check['okay'], 'index'].values
-        okay_seqs = initial_names[initial_names.isin(okay_ids)].copy()
-        tangled_seqs = \
-            initial_names.index[~initial_names.isin(okay_ids)].copy()
-# 
-        print('found initial sequence blocks. %i/%i seqs mapped, '
-              '%i/%i remaining'  % (num_seqs - len(tangled_seqs), 
-                                    num_seqs, len(tangled_seqs), num_seqs))
+        db_map2 = pd.Series([], 
+                            index=pd.Index([], name='db-seq'),  
+                            name='clean_name')
     
-        more_tangles = \
-            initial_map.loc[initial_map.isin(tangled_seqs).any(axis=1)].copy()
-        wide_ = more_tangles.pivot(index='db-seq', 
-                                   columns='counter', 
-                                   values='clean_name')
-
-        # Repartitions the entangled sequences and then untangles them
-        recluster = _build_id_set(wide_.reset_index(), block_size)
-        plaiting = [_detangle_names(
-            initial_map.loc[initial_map['db-seq'].isin(cluster)].reset_index()
-            ) for cluster in recluster]
-        plaiting.append(_pass_okay_clusters(okay_seqs))
-        seq_names = pd.concat(dask.compute(*plaiting))
-
-
-    seq_names.sort_values(inplace=True)
-
-    print('found final sequence blocks. %i/%i seqs mapped,0/%i remaining' 
-          % (len(seq_names), num_seqs, num_seqs))
-
-    return seq_names
+    db_map = pd.concat(axis=0, objs=[db_map1.compute(), db_map2])
+    
+    return db_map
 
