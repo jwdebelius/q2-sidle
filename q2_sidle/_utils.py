@@ -64,7 +64,7 @@ degen_undo = {'AG': 'R',
               'ACGT': 'N'}
 
 def _setup_dask_client(debug=False, cluster_config=None, n_workers=1,
-                       address=None):
+    address=None):
     """
     Sets up a Dask client and daskboard
 

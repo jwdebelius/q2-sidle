@@ -3,7 +3,6 @@ import warnings
 
 import numpy as np
 import pandas as pd
-import sparse as sp
 
 from qiime2 import Metadata, Artifact
 from qiime2.plugin import ValidationError

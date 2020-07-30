@@ -5,7 +5,6 @@ import biom
 import dask
 import numpy as np
 import pandas as pd
-import sparse as sp
 
 from q2_sidle._utils import (_setup_dask_client, 
                              _convert_generator_to_seq_block,

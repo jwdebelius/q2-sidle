@@ -7,7 +7,7 @@ __author__ = "Justine Debelius"
 __copyright__ = "2019-- Justine Debelius"
 __credits__ = ["Justine Debelius", "Noam Shental"]
 __license__ = "BSD-3-Clause"
-__version__ = "0.0.1-dev"
+__version__ = "2020.8-dev"
 __maintainer__ = "Justine Debelius"
 __email__ = "j.debelius@gmail.com"
 
@@ -33,10 +33,8 @@ setup(name='q2-sidle',
       #     sidle=sidle.cli:cli
       # """,
       install_requires=['biom-format >= 2.1.6',
-                        'sparse >= 0.8.0',
                         'pandas < 1.0',
                         'dask >= 2.0',
-                        'numba == 0.48',
                         'regex',
                         ],
       )

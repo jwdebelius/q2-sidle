@@ -122,7 +122,3 @@ def _14(obj:Metadata) -> ReconSummaryFormat:
     obj.save(str(ff))
     return ff
 
-@plugin.register_transformer
-def _15(ff: AlignedDNAFASTAFormat) -> pd.Series:
-    return _dnafastaformats_to_series(str(ff))
-

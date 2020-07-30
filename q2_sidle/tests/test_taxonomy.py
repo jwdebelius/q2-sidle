@@ -7,7 +7,6 @@ import numpy.testing as npt
 import pandas as pd
 import pandas.util.testing as pdt
 import skbio
-import sparse as sp
 
 from qiime2 import Artifact
 
