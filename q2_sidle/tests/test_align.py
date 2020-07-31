@@ -85,6 +85,9 @@ class AlignTest(TestCase):
                              allow_degen1=True,
                              allow_degen2=False,
                              allowed_mismatch=0).compute()
+        known0.sort_values(['kmer', 'asv'], inplace=True)
+        test0.sort_values(['kmer', 'asv'], inplace=True)
+        known0.reset_index(drop=True, inplace=True)
         pdt.assert_frame_equal(known0, test0.reset_index(drop=True))
 
     def test_align_kmers_read2_degen(self):
@@ -112,6 +115,9 @@ class AlignTest(TestCase):
                              allow_degen1=False,
                              allow_degen2=True,
                              allowed_mismatch=0).compute()
+        known0.sort_values(['kmer', 'asv'], inplace=True)
+        test0.sort_values(['kmer', 'asv'], inplace=True)
+        known0.reset_index(drop=True, inplace=True)
         pdt.assert_frame_equal(known0, test0.reset_index(drop=True))
 
     def test_align_kmers_with_no_degen(self):
@@ -140,6 +146,9 @@ class AlignTest(TestCase):
                              self.reads2, 
                              allow_degen1=False, 
                              allowed_mismatch=0).compute()
+        known0.sort_values(['kmer', 'asv'], inplace=True)
+        test0.sort_values(['kmer', 'asv'], inplace=True)
+        known0.reset_index(drop=True, inplace=True)
         pdt.assert_frame_equal(known0, test0.reset_index(drop=True))
 
     def test_align_regional_kmers(self):
@@ -184,9 +193,11 @@ class AlignTest(TestCase):
                                               region='Bludhaven',
                                               debug=True)
         pdt.assert_frame_equal(known, match.reset_index(drop=True))
+        known_discard = pd.Series(['AGAGTTTCTGAATCC'], 
+                                   pd.Index(['asv06'], name='asv'))
         pdt.assert_series_equal(
             discard.view(pd.Series).astype(str), 
-            pd.Series({'asv06': 'AGAGTTTCTGAATCC'}), 
+            known_discard, 
         )
 
 

@@ -105,7 +105,6 @@ def prepare_extracted_region(sequences: DNAFASTAFormat,
     return (ff, ids.compute().set_index('db-seq').sort_index())
 
 
-
 def _expand_ids(group2, fwd_primer, rev_primer, region, trim_length, 
     chunk_size):
     """

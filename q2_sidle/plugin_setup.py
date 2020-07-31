@@ -177,7 +177,7 @@ plugin.methods.register_function(
     parameters={
         'region': Str,
         'max_mismatch': Int % Range(1, None),
-        'chunk_size':  (Int % Range(1, 5000)),
+        'chunk_size':  (Int % Range(1, None)),
         'client_address': Str,
         'n_workers': Int % Range(0, None),
         'debug': Bool,
@@ -479,6 +479,7 @@ plugin.methods.register_function(
                             'and sequence allowed to amplify that region.')
     }
 )
+
 
 plugin.register_formats(KmerMapFormat, 
                         KmerMapDirFmt, 

@@ -152,22 +152,22 @@ def _align_kmers(reads1, reads2, allowed_mismatch=2, read1_label='kmer',
         reads2 = reads2.apply(lambda x: pd.Series(list(x)))
         reads2.replace(degen_sub2, inplace=True)
         reads2 = reads2.apply(lambda x: ''.join(x), axis=1)
-    
-    # Puts together a long dask delayed array for matching the sequences by
-    # first, converting to a delayed object and then introducing the secondary
-    # sequences as columns, and then melting them
-    read_joint = dd.from_pandas(reads1.reset_index(), chunksize=block_size)
-    read_joint.columns = [read1_label, 'sequence1']
-    read_joint = dd.concat(axis=1, dfs=[
-        read_joint,
-        read_joint[read1_label].apply(lambda x: reads2, 
-                                      meta={i: 'object' for i in reads2.index})
-    ])
-    read_joint = read_joint.melt(id_vars=[read1_label, 'sequence1'],
-                                 var_name=read2_label,
-                                 value_name='sequence2'
-                                 ) 
-    read_joint['length'] = length1
+
+    reads1.index.set_names(read1_label, inplace=True)
+    reads1.name = 'sequence1'
+    reads1 = pd.DataFrame(reads1)
+
+    reads2.index.set_names(read2_label, inplace=True)
+    reads2.name = 'sequence2'
+    reads2 = pd.DataFrame(reads2)
+
+    # Puts together the block of sequences
+    read_joint = [
+        dask.delayed(_build_long_dataframe)(
+            reads1.iloc[i:(i+block_size)], reads2.iloc[j:(j+block_size)],
+            length1, read1_label, read2_label)
+         for i, j in it.product(np.arange(0, len(reads1), block_size), 
+                                np.arange(0, len(reads2), block_size))]
 
     # Computes the number of sequences that are different between the two 
     # sequences
@@ -176,17 +176,60 @@ def _align_kmers(reads1, reads2, allowed_mismatch=2, read1_label='kmer',
         seq2 = x['sequence2']
         m = regex.match(seq1, seq2)
         return m.fuzzy_counts[0]
-    read_joint['mismatch'] = \
-        read_joint.apply(_compute_joint, axis=1, meta=(None, 'int64'))
+
+    @dask.delayed
+    def _get_mismatch(df):
+        df['mismatch'] = df.apply(_compute_joint, axis=1)
+        df['discard'] = df['mismatch'] > allowed_mismatch
+        return df
+
+    mismatch = [_get_mismatch(reads) for reads in read_joint]
+
+    def drop_cols(df):
+        return df.drop(columns=['sequence1', 'sequence2'])
     
     # Drops out the sequences 
-    read_joint = read_joint.drop(columns=['sequence1', 'sequence2'])
+    read_joint = dd.from_delayed(
+        [dask.delayed(drop_cols)(reads) for reads in mismatch],
+        meta={read1_label: 'str', read2_label: 'str', 'length': 'int', 
+              'mismatch': 'int', 'discard': 'bool'})
     
-    read_joint['discard'] = read_joint['mismatch'] > allowed_mismatch
+
 
     return read_joint
 
-    
+
+def _build_long_dataframe(reads1, reads2, length, read1_label='kmer', 
+                          read2_label='asv', read1_col='sequence1', 
+                          read2_col='sequence2'):
+    """
+
+    """
+    num_reads1 = len(reads1)
+    num_reads2 = len(reads2)
+    read1_exp = reads1[[read1_col] * num_reads2]
+    read1_exp.columns = reads2.index
+    read1_exp.reset_index(inplace=True)
+    read1_exp = read1_exp.melt(id_vars=read1_label, 
+                               value_name=read1_col, 
+                               var_name=read2_label)
+
+    read2_exp = reads2[[read2_col] * num_reads1]
+    read2_exp.columns = reads1.index
+    read2_exp.reset_index(inplace=True)
+    read2_exp = read2_exp.melt(id_vars=read2_label, 
+                               value_name=read2_col, 
+                               var_name=read1_label)
+
+    joint = pd.concat(axis=1, objs=[
+        read1_exp.set_index([read1_label, read2_label]),
+        read2_exp.set_index([read1_label, read2_label])
+        ])
+    joint['length'] = length
+
+    return joint.reset_index()
+
+
 def _check_read_lengths(reads, read_label):
     """
     Checks the length of the sequences
