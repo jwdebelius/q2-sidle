@@ -103,6 +103,7 @@ class TreeTest(TestCase):
             manifest=manifest,
             aligned_sequences=aligned_seqs,
             trim_to_fragment=True,
+            primer_mismatch=2,
             # debug=True,
             )
         pdt.assert_series_equal(test.view(pd.Series).astype(str), known)

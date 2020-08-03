@@ -26,7 +26,7 @@ def reconstruct_fragment_rep_seqs(
     manifest:Metadata,
     trim_to_fragment:bool=True,
     gap_handling:str='keep',
-    primer_mismatch:int=2,
+    primer_mismatch:int=3,
     # # debug: bool=False, 
     # # n_workers: int=0,
     # address:str=None,
