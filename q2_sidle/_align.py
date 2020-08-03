@@ -23,7 +23,7 @@ def align_regional_kmers(kmers: pd.Series,
     rep_seq: pd.Series, 
     region: str, 
     max_mismatch: int=2, 
-    chunk_size:int=1000, 
+    chunk_size:int=250, 
     debug:bool=False, 
     n_workers:int=0,
     client_address:str=None) -> (pd.DataFrame, pd.Series):
@@ -67,17 +67,31 @@ def align_regional_kmers(kmers: pd.Series,
      # Sets up the client
     _setup_dask_client(debug=debug, cluster_config=None,  
                        n_workers=n_workers, address=client_address)
+
+    # Checks the read lengths 
+    _check_read_lengths(kmers, 'kmers')
+    _check_read_lengths(rep_seq, 'rep_seq')
+
+    if len(kmers.iloc[0]) != len(rep_seq.iloc[0]):
+        raise ValueError('The  kmer sequence length must match the '
+                         'rep-seq sequence length')
     
     # Gets the sequences
     kmers = kmers.astype(str)
+    kmers = [kmers[i:(i + chunk_size)] 
+             for i in np.arange(0, len(kmers), chunk_size)]
+    rep_seq = rep_seq.astype(str)
+    rep_seq = [rep_seq[i:(i + chunk_size)] 
+               for i in np.arange(0, len(rep_seq), chunk_size)]
 
     # Performs the alignment
-    aligned = _align_kmers(kmers, rep_seq.astype(str), 
-                           allowed_mismatch=max_mismatch,
-                           block_size=chunk_size)
+    aligned = np.hstack([
+        dask.delayed(_align_kmers)(kmer, asv, max_mismatch)
+        for kmer, asv in it.product(kmers, rep_seq)
+        ])
+    aligned = pd.concat(dask.compute(*aligned))
     aligned['region'] = region
-    aligned = aligned.compute()
-    
+
     # Gets the discarded sequences
     discard = aligned.groupby('asv')['discard'].all()
     discard = discard.index[discard].values
@@ -85,18 +99,17 @@ def align_regional_kmers(kmers: pd.Series,
     # Keeps only the aligned sequences
     aligned = aligned.loc[~aligned['discard']]
     aligned.drop(columns=['discard'], inplace=True)
+    aligned = aligned[['kmer', 'asv', 'length', 'mismatch', 'region']]
     
     aligned.sort_values(['kmer', 'asv'], inplace=True)
     
-    return aligned, rep_seq.loc[discard]
+    return aligned, pd.concat(rep_seq).loc[discard]
 
 
 def _align_kmers(reads1, reads2, allowed_mismatch=2, read1_label='kmer', 
-    read2_label='asv', allow_degen1=False, allow_degen2=False, 
-    expand_match=False, block_size=500):
+    read2_label='asv'):
     """
     Performs a kmer-based alignment between two groups of n-mers
-
     Parameters
     ----------
     reads1, reads2 : Dataframe
@@ -115,119 +128,50 @@ def _align_kmers(reads1, reads2, allowed_mismatch=2, read1_label='kmer',
         basepair. For example, when `expand_match == True` the ambigious 
         nucleotide, "W" (A and T) could be matched to "N" (A, T, C, G) but 
         not "S" (G, C).
-
     Returns
     -------
     pd.DataFrame
         A long-form dataframe giving the two read identifiers and the number
         of nt that do not match.
-
     Raises
     ------
     ValueError
         If the two sets fo reads are of different lengths. (We can't align 
         kmers here that are different lengths).
-
     """
-    
-    # Checks the read lengths of both reads
-    num_reads1, length1 = _check_read_lengths(reads1, read1_label)
-    num_reads2, length2 = _check_read_lengths(reads2, read2_label)
-    
-    # The read lengths must also be the same length
-    if length1 != length2:
-        raise ValueError('The reads are different lengths. Alignment cannot'
-                         ' be preformed.')
+    # Gets the dimensions of the reads
+    reads1 = reads1.apply(lambda x: pd.Series(list(x)))
+    reads2 = reads2.apply(lambda x: pd.Series(list(x)))
+    num_reads1, kmer_len = (reads1.shape)
+    num_reads2, length2 = (reads2.shape)
 
-    # Gets the threshhoold
-    miss_thresh = (length1 - allowed_mismatch)
-    
-    # Handles degenerate sequences if they should be replaced.
-    if allow_degen1:
-        reads1 = reads1.apply(lambda x: pd.Series(list(x)))
-        reads1.replace(degen_sub2, inplace=True)
-        reads1 = reads1.apply(lambda x: ''.join(x), axis=1)
+    # gets the sequence identifiers
+    read1_ids = reads1.index
+    read2_ids = reads2.index
 
-    if allow_degen2:
-        reads2 = reads2.apply(lambda x: pd.Series(list(x)))
-        reads2.replace(degen_sub2, inplace=True)
-        reads2 = reads2.apply(lambda x: ''.join(x), axis=1)
+    reads1_exp = np.dstack([reads1.values] * num_reads2).swapaxes(1, 2)
+    reads2_exp = np.dstack([reads2.values] * 
+                            num_reads1).swapaxes(0, 2).swapaxes(2, 1)
 
-    reads1.index.set_names(read1_label, inplace=True)
-    reads1.name = 'sequence1'
-    reads1 = pd.DataFrame(reads1)
+    pos_match = ((reads1_exp == reads2_exp).sum(axis=-1))
 
-    reads2.index.set_names(read2_label, inplace=True)
-    reads2.name = 'sequence2'
-    reads2 = pd.DataFrame(reads2)
+    match_values = pd.DataFrame(
+        data=(kmer_len - pos_match), 
+        index=pd.Index(read1_ids, name=read1_label),
+        columns=pd.Index(read2_ids, name=read2_label)
+        ).reset_index()
 
-    # Puts together the block of sequences
-    read_joint = [
-        dask.delayed(_build_long_dataframe)(
-            reads1.iloc[i:(i+block_size)], reads2.iloc[j:(j+block_size)],
-            length1, read1_label, read2_label)
-         for i, j in it.product(np.arange(0, len(reads1), block_size), 
-                                np.arange(0, len(reads2), block_size))]
+    match_long = match_values.melt(id_vars=read1_label, 
+                                   var_name=read2_label,
+                                   value_name='mismatch' 
+                                   )
+    match_long['discard'] = match_long['mismatch'] > allowed_mismatch
+    match_long['length'] = kmer_len
+    match_long.sort_values([read1_label, read2_label], 
+                           inplace=True)
 
-    # Computes the number of sequences that are different between the two 
-    # sequences
-    def _compute_joint(x):
-        seq1 = '(%s){e<=%i}' % (x['sequence1'], x['length'])
-        seq2 = x['sequence2']
-        m = regex.match(seq1, seq2)
-        return m.fuzzy_counts[0]
-
-    @dask.delayed
-    def _get_mismatch(df):
-        df['mismatch'] = df.apply(_compute_joint, axis=1)
-        df['discard'] = df['mismatch'] > allowed_mismatch
-        return df
-
-    mismatch = [_get_mismatch(reads) for reads in read_joint]
-
-    def drop_cols(df):
-        return df.drop(columns=['sequence1', 'sequence2'])
-    
-    # Drops out the sequences 
-    read_joint = dd.from_delayed(
-        [dask.delayed(drop_cols)(reads) for reads in mismatch],
-        meta={read1_label: 'str', read2_label: 'str', 'length': 'int', 
-              'mismatch': 'int', 'discard': 'bool'})
-    
-
-
-    return read_joint
-
-
-def _build_long_dataframe(reads1, reads2, length, read1_label='kmer', 
-                          read2_label='asv', read1_col='sequence1', 
-                          read2_col='sequence2'):
-    """
-
-    """
-    num_reads1 = len(reads1)
-    num_reads2 = len(reads2)
-    read1_exp = reads1[[read1_col] * num_reads2]
-    read1_exp.columns = reads2.index
-    read1_exp.reset_index(inplace=True)
-    read1_exp = read1_exp.melt(id_vars=read1_label, 
-                               value_name=read1_col, 
-                               var_name=read2_label)
-
-    read2_exp = reads2[[read2_col] * num_reads1]
-    read2_exp.columns = reads1.index
-    read2_exp.reset_index(inplace=True)
-    read2_exp = read2_exp.melt(id_vars=read2_label, 
-                               value_name=read2_col, 
-                               var_name=read1_label)
-
-    joint = pd.concat(axis=1, objs=[
-        read1_exp.set_index([read1_label, read2_label]),
-        read2_exp.set_index([read1_label, read2_label])
-        ])
-    joint['length'] = length
-
-    return joint.reset_index()
+    return match_long[[read1_label, read2_label, 
+                      'length', 'mismatch', 'discard']]
 
 
 def _check_read_lengths(reads, read_label):

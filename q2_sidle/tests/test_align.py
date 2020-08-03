@@ -15,7 +15,8 @@ from q2_sidle._align import (align_regional_kmers,
 
 class AlignTest(TestCase):
     def setUp(self):
-        self.seq_array = pd.Series(['AGTC', 'ARWS', 'CTWK', 'GTCM', 'ATGN'])
+        self.seq_array = pd.Series(['AGTC', 'ARWS', 'CTWK', 'GTCM', 'ATGN'],
+                                   index=['A', 'B', 'C', 'D', 'E'])
         self.seq_array.index = self.seq_array.index.astype(str)
         self.in_mer = pd.Series(
             data=np.array(['AGTCCATGC', 'TACGAGTGA', 
@@ -26,117 +27,28 @@ class AlignTest(TestCase):
             index=['r2.0', 'r2.1', 'r2.2'],
             )
 
-    def test_align_kmers_length_error(self):
-        with self.assertRaises(ValueError):
-            _align_kmers(self.seq_array, self.in_mer)
+    # def test_align_kmers_length_error(self):
+    #     with self.assertRaises(ValueError):
+    #         align_regional_kmers(self.seq_array, self.in_mer)
 
-    def test_align_kmers_with_degen_expand(self):
-        # We'll use seq_array as reads1
-        known0 = pd.DataFrame(
-          data=[['0', 'r2.0', 4, 0, False],
-                ['0', 'r2.1', 4, 3, True],
-                ['0', 'r2.2', 4, 1, True],
-                ['1', 'r2.0', 4, 0, False],
-                ['1', 'r2.1', 4, 2, True],
-                ['1', 'r2.2', 4, 1, True],
-                ['2', 'r2.0', 4, 3, True],
-                ['2', 'r2.1', 4, 3, True],
-                ['2', 'r2.2', 4, 2, True],
-                ['3', 'r2.0', 4, 3, True],
-                ['3', 'r2.1', 4, 4, True],
-                ['3', 'r2.2', 4, 4, True],
-                ['4', 'r2.0', 4, 2, True],
-                ['4', 'r2.1', 4, 4, True],
-                ['4', 'r2.2', 4, 2, True],
-                ],
-          columns=['kmer', 'asv', 'length', 'mismatch', 'discard']
-        )
-        test0 = _align_kmers(self.seq_array,
-                             self.reads2, 
-                             allow_degen1=True, 
-                             allowed_mismatch=0, 
-                             allow_degen2=True).compute()
-        test0.sort_values(['kmer', 'asv'], inplace=True)
-        test0.reset_index(drop=True, inplace=True)
-        pdt.assert_frame_equal(known0, test0)
-
-    def test_align_kmers_read1_degen(self):
-        known0 = pd.DataFrame(
-          data=[['0', 'r2.0', 4, 0, False],
-                ['1', 'r2.0', 4, 0, False],
-                ['2', 'r2.0', 4, 3, True],
-                ['3', 'r2.0', 4, 3, True],
-                ['4', 'r2.0', 4, 2, True],
-                ['0', 'r2.1', 4, 3, True],
-                ['1', 'r2.1', 4, 3, True],
-                ['2', 'r2.1', 4, 4, True],
-                ['3', 'r2.1', 4, 4, True],
-                ['4', 'r2.1', 4, 4, True],
-                ['0', 'r2.2', 4, 1, True],
-                ['1', 'r2.2', 4, 1, True],
-                ['2', 'r2.2', 4, 2, True],
-                ['3', 'r2.2', 4, 4, True],
-                ['4', 'r2.2', 4, 2, True]
-                ],
-          columns=['kmer', 'asv', 'length', 'mismatch', 'discard']
-        )
-        test0 = _align_kmers(self.seq_array,
-                             self.reads2,
-                             allow_degen1=True,
-                             allow_degen2=False,
-                             allowed_mismatch=0).compute()
-        known0.sort_values(['kmer', 'asv'], inplace=True)
-        test0.sort_values(['kmer', 'asv'], inplace=True)
-        known0.reset_index(drop=True, inplace=True)
-        pdt.assert_frame_equal(known0, test0.reset_index(drop=True))
-
-    def test_align_kmers_read2_degen(self):
-        known0 = pd.DataFrame(
-          data=[['0', 'r2.0', 4, 0, False],
-                ['1', 'r2.0', 4, 3, True],
-                ['2', 'r2.0', 4, 4, True],
-                ['3', 'r2.0', 4, 4, True],
-                ['4', 'r2.0', 4, 3, True],
-                ['0', 'r2.1', 4, 3, True],
-                ['1', 'r2.1', 4, 4, True],
-                ['2', 'r2.1', 4, 4, True],
-                ['3', 'r2.1', 4, 4, True],
-                ['4', 'r2.1', 4, 4, True],
-                ['0', 'r2.2', 4, 1, True],
-                ['1', 'r2.2', 4, 3, True],
-                ['2', 'r2.2', 4, 4, True],
-                ['3', 'r2.2', 4, 4, True],
-                ['4', 'r2.2', 4, 3, True]
-                ],
-          columns=['kmer', 'asv', 'length', 'mismatch', 'discard']
-        )
-        test0 = _align_kmers(self.seq_array,
-                             self.reads2,
-                             allow_degen1=False,
-                             allow_degen2=True,
-                             allowed_mismatch=0).compute()
-        known0.sort_values(['kmer', 'asv'], inplace=True)
-        test0.sort_values(['kmer', 'asv'], inplace=True)
-        known0.reset_index(drop=True, inplace=True)
-        pdt.assert_frame_equal(known0, test0.reset_index(drop=True))
 
     def test_align_kmers_with_no_degen(self):
         known0 = pd.DataFrame(
-          data=[['0', 'r2.0', 4, 0, False],
-                ['1', 'r2.0', 4, 3, True],
-                ['2', 'r2.0', 4, 4, True],
-                ['3', 'r2.0', 4, 4, True],
-                ['4', 'r2.0', 4, 3, True],
-                ['0', 'r2.1', 4, 3, True],
-                ['1', 'r2.1', 4, 3, True],
-                ['2', 'r2.1', 4, 3, True],
-                ['3', 'r2.1', 4, 4, True],
-                ['4', 'r2.1', 4, 3, True],
-                ['0', 'r2.2', 4, 1, True],
-                ['1', 'r2.2', 4, 3, True],
-                ['2', 'r2.2', 4, 4, True],
-                ['3', 'r2.2', 4, 4, True],
-                ['4', 'r2.2', 4, 3, True]
+          data=[['A', 'r2.0', 4, 0, False],
+                ['B', 'r2.0', 4, 3, True],
+                ['C', 'r2.0', 4, 4, True],
+                ['D', 'r2.0', 4, 4, True],
+                ['E', 'r2.0', 4, 3, True],
+                ['A', 'r2.1', 4, 3, True],
+                ['B', 'r2.1', 4, 3, True],
+                ['C', 'r2.1', 4, 3, True],
+                ['D', 'r2.1', 4, 4, True],
+                ['E', 'r2.1', 4, 3, True],
+                ['A', 'r2.2', 4, 1, True],
+                ['B', 'r2.2', 4, 3, True],
+                ['C', 'r2.2', 4, 4, True],
+                ['D', 'r2.2', 4, 4, True],
+                ['E', 'r2.2', 4, 3, True]
                 ],
           columns=['kmer', 'asv', 'length', 'mismatch', 'discard']
         )
@@ -144,8 +56,7 @@ class AlignTest(TestCase):
             known0[['mismatch', 'length']].astype(int)
         test0 = _align_kmers(self.seq_array,
                              self.reads2, 
-                             allow_degen1=False, 
-                             allowed_mismatch=0).compute()
+                             allowed_mismatch=0)
         known0.sort_values(['kmer', 'asv'], inplace=True)
         test0.sort_values(['kmer', 'asv'], inplace=True)
         known0.reset_index(drop=True, inplace=True)
@@ -194,7 +105,7 @@ class AlignTest(TestCase):
                                               debug=True)
         pdt.assert_frame_equal(known, match.reset_index(drop=True))
         known_discard = pd.Series(['AGAGTTTCTGAATCC'], 
-                                   pd.Index(['asv06'], name='asv'))
+                                   pd.Index(['asv06']))
         pdt.assert_series_equal(
             discard.view(pd.Series).astype(str), 
             known_discard, 
