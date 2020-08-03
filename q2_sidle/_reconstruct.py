@@ -87,7 +87,8 @@ def reconstruct_counts(manifest: Metadata,
     
     # Gets the order of the regions
     region_order = \
-        manifest.get_column('region-order').to_series().astype(int).to_dict()
+        manifest.get_column('region-order').to_series().astype(int)
+    region_order = region_order - region_order.min()
     region_names = {i: r for r, i in region_order.items()}
     num_regions = len(region_order)
 
@@ -219,65 +220,6 @@ def reconstruct_counts(manifest: Metadata,
     mapping.sort_index(inplace=True)
 
     return count_table, summary, mapping
-
-
-# def _build_id_set(tangle, block_size=500):
-#     """
-#     Identifies a set of sequences that exist together
-
-#     Parameters
-#     ----------
-#     tangle: pd.DataFrame
-#         A dataframe which describes the sequence (index) and the linked
-#         sequences across all regions which still have partners
-#     block_size
-#         The number of sequences to be linked to the analysis block
-#     Returns
-#     -------
-#     list
-#         list of arrays of groups of sequences which are linked together for 
-#         untangling
-
-#     """
-#     tangle.sort_values(list(tangle.columns)[::-1], inplace=True)
-
-#     def _check_ids(id_):
-
-#         last_set = [id_]
-#         new_set = set([])
-#         stopper = 0
-
-#         while stopper < 2:
-#             check = tangle.isin(last_set).any(axis=1).values
-#             new_set = \
-#                 np.sort(tangle.loc[check].melt()['value'].dropna().unique())
-#             stopper += 1.*(set(new_set) == set(last_set))
-#             last_set = new_set
-
-#         return last_set
-
-#     # And now we untangle until we get the blocks of sequences.
-#     # The while loops are a bit dirty, but the idea is that we dont know how
-#     # many sequences are going to get linked or how many sets need to build
-#     # the blocks. A for-loop might cause issues... 
-#     all_ids = tangle['db-seq'].unique()
-#     skip = set([])
-#     id_set = []
-#     while len(all_ids) > 0:
-#         block = [] 
-#         # For each remainig id 
-#         for id_ in all_ids:
-#             if (id_ in skip):
-#                 continue
-#             seq_group = _check_ids(id_)
-#             skip = skip.union(set(seq_group))
-#             block = np.hstack([block, seq_group])
-#             if (len(block) >= block_size):
-#                 break
-#         id_set.append(block)
-#         all_ids = all_ids[~np.isin(all_ids, list(skip))]
-
-#     return id_set
 
 
 @dask.delayed
