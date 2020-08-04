@@ -23,7 +23,7 @@ def align_regional_kmers(kmers: pd.Series,
     rep_seq: pd.Series, 
     region: str, 
     max_mismatch: int=2, 
-    chunk_size:int=250, 
+    chunk_size:int=100, 
     debug:bool=False, 
     n_workers:int=0,
     client_address:str=None) -> (pd.DataFrame, pd.Series):
@@ -61,53 +61,48 @@ def align_regional_kmers(kmers: pd.Series,
         the region (`region`), number of mismatched basepairs (`mismatch`) and 
         the sequence length (`length`).
     DNAFASTAFormat
-        The ASVs which could not be aligned to kmers
+        The ASVs which could not be aligned to kmers 
 
     """
      # Sets up the client
     _setup_dask_client(debug=debug, cluster_config=None,  
                        n_workers=n_workers, address=client_address)
 
-    # Checks the read lengths 
-    _check_read_lengths(kmers, 'kmers')
-    _check_read_lengths(rep_seq, 'rep_seq')
+    # Checks the kmer size
+    num_kmers, kmer_length = _check_read_lengths(kmers, 'kmer')
+    kmers = dd.from_pandas(kmers.astype(str), 
+                           chunksize=chunk_size)
+    print(num_kmers)
+    print(kmers.npartitions)
 
-    if len(kmers.iloc[0]) != len(rep_seq.iloc[0]):
-        raise ValueError('The  kmer sequence length must match the '
-                         'rep-seq sequence length')
-    
-    # Gets the sequences
-    kmers = kmers.astype(str)
-    kmers = [kmers[i:(i + chunk_size)] 
-             for i in np.arange(0, len(kmers), chunk_size)]
-    rep_seq = rep_seq.astype(str)
-    rep_seq = [rep_seq[i:(i + chunk_size)] 
-               for i in np.arange(0, len(rep_seq), chunk_size)]
+    # Converts the representative sequences to a delayed object
+    num_asvs, asv_length = _check_read_lengths(rep_seq, 'rep_seq')
+    rep_seq = dd.from_pandas(rep_seq.astype(str),
+                             chunksize=chunk_size)
+    print(num_asvs)
+    print(rep_seq.npartitions)
+
+    if kmer_length != asv_length:
+        raise ValueError('The kmer and ASV sequences must be the same length')
+
 
     # Performs the alignment
     aligned = np.hstack([
         dask.delayed(_align_kmers)(kmer, asv, max_mismatch)
-        for kmer, asv in it.product(kmers, rep_seq)
+        for kmer, asv in it.product(kmers.to_delayed(), rep_seq.to_delayed())
         ])
-    aligned = pd.concat(dask.compute(*aligned))
-    aligned['region'] = region
+    aligned = pd.concat(axis=0, sort=False, objs=dask.compute(*aligned))
 
-    # Gets the discarded sequences
-    discard = aligned.groupby('asv')['discard'].all()
-    discard = discard.index[discard].values
-    
-    # Keeps only the aligned sequences
-    aligned = aligned.loc[~aligned['discard']]
-    aligned.drop(columns=['discard'], inplace=True)
-    aligned = aligned[['kmer', 'asv', 'length', 'mismatch', 'region']]
-    
+    aligned['region'] = region
     aligned.sort_values(['kmer', 'asv'], inplace=True)
-    
-    return aligned, pd.concat(rep_seq).loc[discard]
+
+    discard = rep_seq.loc[~rep_seq.index.isin(aligned['asv'])].compute()
+
+    return aligned, discard
 
 
 def _align_kmers(reads1, reads2, allowed_mismatch=2, read1_label='kmer', 
-    read2_label='asv'):
+    read2_label='asv', block_size=500):
     """
     Performs a kmer-based alignment between two groups of n-mers
     Parameters
@@ -139,39 +134,22 @@ def _align_kmers(reads1, reads2, allowed_mismatch=2, read1_label='kmer',
         If the two sets fo reads are of different lengths. (We can't align 
         kmers here that are different lengths).
     """
-    # Gets the dimensions of the reads
-    reads1 = reads1.apply(lambda x: pd.Series(list(x)))
-    reads2 = reads2.apply(lambda x: pd.Series(list(x)))
-    num_reads1, kmer_len = (reads1.shape)
-    num_reads2, length2 = (reads2.shape)
+    reads1 = reads1.apply(lambda x: np.array(list(x)))
+    reads2 = reads2.apply(lambda x: np.array(list(x)))
+    length = len(reads1.iloc[0])
+    match = pd.Series({
+        (id1, id2) : np.sum(seq1 == seq2)
+        for (id1, seq1), (id2, seq2) 
+        in it.product(reads1.items(), reads2.items())
+        })
+    match = length - match
+    match = match.loc[match <= allowed_mismatch]
+    match.index.set_names([read1_label, read2_label], inplace=True)
+    match.name = 'mismatch'
+    match = match.reset_index()
+    match['length'] = length
 
-    # gets the sequence identifiers
-    read1_ids = reads1.index
-    read2_ids = reads2.index
-
-    reads1_exp = np.dstack([reads1.values] * num_reads2).swapaxes(1, 2)
-    reads2_exp = np.dstack([reads2.values] * 
-                            num_reads1).swapaxes(0, 2).swapaxes(2, 1)
-
-    pos_match = ((reads1_exp == reads2_exp).sum(axis=-1))
-
-    match_values = pd.DataFrame(
-        data=(kmer_len - pos_match), 
-        index=pd.Index(read1_ids, name=read1_label),
-        columns=pd.Index(read2_ids, name=read2_label)
-        ).reset_index()
-
-    match_long = match_values.melt(id_vars=read1_label, 
-                                   var_name=read2_label,
-                                   value_name='mismatch' 
-                                   )
-    match_long['discard'] = match_long['mismatch'] > allowed_mismatch
-    match_long['length'] = kmer_len
-    match_long.sort_values([read1_label, read2_label], 
-                           inplace=True)
-
-    return match_long[[read1_label, read2_label, 
-                      'length', 'mismatch', 'discard']]
+    return match[[read1_label, read2_label, 'length', 'mismatch']]
 
 
 def _check_read_lengths(reads, read_label):

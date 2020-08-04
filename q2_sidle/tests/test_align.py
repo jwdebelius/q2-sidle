@@ -27,30 +27,16 @@ class AlignTest(TestCase):
             index=['r2.0', 'r2.1', 'r2.2'],
             )
 
-    # def test_align_kmers_length_error(self):
-    #     with self.assertRaises(ValueError):
-    #         align_regional_kmers(self.seq_array, self.in_mer)
+    def test_align_kmers_length_error(self):
+        with self.assertRaises(ValueError):
+            align_regional_kmers(self.seq_array, self.in_mer, region='Gotham')
 
 
     def test_align_kmers_with_no_degen(self):
         known0 = pd.DataFrame(
-          data=[['A', 'r2.0', 4, 0, False],
-                ['B', 'r2.0', 4, 3, True],
-                ['C', 'r2.0', 4, 4, True],
-                ['D', 'r2.0', 4, 4, True],
-                ['E', 'r2.0', 4, 3, True],
-                ['A', 'r2.1', 4, 3, True],
-                ['B', 'r2.1', 4, 3, True],
-                ['C', 'r2.1', 4, 3, True],
-                ['D', 'r2.1', 4, 4, True],
-                ['E', 'r2.1', 4, 3, True],
-                ['A', 'r2.2', 4, 1, True],
-                ['B', 'r2.2', 4, 3, True],
-                ['C', 'r2.2', 4, 4, True],
-                ['D', 'r2.2', 4, 4, True],
-                ['E', 'r2.2', 4, 3, True]
+          data=[['A', 'r2.0', 4, 0],
                 ],
-          columns=['kmer', 'asv', 'length', 'mismatch', 'discard']
+          columns=['kmer', 'asv', 'length', 'mismatch']
         )
         known0[['mismatch', 'length']] = \
             known0[['mismatch', 'length']].astype(int)
