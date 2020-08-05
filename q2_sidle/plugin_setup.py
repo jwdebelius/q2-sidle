@@ -409,13 +409,8 @@ plugin.methods.register_function(
                  'This function simulates a represenative sequence for '
                  'reference regions that are dervied from multiple sequences'
                  'to allow tree building via fragment insertion. The function'
-                 ' assumes that any reconstructed feature that aligns to a '
-                 ' single sequence will retain the position of that sequence '
-                 'in the tree. If a fragment only covers one region of the '
-                 'table, then that region alone is extracted. When sequences'
-                 ' are shared over multiple reegions, a concensus sequence is'
-                 ' determined using the reference sequences amplified by the '
-                 'primers for that reconstructed fragment'
+                 'will find the concensus sequence for all the database '
+                 'regions covered between the amplicons'
                  ),
     inputs={
         'reconstruction_summary': FeatureData[ReconstructionSummary],
@@ -427,11 +422,6 @@ plugin.methods.register_function(
     ],
     parameters={
         'manifest': Metadata,
-        'trim_to_fragment': Bool,
-        'gap_handling': Str % Choices('keep', 'drop'),
-        'primer_mismatch': Int % Range(0, None),
-        # 'n_workers': Int % Range(0, None),
-        # 'debug': Bool,
     },
     input_descriptions={
         'reconstruction_summary': ('A summary of the statitics for the '
@@ -454,29 +444,15 @@ plugin.methods.register_function(
                                      'to be used for fragment insertion')
     },
     parameter_descriptions={
-        'manifest': ('A tab-seperaated text file which '
-                                    'describes the location of the regional '
-                                    'kmer to database mapping, the kmer '
-                                    'alignment map, and the regional ASV '
-                                    'table. The file should start with an '
-                                    '`id` column that contains the regional '
-                                    'names, then there should be a `kmer-map`'
-                                    ' column with the kmer-database map, then'
-                                    ' `alignment-map`, whcih maps the ASVs to'
-                                    ' the regional kmers, and finally, '
-                                    '`frequency-table`, which gives the '
-                                    'regional ASV tables.'),
-        'trim_to_fragment': ('During alignmnt, if multiple sequences are '
-                             'mapped to the same region with one having '
-                             'shorter fragments, when `trim_to_fragment` is'
-                             ' True, the alignmnent will be handled using '
-                             'that shorter sequence. When  False, the '
-                             'fragment will be reconstructed using the full '
-                             'length sequences for the joined table.'),
-        'gap_handling': ('Whether gaps in the middle of alignments should '
-                         'inheriet the defined sequence or simply drop out.'),
-        'primer_mismatch': ('The number of mismatches between the primer '
-                            'and sequence allowed to amplify that region.')
+        'manifest': ('A tab-seperaated text file which describes the location'
+                     ' of the regional kmer to database mapping, the kmer '
+                     'alignment map, and the regional ASV table. The file '
+                     'should start with an `id` column that contains the '
+                     'regional names, then there should be a `kmer-map` '
+                     'column with the kmer-database map, then '
+                     '`alignment-map`, whcih maps the ASVs to the regional '
+                     'kmers, and finally, `frequency-table`, which gives the'
+                     ' regional ASV tables.'),
     }
 )
 
