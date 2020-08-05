@@ -240,12 +240,11 @@ class PluginSetupTest(TestCase):
         )
         known = pd.Series(
             data=['GCGAAGCGGCTCAGG',
-                  'WTCCGCGTTGGAGTTATGATGATGAWACCACCTCGTCCCAGTTCCGCGCTT'],
+                  'WTCCGCGTTGGAGTTATGATGATGAWACCACCTCGTCCCAGTTCCGCGCTTC'],
             index=pd.Index(['seq01|seq02', 'seq03|seq04']),
             )
         test = sidle.reconstruct_fragment_rep_seqs(recon_map, recon_summary, 
                                                    aligned_seqs, manifest,
-                                                   primer_mismatch=2,
                                                    ).representative_fragments
         pdt.assert_series_equal(known, test.view(pd.Series).astype(str))
 
