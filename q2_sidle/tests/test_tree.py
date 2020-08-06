@@ -15,8 +15,10 @@ from q2_types.feature_data import DNAIterator, DNAFASTAFormat
 from q2_sidle._tree import (reconstruct_fragment_rep_seqs,
                             _expand_primer,
                             _find_exact_forward,
+                            _find_exact_reverse,
                             _find_approx_forward,
-                            _get_concensus_seq,
+                            _find_approx_reverse,
+                            _group_concensus,
                             )
 from q2_sidle.tests import test_set as ts
 
@@ -25,6 +27,13 @@ class TreeTest(TestCase):
         self.base_dir = \
             os.path.join(os.path.dirname(os.path.realpath(__file__)), 
                          'files/little_test')
+        self.aligned_seqs = pd.Series({
+            'seq01': DNA('-CTAGTCATGCGAAGCGGCTCAGGATGATGATGAAGAC---------------------------------'),
+            'seq02': DNA('ACTAGTCATGCGAAGCGGCTCAGGATGATGATGAAGAC---------------------------------'),
+            'seq03': DNA('CATAGTCATWTCCGCGTTGGAGTTATGATGATGAWACCACCTCGTCCCAGTTCCGCGCTTCTGACGTGCA-'),
+            'seq04': DNA('------------------GGAGTTATGATGA--AGACCACCTCGTCCCAGTTCCGCGCTTCTGACGTGCAC'),
+            'seq05': DNA('CATAGTCATCGTTTATGTATGCCCATGATGATGCGAGCACCTCGTATGGATGTAGAGCCACTGACGTGCGG'),
+        })
 
     def test_reconstruct_fragment_rep_seqs(self):
         recon_map = pd.Series(
@@ -55,23 +64,17 @@ class TreeTest(TestCase):
                      'region-order'],
             index=pd.Index(['Gotham', 'Bludhaven'], name='id')
         ))
-        aligned_seqs = pd.Series({
-            'seq01': '-CTAGTCATGCGAAGCGGCTCAGGATGATGATGAAGAC---------------------------------',
-            'seq02': 'ACTAGTCATGCGAAGCGGCTCAGGATGATGATGAAGAC---------------------------------',
-            'seq03': 'CATAGTCATWTCCGCGTTGGAGTTATGATGATGAWACCACCTCGTCCCAGTTCCGCGCTTCTGACGTGCA-',
-            'seq04': '------------------GGAGTTATGATGA--AGACCACCTCGTCCCAGTTCCGCGCTTCTGACGTGCAC',
-            'seq05': 'CATAGTCATCGTTTATGTATGCCCATGATGATGCGAGCACCTCGTATGGATGTAGAGCCACTGACGTGCGG',
-        })
+
         known = pd.Series(
             data=['GCGAAGCGGCTCAGG',
-                  'WTCCGCGTTGGAGTTATGATGATGAWACCACCTCGTCCCAGTTCCGCGCTTC'],
+                  'WTCCGCGTTGGAGTTATGATGATGAGACCACCTCGTCCCAGTTCCGCGCTTC'],
             index=pd.Index(['seq01|seq02', 'seq03|seq04'], name='clean_name'),
             )
         test = reconstruct_fragment_rep_seqs(
             reconstruction_map=recon_map,
             reconstruction_summary=recon_summary,
             manifest=manifest,
-            aligned_sequences=aligned_seqs,
+            aligned_sequences=self.aligned_seqs,
             )
         pdt.assert_series_equal(test.view(pd.Series).astype(str), known)
 
@@ -95,6 +98,20 @@ class TreeTest(TestCase):
         test = _find_exact_forward(args)
         self.assertTrue(np.isnan(test))
 
+    def test_find_extract_reverse_match(self):
+        args = pd.Series([
+            '-CTAGTCATGCGAAGCGGCTCAGGATGATGATGAAGAC--------------',
+            'ATGATGATG'])
+        test = _find_exact_reverse(args)
+        self.assertTrue(test, 24)
+
+    def test_find_extract_reverse_match(self):
+        args = pd.Series([
+            '-CTAGTCATGCGAAGCGGCTCAGGATGATGATGAAGAC--------------',
+            'CATCATCAT'])
+        test = _find_exact_reverse(args)
+        self.assertTrue(test, np.nan)    
+
     def test_find_approx_forward(self):
         args = pd.Series([
             DNA('-CTAGTCATGCGAAGCGGCTCAGGATGATGATGAAGAC--------------'),
@@ -102,23 +119,21 @@ class TreeTest(TestCase):
         test = _find_approx_forward(args)
         self.assertEqual(test, 9)
 
+    def test_find_approx_reverse(self):
+        args = pd.Series([
+            DNA('-CTAGTCATGCGAAGCGGCTCAGGATGATGATGAAGAC--------------'),
+            'ATGATGATG'])
+        test = _find_approx_reverse(args)
+        self.assertEqual(test, 24)
+
     def test_get_consus_seq(self):
-        g = pd.DataFrame(
-            data=[['seq03|seq04', 'seq03', 0, '[AT]A[ACGT]TCAT', 15, 
-                  DNA('CATAGTCATWTCCGCGTTGGAGTTATGATGATGAWACCACCTCGTCCCAGTTC'
-                      'CGCGCTTCTGACGTGCA-'), 9, 61],
-                  ['seq03|seq04', 'seq03', 1, 'CACCTCGT[ACGT]', 15, 
-                   DNA('CATAGTCATWTCCGCGTTGGAGTTATGATGATGAWACCACCTCGTCCCAGTT'
-                       'CCGCGCTTCTGACGTGCA-'), 9, 61],
-                  ['seq03|seq04', 'seq04', 1, 'CACCTCGT[ACGT]', 15,  
-                   DNA('------------------GGAGTTATGATGA--AGACCACCTCGTCCCAGTT'
-                       'CCGCGCTTCTGACGTGCAC'), 46, 61]],
-            columns=['clean_name', 'db-seq', 'region', 'fwd-primer', 
-                     'kmer-length', 'sequence', 'fwd-pos', 'rev-pos'],
-                )
-        known = 'WTCCGCGTTGGAGTTATGATGATGAWACCACCTCGTCCCAGTTCCGCGCTTC'
-        test = _get_concensus_seq(g)
+        g = self.aligned_seqs.loc[['seq03', 'seq04']]
+
+        known = ('CATAGTCATWTCCGCGTTGGAGTTATGATGATGAGACCACCTCGTCCCAGTTCCGCGCTTCTGACGTGCAC')
+
+        test = _group_concensus(g)
         self.assertEqual(known, str(test))
+
 
 if __name__ == '__main__':
     main()

@@ -106,35 +106,75 @@ def reconstruct_fragment_rep_seqs(
     kmer_map.set_index('db-seq', inplace=True)
     kmer_map['sequence'] = aligned_sequences.loc[kmer_map.index]
     kmer_map.reset_index(inplace=True)
-    
-    # We assume that all the sequences here amplified so we're going to ignore
-    # the reverse primer and just barrel forward from there.
-    kmer_map.drop(columns=['seq-name', 'kmer', 'rev-primer'], 
+
+    # We'll drop kmer-specific info
+    kmer_map.drop(columns=['seq-name', 'kmer'], 
                   inplace=True)
 
-    # Finds the start and end position for each region
+    # Calculates and degaps the concensus sequence for the region using skbio
+    # to calculate the concensus and then fiters the concensus down to a 
+    # single sequence
+    concensus = \
+        kmer_map.drop_duplicates('db-seq').copy().set_index('db-seq')
+    concensus = \
+        concensus.groupby('clean_name')['sequence'].apply(_group_concensus)
+
+
+    concensus_cols = ['clean_name', 'fwd-primer', 
+                      'rev-primer', 'kmer-length']
+    concensus_map = kmer_map[concensus_cols].copy()
+    concensus_map.drop_duplicates(inplace=True)
+    concensus_map.set_index('clean_name', inplace=True)
+    concensus_map['sequence'] = concensus
+
+    # Determines the positions for each of the primer regions. We first look
+    # for an exact match using regex
     fwd_rep = {primer: _expand_primer(primer, None) 
-               for primer in kmer_map['fwd-primer'].unique()}
-    kmer_map['exact'] = kmer_map['fwd-primer'].replace(fwd_rep)
-    kmer_map['start'] = kmer_map[['sequence', 'exact']].astype(str).apply(
-        _find_exact_forward, axis=1) 
+               for primer in concensus_map['fwd-primer'].unique()}
+    rev_rep = {primer: _expand_primer(primer, None) 
+               for primer in concensus_map['rev-primer'].unique()}
+    concensus_map['f_exact'] = concensus_map['fwd-primer'].replace(fwd_rep)
+    concensus_map['r_exact'] = concensus_map['rev-primer'].replace(fwd_rep)
 
-    missing_start = kmer_map['start'].isna()
-    kmer_map.loc[missing_start, 'start'] = \
-        kmer_map.loc[missing_start, ['sequence', 'fwd-primer']].apply(
-            _find_approx_forward, axis=1)
+    # Finds sequences with exact matches
+    concensus_map['start'] = \
+        concensus_map[['sequence', 'f_exact']].astype(str).apply(
+        _find_exact_forward, axis=1
+    )
 
-    kmer_map['end'] = kmer_map['start'] + kmer_map['kmer-length']
+    # Finds fuzzy matches. We assume that since we know sequences from this
+    # concensus were amplified using this primer that we let the fuzzy
+    # match go
+    missing_start = concensus_map['start'].isna()
+    concensus_map.loc[missing_start, 'start'] = \
+    concensus_map.loc[missing_start, ['sequence', 'fwd-primer']].apply(
+        _find_approx_forward, axis=1)
 
-    # Since the forward and reverse positions may be flipped, we pull out 
-    # the forward and reverse only
-    kmer_map['fwd-pos'] = kmer_map[['start', 'end']].min(axis=1)
-    kmer_map['rev-pos'] = kmer_map[['start', 'end']].max(axis=1)
+    # Adds the kmer offset
+    concensus_map['start_off'] = \
+        concensus_map['start'] + concensus_map['kmer-length']
 
-    # Gets the concensus sequence
-    concensus = kmer_map.groupby('clean_name').apply(_get_concensus_seq)
+    # Finds the most extreme positions based on the overlapping positions at
+    # each region
+    concensus_map['fwd-pos'] = \
+        concensus_map[['start', 'start_off']].min(axis=1)
+    concensus_map['rev-pos'] = \
+        concensus_map[['start', 'start_off']].max(axis=1)
+    
+    # Gets that fragment based on the most extreme forward and reverse 
+    # positions in the amplified regions
+    concensus_map.reset_index(inplace=True)
+    concensus_map['sequence'] = concensus_map['sequence'].astype(str)
 
-    return concensus
+    con_group = concensus_map.groupby(['clean_name', 'sequence'])
+    concensus_sub = pd.concat(axis=1, objs=[
+        con_group['fwd-pos'].min().astype(int), 
+        con_group['rev-pos'].max().astype(int)
+    ]).astype(int).reset_index(level='sequence')
+    concensus_sub = concensus_sub.apply(
+        lambda x: DNA(x['sequence'][x['fwd-pos']:x['rev-pos']]), axis=1)
+
+    return concensus_sub
 
 
 def _expand_primer(primer, error=None):
@@ -155,7 +195,7 @@ def _expand_primer(primer, error=None):
 
 def _find_exact_forward(args):
     """
-    Finds the exact match for sequences
+    Finds the exact match for a forward primer
     """
     [sequence, primer] = args.values.flatten()
     match = re.search(primer, sequence)
@@ -163,22 +203,43 @@ def _find_exact_forward(args):
         return np.nan
     else:
         return match.span()[1]
+    
+
+def _find_exact_reverse(args):
+    """
+    Finds the exact match for a reverse primer
+    """
+    [sequence, primer] = args.values.flatten()
+    match = re.search(primer, sequence)
+    if match is None:
+        return np.nan
+    else:
+        return match.span()[0]
+
 
 def _find_approx_forward(args):
+    """
+    Finds an approximate match for a forward primer
+    """
     [sequence, primer] = args
     primer = DNA(primer)
     align_ = _local_aln(sequence, primer)
     return align_[2][0][1] + 1
 
 
-def _get_concensus_seq(g):
+def _find_approx_reverse(args):
     """
-    Gets the concensus sequence for a multiple sequence alignment
+    Finds an approximate match for a reverse primer
     """
-    fwd = int(g['fwd-pos'].min())
-    rev = int(g['rev-pos'].max())
-    g['sequence'] = g['sequence'].apply(lambda x: DNA(x[fwd:rev]))
-    align = TabularMSA(g['sequence'].values)
-    concensus = align.consensus().degap()
-    
+    [sequence, primer] = args
+    primer = DNA(primer)
+    align_ = _local_aln(sequence, primer)
+    return align_[2][0][0]
+
+
+def _group_concensus(seqs):
+    """
+    Collapses grouped sequences to a concensus sequence
+    """
+    concensus = TabularMSA(seqs).consensus().degap()
     return concensus
