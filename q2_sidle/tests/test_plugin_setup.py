@@ -240,7 +240,7 @@ class PluginSetupTest(TestCase):
         )
         known = pd.Series(
             data=['GCGAAGCGGCTCAGG',
-                  'WTCCGCGTTGGAGTTATGATGATGAWACCACCTCGTCCCAGTTCCGCGCTTC'],
+                  'WTCCGCGTTGGAGTTATGATGATGAGACCACCTCGTCCCAGTTCCGCGCTTC'],
             index=pd.Index(['seq01|seq02', 'seq03|seq04']),
             )
         test = sidle.reconstruct_fragment_rep_seqs(recon_map, recon_summary, 

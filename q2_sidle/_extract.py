@@ -8,17 +8,11 @@ import dask.dataframe as dd
 import numpy as np
 import pandas as pd
 import skbio
+from skbio import DNA
 
 from qiime2 import Metadata
 from q2_types.feature_data import (DNAFASTAFormat, DNAIterator)
 from q2_sidle._utils import (_setup_dask_client, 
-                             _convert_generator_to_seq_block,
-                             _convert_generator_to_delayed_seq_block, 
-                             _convert_seq_block_to_dna_fasta_format,
-                             _count_degenerates,
-                             degen_sub,
-                             _find_primer_end,
-                             _find_primer_start,
                              )
 from q2_feature_classifier._skl import _chunks
 
@@ -82,9 +76,7 @@ def prepare_extracted_region(sequences: DNAFASTAFormat,
 
     # Reverse complements the reverse primer
     if reverse_complement_rev:
-        rev_primer = _reverse_complement(
-            pd.DataFrame(list(rev_primer)).T
-            ).apply(lambda x: ''.join(x), axis=1)[0]
+        rev_primer = str(DNA(rev_primer).reverse_complement())
 
     # Reads in the sequences
     sequences = sequences.view(DNAIterator)
@@ -103,95 +95,6 @@ def prepare_extracted_region(sequences: DNAFASTAFormat,
                       chunk_size)
 
     return (ff, ids.compute().set_index('db-seq').sort_index())
-
-
-def _expand_ids(group2, fwd_primer, rev_primer, region, trim_length, 
-    chunk_size):
-    """
-    Expands the seq-name column from grouped IDs into an ID map to be used
-    in alignment
-
-    Parameters
-    ----------
-    group2: DataFrame
-        A dataframe which maps the trimmed sequence identifer (`seq-name`)
-        to the sequence (`amplicon`)
-    fwd_primer, rev_primer: str
-        The forward and reverse primers to be amplified
-    trim_length : int, optional
-        The length sequences should be trimmed to match the asvs for '
-        'kmer-based alignment.
-    region : str
-        The hypervariable region to profile.
-    chunk_size: int, optional
-        The number of sequences to group for analysis
-
-    Returns
-    -------
-    DataFrame
-        A mapping between the kmer sequence name and the the full database 
-        sequence name, along with regional information
-    """
-    # Collapses the data into grouped data
-
-    
-    # Sorts out the ids
-    ids = dd.from_pandas(group2['seq-name'].apply(lambda x: x.strip('>')),
-                                                  chunksize=chunk_size)
-    ids.name = 'kmer'
-    ids = dd.from_delayed([_split_ids(seq_) for seq_ in ids.to_delayed()],
-                          meta=[('kmer', str), ('seq-name', str)]
-                          )
-    ids['db-seq'] = ids['seq-name'].apply(lambda x: x.split("@")[0], 
-                                          meta=('db-seq', str))
-    ids['fwd-primer'] = fwd_primer
-    ids['rev-primer'] = rev_primer
-    ids['region'] = region
-    ids['kmer-length'] = trim_length
-
-    return ids
-
-
-def _collapse_all_sequences(condensed, reverse_complement_result):
-    """
-
-    """
-    # Collapses the data into grouped data and prints the computed result
-    grouped = condensed.groupby('amplicon')['seq-name'].apply(
-        lambda x: '>%s' % "|".join(np.sort(x.values)), meta=('seq-name', str))  
-    group2 = grouped.compute().reset_index()
-    group2.sort_values('seq-name', inplace=True)
-    # Reverse complemnents the sequences if desired
-    if reverse_complement_result:
-        def _rc(x):
-            seq = skbio.DNA(x['amplicon'])
-            return seq.reverse_complement()
-        group2['seq'] = group2.apply(_rc, axis=1).astype(str)
-    else:
-        group2['seq'] = group2['amplicon']
-    
-    # Saves the sequences
-    ff = DNAFASTAFormat()
-    group2.to_csv(str(ff), header=None, sep='\n', index=False,
-                  columns=['seq-name', 'seq'])
-    return ff, group2
-
-
-def _expand_degenerate_gen(seq_, degen_thresh=3):
-    """
-    Expands the degenerate sequences in the seq blocks
-    """
-    id_ = seq_.metadata['id']
-    if seq_.has_degenerates():
-        expand = pd.Series([s for s in seq_.expand_degenerates()]).astype(str)
-        expand.sort_values(inplace=True)
-        expand.reset_index(inplace=True, drop=True)
-        expand.rename(index={i: '%s@%s' % (id_, str(i + 1).zfill(4)) 
-                             for i in expand.index},
-                      inplace=True)
-    else:
-        expand = pd.Series({id_: seq_}).astype(str)
-    return expand
 
 
 @dask.delayed
@@ -225,6 +128,31 @@ def _block_seqs(seqs, degen_thresh=3):
     return s3
 
 
+def _collapse_all_sequences(condensed, reverse_complement_result):
+    """
+    Collapse and reverse complelent the results and tidies it
+    """
+    # Collapses the data into grouped data and prints the computed result
+    grouped = condensed.groupby('amplicon')['seq-name'].apply(
+        lambda x: '>%s' % "|".join(np.sort(x.values)), meta=('seq-name', str))  
+    group2 = grouped.compute().reset_index()
+    group2.sort_values('seq-name', inplace=True)
+    # Reverse complemnents the sequences if desired
+    if reverse_complement_result:
+        def _rc(x):
+            seq = skbio.DNA(x['amplicon'])
+            return seq.reverse_complement()
+        group2['seq'] = group2.apply(_rc, axis=1).astype(str)
+    else:
+        group2['seq'] = group2['amplicon']
+    
+    # Saves the sequences
+    ff = DNAFASTAFormat()
+    group2.to_csv(str(ff), header=None, sep='\n', index=False,
+                  columns=['seq-name', 'seq'])
+    return ff, group2
+
+
 @dask.delayed
 def _condense_seqs(seqs):
     """
@@ -234,6 +162,71 @@ def _condense_seqs(seqs):
     fragment = \
         seqs.groupby(['amplicon'])['seq-name'].apply(lambda x: "|".join(x))
     return fragment.sort_index().reset_index()
+
+
+def _expand_degenerate_gen(seq_, degen_thresh=3):
+    """
+    Expands the degenerate sequences in the seq blocks
+    """
+    id_ = seq_.metadata['id']
+    if seq_.has_degenerates():
+        expand = pd.Series([s for s in seq_.expand_degenerates()]).astype(str)
+        expand.sort_values(inplace=True)
+        expand.reset_index(inplace=True, drop=True)
+        expand.rename(index={i: '%s@%s' % (id_, str(i + 1).zfill(4)) 
+                             for i in expand.index},
+                      inplace=True)
+    else:
+        expand = pd.Series({id_: seq_}).astype(str)
+    return expand
+
+
+def _expand_ids(group2, fwd_primer, rev_primer, region, trim_length, 
+    chunk_size):
+    """
+    Expands the seq-name column from grouped IDs into an ID map to be used
+    in alignment
+
+    Parameters
+    ----------
+    group2: DataFrame
+        A dataframe which maps the trimmed sequence identifer (`seq-name`)
+        to the sequence (`amplicon`)
+    fwd_primer, rev_primer: str
+        The forward and reverse primers to be amplified
+    trim_length : int, optional
+        The length sequences should be trimmed to match the asvs for '
+        'kmer-based alignment.
+    region : str
+        The hypervariable region to profile.
+    chunk_size: int, optional
+        The number of sequences to group for analysis
+
+    Returns
+    -------
+    DataFrame
+        A mapping between the kmer sequence name and the the full database 
+        sequence name, along with regional information
+    """
+
+    # Collapses the data into grouped data
+
+    
+    # Sorts out the ids
+    ids = dd.from_pandas(group2['seq-name'].apply(lambda x: x.strip('>')),
+                                                  chunksize=chunk_size)
+    ids.name = 'kmer'
+    ids = dd.from_delayed([_split_ids(seq_) for seq_ in ids.to_delayed()],
+                          meta=[('kmer', str), ('seq-name', str)]
+                          )
+    ids['db-seq'] = ids['seq-name'].apply(lambda x: x.split("@")[0], 
+                                          meta=('db-seq', str))
+    ids['fwd-primer'] = fwd_primer
+    ids['rev-primer'] = rev_primer
+    ids['region'] = region
+    ids['kmer-length'] = trim_length
+
+    return ids
 
 
 @dask.delayed
@@ -247,30 +240,3 @@ def _split_ids(ids):
     kmers = kmers.melt(id_vars='kmer', value_name='seq-name')
     kmers.drop(columns=['variable'], inplace=True)
     return kmers.dropna()
-
-
-def _reverse_complement(seq_array):
-    """
-    Reverse complements a sequence array
-    Parameters
-    ----------
-    seq_array: Dataframe
-        A dataframe of size n x m where each of n rows is a sequence and 
-        each column (m columns) is a basepair in that sequence. Can contain 
-        degenerates.
-    Returns
-    -------
-    DataFrame
-        Reverse complemenet of `seq_array`
-    """
-
-    # Gets the complement
-    comp_seq = seq_array.replace(complement)
-    
-    #  Filps the complement direction 
-    rc = comp_seq.rename(
-        columns={i: j for i, j in enumerate(comp_seq.columns[::-1])}
-        )
-    rc = rc[np.arange(len(comp_seq.columns))]
-
-    return rc

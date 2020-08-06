@@ -34,6 +34,7 @@ class TreeTest(TestCase):
             'seq04': DNA('------------------GGAGTTATGATGA--AGACCACCTCGTCCCAGTTCCGCGCTTCTGACGTGCAC'),
             'seq05': DNA('CATAGTCATCGTTTATGTATGCCCATGATGATGCGAGCACCTCGTATGGATGTAGAGCCACTGACGTGCGG'),
         })
+        np.random.seed(5)
 
     def test_reconstruct_fragment_rep_seqs(self):
         recon_map = pd.Series(

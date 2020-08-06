@@ -17,7 +17,6 @@ from q2_sidle._extract import (prepare_extracted_region,
                                _condense_seqs,
                                _expand_degenerate_gen,
                                _expand_ids,
-                               _reverse_complement,
                                _split_ids,
                                )
 from q2_sidle.tests import test_set as ts
@@ -95,6 +94,8 @@ class ExtractTest(TestCase):
                                      debug=True,
                                      fwd_primer='WANTCAT',
                                      rev_primer='CATCATCAT',
+                                     reverse_complement_rev=True,
+                                     reverse_complement_result=False,
                                      )
 
         pdt.assert_series_equal(
@@ -135,18 +136,6 @@ class ExtractTest(TestCase):
                              'fwd-primer', 'rev-primer', 'kmer-length']]
         pdt.assert_frame_equal(test_map, known_map)
 
-    def test_reverse_complement(self):
-        known = pd.DataFrame(
-            data=np.array([['G', 'A', 'C', 'T'],
-                           ['S', 'W', 'Y', 'T'],
-                           ['M', 'W', 'A', 'G'],
-                           ['K', 'G', 'A', 'C'],
-                           ['N', 'C', 'A', 'T']]),
-            index=pd.Index(['0', '1', '2', '3', '4'], name='id_'))
-        test_ = _reverse_complement(self.seq_array)
-
-        pdt.assert_frame_equal(known, test_)
-
     def test_artifical_trim_fwd(self):
         test = _artifical_trim(self.seq_block, 15).compute()
         pdt.assert_frame_equal(test, self.amplicon)
@@ -158,48 +147,6 @@ class ExtractTest(TestCase):
     def test_block_seqs(self):
         test = _block_seqs(self.trimmed.view(pd.Series).values).compute()
         pdt.assert_frame_equal(self.seq_block, test)
-
-    def test_condense_seqs(self):
-        test = _condense_seqs(self.amplicon).compute()
-        known = self.region_1.view(pd.Series).astype(str).reset_index()
-        known.columns = ['seq-name', 'amplicon']
-        known.sort_values('amplicon', inplace=True)
-        known.reset_index(inplace=True, drop=True)
-        pdt.assert_frame_equal(
-            test.reset_index(drop=True), 
-            known[['amplicon', 'seq-name']].sort_values('amplicon')
-            )
-
-    def test_split_ids(self):
-        ids = pd.Series(['seq1|seq2', 'seq3@0001', 'seq3@0002', 
-                         'seq5', 'seq6'], name='kmer')
-        known = pd.DataFrame(
-            data=[['seq1|seq2', 'seq1'],
-                  ['seq1|seq2', 'seq2'],
-                  ['seq3@0001', 'seq3@0001'],
-                  ['seq3@0002', 'seq3@0002'],
-                  ['seq5', 'seq5'],
-                  ['seq6', 'seq6'],
-                  ],
-            columns=['kmer', 'seq-name']
-            )
-        test = _split_ids(ids).compute()
-        test.sort_values(['kmer', 'seq-name'], inplace=True)
-        test.reset_index(drop=True, inplace=True)
-        pdt.assert_frame_equal(known, test)
-
-    def test_expand_degenerate_gen_no_degen(self):
-        seq = skbio.DNA('GCGAAGCGGCTCAGG', metadata={'id': 'seq1'})
-        known = pd.Series({'seq1': 'GCGAAGCGGCTCAGG'})
-        test = _expand_degenerate_gen(seq)
-        pdt.assert_series_equal(test, known)
-
-    def test_expand_degenerate_gen_degen(self):
-        seq = skbio.DNA('WTCCGCGTTGGAGTT', metadata={'id': 'seq3'})
-        known = pd.Series({'seq3@0001': 'ATCCGCGTTGGAGTT',
-                           'seq3@0002': 'TTCCGCGTTGGAGTT'})
-        test = _expand_degenerate_gen(seq)
-        pdt.assert_series_equal(test, known)
 
     def test_collapse_all_sequences_fwd(self):
         condensed = dd.from_pandas(self.amplicon, chunksize=5000)
@@ -227,6 +174,30 @@ class ExtractTest(TestCase):
         pdt.assert_frame_equal(known_grouped[['amplicon', 'seq-name', 'seq']],
                                test_group2.reset_index(drop=True))
 
+    def test_condense_seqs(self):
+        test = _condense_seqs(self.amplicon).compute()
+        known = self.region_1.view(pd.Series).astype(str).reset_index()
+        known.columns = ['seq-name', 'amplicon']
+        known.sort_values('amplicon', inplace=True)
+        known.reset_index(inplace=True, drop=True)
+        pdt.assert_frame_equal(
+            test.reset_index(drop=True), 
+            known[['amplicon', 'seq-name']].sort_values('amplicon')
+            )
+
+    def test_expand_degenerate_gen_no_degen(self):
+        seq = skbio.DNA('GCGAAGCGGCTCAGG', metadata={'id': 'seq1'})
+        known = pd.Series({'seq1': 'GCGAAGCGGCTCAGG'})
+        test = _expand_degenerate_gen(seq)
+        pdt.assert_series_equal(test, known)
+
+    def test_expand_degenerate_gen_degen(self):
+        seq = skbio.DNA('WTCCGCGTTGGAGTT', metadata={'id': 'seq3'})
+        known = pd.Series({'seq3@0001': 'ATCCGCGTTGGAGTT',
+                           'seq3@0002': 'TTCCGCGTTGGAGTT'})
+        test = _expand_degenerate_gen(seq)
+        pdt.assert_series_equal(test, known)
+
     def test_expand_ids(self):
         test = _expand_ids(self.group_forward, self.fwd_primer, 'ATGATGATG',
                            'Bludhaven', 15, 1000).compute()
@@ -235,6 +206,24 @@ class ExtractTest(TestCase):
         test.set_index('db-seq', inplace=True)
         pdt.assert_frame_equal(test.sort_index(), 
                                self.region1_map.view(pd.DataFrame))
+
+    def test_split_ids(self):
+        ids = pd.Series(['seq1|seq2', 'seq3@0001', 'seq3@0002', 
+                         'seq5', 'seq6'], name='kmer')
+        known = pd.DataFrame(
+            data=[['seq1|seq2', 'seq1'],
+                  ['seq1|seq2', 'seq2'],
+                  ['seq3@0001', 'seq3@0001'],
+                  ['seq3@0002', 'seq3@0002'],
+                  ['seq5', 'seq5'],
+                  ['seq6', 'seq6'],
+                  ],
+            columns=['kmer', 'seq-name']
+            )
+        test = _split_ids(ids).compute()
+        test.sort_values(['kmer', 'seq-name'], inplace=True)
+        test.reset_index(drop=True, inplace=True)
+        pdt.assert_frame_equal(known, test)
 
 
 
