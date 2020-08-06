@@ -78,10 +78,16 @@ class TreeTest(TestCase):
             )
         pdt.assert_series_equal(test.view(pd.Series).astype(str), known)
 
-    def test_expand_primer(self):
+    def test_expand_primer_miss(self):
         primer = 'WANTCAT'
         known = '((?<=([AT])))((A[ACGT]TCAT){e<=1})'
         test = _expand_primer(primer, 1)
+        self.assertEqual(known, test)
+
+    def test_expand_primer_none(self):
+        primer = 'WANTCAT'
+        known = '[AT]A[ACGT]TCAT'
+        test = _expand_primer(primer, None)
         self.assertEqual(known, test)
 
     def test_find_exact_forward_match(self):
