@@ -9,7 +9,8 @@ from qiime2 import Artifact
 from q2_types.feature_data import DNAIterator, DNAFASTAFormat
 
 from q2_sidle._align import (align_regional_kmers,
-                             _align_kmers,                             
+                             _align_kmers,
+                             _check_read_lengths,                        
                              )
 
 
@@ -97,6 +98,15 @@ class AlignTest(TestCase):
             known_discard, 
         )
 
+    def test_check_read_length_pass(self):
+        number_, length_ = _check_read_lengths(self.in_mer, 'inmer')
+        self.assertEqual(length_, 9)
+        self.assertEqual(number_, 4)
+
+    def test_check_read_length_fail(self):
+        reads = pd.concat([self.in_mer, self.seq_array])
+        with self.assertRaises(ValueError):
+            _check_read_lengths(reads, 'inmer')
 
 if __name__ == '__main__':
     main()

@@ -72,15 +72,11 @@ def align_regional_kmers(kmers: pd.Series,
     num_kmers, kmer_length = _check_read_lengths(kmers, 'kmer')
     kmers = dd.from_pandas(kmers.astype(str), 
                            chunksize=chunk_size)
-    print(num_kmers)
-    print(kmers.npartitions)
 
     # Converts the representative sequences to a delayed object
     num_asvs, asv_length = _check_read_lengths(rep_seq, 'rep_seq')
     rep_seq = dd.from_pandas(rep_seq.astype(str),
                              chunksize=chunk_size)
-    print(num_asvs)
-    print(rep_seq.npartitions)
 
     if kmer_length != asv_length:
         raise ValueError('The kmer and ASV sequences must be the same length')
