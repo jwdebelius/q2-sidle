@@ -80,13 +80,14 @@ def prepare_extracted_region(sequences: DNAFASTAFormat,
 
     # Reads in the sequences
     sequences = sequences.view(DNAIterator)
-    seq_blocks = [_block_seqs(seq)
+    seq_blocks = [dask.delayed(_block_seqs)(seq)
                   for seq in _chunks(sequences, int((chunk_size)))]
     # Makes the fake extraction position based on the trim length
-    fragment = [_artifical_trim(seq, trim_length) for seq in seq_blocks]
+    fragment = [dask.delayed(_artifical_trim)(seq, trim_length) 
+                for seq in seq_blocks]
     # Prepares the amplicon for collapsing
     condensed = dd.from_delayed([
-        _condense_seqs(seq) for seq in fragment],
+        dask.delayed(_condense_seqs)(seq) for seq in fragment],
         meta=[('amplicon', 'str'), ('seq-name', 'str')]
     )
     # Writes the 
@@ -97,12 +98,12 @@ def prepare_extracted_region(sequences: DNAFASTAFormat,
     return (ff, ids.compute().set_index('db-seq').sort_index())
 
 
-@dask.delayed
 def _artifical_trim(seqs, trim_length):
     """
     Trims sequences if a trim lengthis supplied
     """
     seqs['extract-length'] = seqs['sequence'].apply(lambda x: len(x))
+    print()
     keep = (np.absolute(seqs['extract-length']) >= np.absolute(trim_length))
     seqs = seqs.loc[keep].copy()
 
@@ -117,7 +118,6 @@ def _artifical_trim(seqs, trim_length):
     return seqs[['seq-name',  'amplicon']]
 
 
-@dask.delayed
 def _block_seqs(seqs, degen_thresh=3):
     """
     Converts the sequences into an expanded sequence block
@@ -156,7 +156,6 @@ def _collapse_all_sequences(condensed, reverse_complement_result):
     return ff, group2
 
 
-@dask.delayed
 def _condense_seqs(seqs):
     """
     Collapses duplicate sequences before processing
@@ -219,7 +218,8 @@ def _expand_ids(group2, fwd_primer, rev_primer, region, trim_length,
     ids = dd.from_pandas(group2['seq-name'].apply(lambda x: x.strip('>')),
                                                   chunksize=chunk_size)
     ids.name = 'kmer'
-    ids = dd.from_delayed([_split_ids(seq_) for seq_ in ids.to_delayed()],
+    ids = dd.from_delayed([dask.delayed(_split_ids)(seq_) 
+                          for seq_ in ids.to_delayed()],
                           meta=[('kmer', str), ('seq-name', str)]
                           )
     ids['db-seq'] = ids['seq-name'].apply(lambda x: x.split("@")[0], 
@@ -232,7 +232,6 @@ def _expand_ids(group2, fwd_primer, rev_primer, region, trim_length,
     return ids
 
 
-@dask.delayed
 def _split_ids(ids):
     """
     Splits collapsed kmers into single sequences for a database map

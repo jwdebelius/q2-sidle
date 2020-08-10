@@ -137,15 +137,15 @@ class ExtractTest(TestCase):
         pdt.assert_frame_equal(test_map, known_map)
 
     def test_artifical_trim_fwd(self):
-        test = _artifical_trim(self.seq_block, 15).compute()
+        test = _artifical_trim(self.seq_block, 15)
         pdt.assert_frame_equal(test, self.amplicon)
 
     def test_artifical_trim_rev(self):
-        test = _artifical_trim(self.seq_block, -5).compute()
+        test = _artifical_trim(self.seq_block, -5)
         pdt.assert_frame_equal(test, self.amplicon_r)
 
     def test_block_seqs(self):
-        test = _block_seqs(self.trimmed.view(pd.Series).values).compute()
+        test = _block_seqs(self.trimmed.view(pd.Series).values)
         pdt.assert_frame_equal(self.seq_block, test)
 
     def test_collapse_all_sequences_fwd(self):
@@ -175,7 +175,7 @@ class ExtractTest(TestCase):
                                test_group2.reset_index(drop=True))
 
     def test_condense_seqs(self):
-        test = _condense_seqs(self.amplicon).compute()
+        test = _condense_seqs(self.amplicon)
         known = self.region_1.view(pd.Series).astype(str).reset_index()
         known.columns = ['seq-name', 'amplicon']
         known.sort_values('amplicon', inplace=True)
@@ -220,7 +220,7 @@ class ExtractTest(TestCase):
                   ],
             columns=['kmer', 'seq-name']
             )
-        test = _split_ids(ids).compute()
+        test = _split_ids(ids)
         test.sort_values(['kmer', 'seq-name'], inplace=True)
         test.reset_index(drop=True, inplace=True)
         pdt.assert_frame_equal(known, test)

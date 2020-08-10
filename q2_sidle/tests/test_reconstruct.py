@@ -357,7 +357,7 @@ class ReconstructTest(TestCase):
         sequence_map.index.set_names('db-seq', inplace=True)
         test_mat = _construct_align_mat(self.match2, 
                                         sequence_map,
-                                        self.seq_summary).compute()
+                                        self.seq_summary)
         # Rounds for the sake of sanity
         test_mat[self.float_cols] = test_mat[self.float_cols].round(4)
         test_mat[self.int_cols] = test_mat[self.int_cols].astype(int)
@@ -481,11 +481,11 @@ class ReconstructTest(TestCase):
                   ['seq6', 'Bludhaven', 'seq6']],
             columns=['db-seq', 'region', 'value']
             )
-        test = _get_clean(self.shared_long).compute()
+        test = _get_clean(self.shared_long)
         pdt.assert_frame_equal(test, known)
 
     def test_get_shared(self):
-        test = _get_shared_seqs(self.kmer1.reset_index()).compute()
+        test = _get_shared_seqs(self.kmer1.reset_index())
         test.sort_values(['db-seq', 'value'], inplace=True)
         pdt.assert_frame_equal(test.reset_index(drop=True), 
                                self.shared_long)
@@ -557,7 +557,7 @@ class ReconstructTest(TestCase):
                                  name='clean_name'),
             sample='sample.1'
             )
-        pdt.assert_series_equal(self.freq, t_freq.compute(), 
+        pdt.assert_series_equal(self.freq, t_freq,
                                 check_less_precise=True)
 
     def test_sort_untidy(self):
@@ -636,10 +636,10 @@ class ReconstructTest(TestCase):
         test_kmers, test_seqs = _tidy_sequence_set(clean_kmer, set([]))
         self.assertEqual(test_seqs, known_seqs)
         # Makes testing easier
-        test_kmers = test_kmers.compute()
+        test_kmers = test_kmers
         test_kmers['shared-set'] =  \
             test_kmers['shared-set'].apply(lambda x: "|".join(sorted(x)))
-        pdt.assert_frame_equal(known_kmers, test_kmers)
+        pdt.assert_frame_equal(known_kmers, test_kmers.compute())
 
     def test_untangle_database_ids(self):
         matches = dd.from_pandas(npartitions=1, data=pd.DataFrame(
@@ -722,7 +722,8 @@ class ReconstructTest(TestCase):
                                 }, name='clean_name')
         known_seq.index.set_names('db-seq', inplace=True)
         # Generates the renaming
-        seq_ = _untangle_database_ids(matches, num_regions=3)
+        seq_ = _untangle_database_ids(matches, 
+                                      num_regions=3)
 
         pdt.assert_series_equal(known_seq, seq_.sort_index())
 

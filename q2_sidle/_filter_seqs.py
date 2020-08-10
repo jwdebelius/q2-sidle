@@ -76,8 +76,9 @@ def filter_degenerate_sequences(sequences: DNASequencesDirectoryFormat,
             axis=1,
             meta=(None, 'object')
             )
+    sequences = sequences.compute()
     sequences = sequences.set_index('id')
 
-    return sequences['skbio'].compute()
+    return sequences['skbio']
 
 

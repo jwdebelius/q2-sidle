@@ -151,7 +151,7 @@ def reconstruct_counts(manifest: Metadata,
                                     seq_summary=db_summary,
                                     nucleotide_error=per_nucleotide_error, 
                                     max_mismatch=max_mismatch, 
-                                    ).compute()
+                                    )
     print('Alignment map constructed')
     
     ### Solves the relative abundance
@@ -226,7 +226,6 @@ def reconstruct_counts(manifest: Metadata,
     return count_table, summary, mapping
 
 
-@dask.delayed
 def _construct_align_mat(match, sequence_map, seq_summary, 
     nucleotide_error=0.005, max_mismatch=2, kmer_name='kmer', asv_name='asv',
     seq_name='clean_name', miss_col='mismatch'):
@@ -469,7 +468,7 @@ def _expand_duplicate_sequences(df, id_col, delim='|'):
 
     return long_exp
 
-@dask.delayed
+
 def _get_clean(df):
     clean_kmers = \
         df.groupby(['db-seq', 'region'])['value'].apply(
@@ -477,7 +476,6 @@ def _get_clean(df):
     return clean_kmers.reset_index()
 
 
-@dask.delayed
 def _get_shared_seqs(df):
     wide = df.set_index(['db-seq', 'region'])['kmer'].apply(
             lambda x: pd.Series(x.split("|"))).reset_index()
@@ -625,14 +623,15 @@ def _solve_iterative_noisy(align_mat, table, seq_summary, tolerance=1e-7,
     recon = []
     for sample, col_ in table.loc[align_asvs].iteritems():
         abund = dask.delayed(col_.values)
-        freq_ = _solve_ml_em_iterative_1_sample(align=align,
-                                                abund=abund,
-                                                sample=sample,
-                                                align_kmers=align_seqs,
-                                                num_iter=num_iter,
-                                                tolerance=tolerance,
-                                                min_abund=min_abund,
-                                                )
+        freq_ = dask.delayed(_solve_ml_em_iterative_1_sample)(
+            align=align,
+            abund=abund,
+            sample=sample,
+            align_kmers=align_seqs,
+            num_iter=num_iter,
+            tolerance=tolerance,
+            min_abund=min_abund,
+            )
         df = dask.delayed(pd.DataFrame)(freq_, columns=[sample])
         recon.append(df)
     # Puts together the table as optimiziation
@@ -649,7 +648,6 @@ def _solve_iterative_noisy(align_mat, table, seq_summary, tolerance=1e-7,
     return recon
 
 
-@dask.delayed
 def _solve_ml_em_iterative_1_sample(align, abund, align_kmers, sample, 
     num_iter=10000,
     tolerance=1e-7,  min_abund=1e-10, 
@@ -787,8 +785,10 @@ def _untangle_database_ids(region_db, num_regions, block_size=500):
         number per region.
     """
     # Cleans up the kmers by pulling off shared labels
-    shared = [_get_shared_seqs(df) for df in region_db.to_delayed()]
-    clean_kmers = dd.from_delayed([_get_clean(df) for df in shared])
+    shared = [dask.delayed(_get_shared_seqs)(df) 
+              for df in region_db.to_delayed()]
+    clean_kmers = dd.from_delayed([dask.delayed(_get_clean)(df) 
+                                   for df in shared])
     clean_kmers['tidy'] = False
     # Formats for an id set
     clean_kmers['shared-set'] = clean_kmers['value'].apply(
