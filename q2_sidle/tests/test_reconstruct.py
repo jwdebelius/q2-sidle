@@ -246,7 +246,7 @@ class ReconstructTest(TestCase):
             count_table.matrix_data.todense(),
             np.array([[100,  50,   0,  50,  50, 50],
                       [100,  25, 100,  25,  25, 25],
-                      [  0, 100, 100,   0,  50, 50]]).T * 1.
+                      [  0, 100, 100,   0,  50, 50]]).T
            )
         npt.assert_array_equal(
             np.array(list(count_table.ids(axis='sample'))),
@@ -258,6 +258,94 @@ class ReconstructTest(TestCase):
         )
         pdt.assert_frame_equal(known_map, mapping)
         pdt.assert_frame_equal(known_summary, summary.to_dataframe())
+
+
+    def test_reconstruct_counts_unweighted(self):
+        known_map = pd.DataFrame(
+            data=[['seq1', 'WANTCAT', 'CACCTCGTN', 15],
+                  ['seq2', 'WANTCAT', 'CACCTCGTN', 15],
+                  ['seq3', 'WANTCAT', 'CACCTCGTN', 15],
+                  ['seq4', 'CACCTCGTN', 'CACCTCGTN', 15],
+                  ['seq5', 'WANTCAT', 'CACCTCGTN', 15],
+                  ['seq6', 'WANTCAT', 'CACCTCGTN', 15]],
+            index=pd.Index(['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 'seq6'], 
+                            name='db-seq'),
+            columns=['clean_name', 'first-fwd-primer', 'last-fwd-primer', 
+                     'last-kmer-length'],
+            )
+
+        known_summary = pd.DataFrame.from_dict(orient='index', data={
+            'seq1': {'num-regions': 1., 
+                     'total-kmers-mapped': 2., 
+                     'mean-kmer-per-region': 1.,
+                     'stdv-kmer-per-region': 0.,
+                     'mapped-asvs': 'asv01|asv06'
+                    },
+            'seq2': {'num-regions': 1, 
+                     'total-kmers-mapped': 2, 
+                     'mean-kmer-per-region': 1,
+                    'stdv-kmer-per-region': 0,
+                    'mapped-asvs': 'asv01|asv07',
+                    },
+            'seq3': {'num-regions': 1, 
+                     'total-kmers-mapped': 3, 
+                     'mean-kmer-per-region': 1.5,
+                     'stdv-kmer-per-region': np.std([1, 2], ddof=1),
+                     'mapped-asvs': 'asv02|asv03|asv08'
+                    },
+            'seq4': {'num-regions': 1, 
+                     'total-kmers-mapped': 1, 
+                     'mean-kmer-per-region': 1,
+                     'stdv-kmer-per-region': 0,
+                     'mapped-asvs': 'asv09'
+                    },
+            'seq5': {'num-regions': 1, 
+                     'total-kmers-mapped': 2, 
+                     'mean-kmer-per-region': 1,
+                     'stdv-kmer-per-region': 0,
+                     'mapped-asvs': 'asv04|asv05|asv10',
+                    },
+            'seq6': {'num-regions': 1, 
+                     'total-kmers-mapped': 2, 
+                     'mean-kmer-per-region': 1,
+                     'stdv-kmer-per-region': 0,
+                     'mapped-asvs': 'asv04|asv05|asv11',
+                    },
+            })
+        known_summary.index.set_names('feature-id', inplace=True)
+        
+        manifest = Metadata(pd.DataFrame(
+            data=[[os.path.join(self.base_dir, 'region1_db_map.qza'),
+                   os.path.join(self.base_dir, 'region1_align.qza'),
+                   os.path.join(self.base_dir, 'region1_counts.qza'), 0],
+                  [os.path.join(self.base_dir, 'region2_db_map.qza'),
+                   os.path.join(self.base_dir, 'region2_align.qza'),
+                   os.path.join(self.base_dir, 'region2_counts.qza'), 1]],
+            columns=['kmer-map', 'alignment-map', 'frequency-table', 
+                     'region-order'],
+            index=pd.Index(['Bludhaven', 'Gotham'], name='id')
+            ))
+        count_table, summary, mapping = \
+            reconstruct_counts(manifest, debug=True, min_abund=1e-2, 
+                               region_normalize=False)
+        npt.assert_array_equal(
+            count_table.matrix_data.todense(),
+            np.array([[200, 100,   0,  50, 100, 100],
+                      [200,  50, 200,  25,  50,  50],
+                      [  0, 200, 200,   0, 100, 100]]).T * 1.
+           )
+        npt.assert_array_equal(
+            np.array(list(count_table.ids(axis='sample'))),
+            np.array(['sample1', 'sample2', 'sample3'])
+        )
+        npt.assert_array_equal(
+            np.array(list(count_table.ids(axis='observation'))),
+            np.array(['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 'seq6']),
+        )
+        pdt.assert_frame_equal(known_map, mapping)
+        pdt.assert_frame_equal(known_summary, summary.to_dataframe())
+
+
 
     def test_construct_align_mat(self):
         sequence_map = pd.Series({'seq1': 'seq1',

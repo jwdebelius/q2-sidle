@@ -99,6 +99,9 @@ def prepare_extracted_region(sequences: DNAFASTAFormat,
 
 @dask.delayed
 def _artifical_trim(seqs, trim_length):
+    """
+    Trims sequences if a trim lengthis supplied
+    """
     seqs['extract-length'] = seqs['sequence'].apply(lambda x: len(x))
     keep = (np.absolute(seqs['extract-length']) >= np.absolute(trim_length))
     seqs = seqs.loc[keep].copy()

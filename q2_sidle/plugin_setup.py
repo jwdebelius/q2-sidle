@@ -239,6 +239,7 @@ plugin.methods.register_function(
         'max_mismatch': Int % Range(0, None),
         'min_abund': Float % Range(0, 1),
         'count_degenerates': Bool,
+        'region_normalize': Bool,
         'n_workers': Int % Range(0, None),
         'client_address': Str,
         'debug': Bool,
@@ -283,6 +284,13 @@ plugin.methods.register_function(
                       'during reconstruction. The default from the original '
                       'smurf algorithm is 1e-10, the number here may depend'
                       ' on the total number of sequences in your sample'),
+        'region_normalize': ('Whether the relative abundance should be '
+                             'normalized by region during reconstruction. '
+                             'When using kmer-based alignment to '
+                             'reeconstruct multiple regions within a single '
+                             'sample, this is most appropriate. In meta-'
+                             'analysis, region normalization may increase'
+                             ' count retention.'),
         'n_workers': ('The number of jobs to initiate. When `n_workers` is 0,'
                       ' the cluster will be able to access all avaliable'
                       ' resources.'),

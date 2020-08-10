@@ -23,6 +23,7 @@ def reconstruct_counts(manifest: Metadata,
     per_nucleotide_error: float=0.005,
     max_mismatch: int=2,
     min_abund: float=1e-5,
+    region_normalize: bool=True,
     debug: bool=False, 
     n_workers: int=0,
     client_address: str=None,
@@ -140,6 +141,9 @@ def reconstruct_counts(manifest: Metadata,
     db_summary = _count_mapping(kmer_map.reset_index(), 
                                 count_degenerates, 
                                 kmer='seq-name')
+    if region_normalize == False:
+        print('normalize!')
+        db_summary['num-regions'] = 1
 
     ### Constructs the regional alignment
     align_mat = _construct_align_mat(align_map,
