@@ -240,6 +240,7 @@ plugin.methods.register_function(
         'min_abund': Float % Range(0, 1),
         'count_degenerates': Bool,
         'region_normalize': Bool,
+        'block_size': Int,
         'n_workers': Int % Range(0, None),
         'client_address': Str,
         'debug': Bool,
@@ -291,6 +292,10 @@ plugin.methods.register_function(
                              'sample, this is most appropriate. In meta-'
                              'analysis, region normalization may increase'
                              ' count retention.'),
+        'block_size': ('The number of sequences to use in parallel '
+                       'computation. The larger the block_size, the faster '
+                       'processing can happen, but the more memory that will'
+                       ' be required.'),
         'n_workers': ('The number of jobs to initiate. When `n_workers` is 0,'
                       ' the cluster will be able to access all avaliable'
                       ' resources.'),

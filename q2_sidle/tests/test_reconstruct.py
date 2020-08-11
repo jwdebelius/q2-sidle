@@ -259,7 +259,6 @@ class ReconstructTest(TestCase):
         pdt.assert_frame_equal(known_map, mapping)
         pdt.assert_frame_equal(known_summary, summary.to_dataframe())
 
-
     def test_reconstruct_counts_unweighted(self):
         known_map = pd.DataFrame(
             data=[['seq1', 'WANTCAT', 'CACCTCGTN', 15],
@@ -344,8 +343,6 @@ class ReconstructTest(TestCase):
         )
         pdt.assert_frame_equal(known_map, mapping)
         pdt.assert_frame_equal(known_summary, summary.to_dataframe())
-
-
 
     def test_construct_align_mat(self):
         sequence_map = pd.Series({'seq1': 'seq1',

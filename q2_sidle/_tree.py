@@ -75,6 +75,8 @@ def reconstruct_fragment_rep_seqs(
     # Gets the total number of database sequences mapped in the summary
     reconstruction_summary['num_seqs_mapped'] = \
         pd.Series({i: i.count("|") + 1 for i in reconstruction_summary.index})
+    if (reconstruction_summary['num_seqs_mapped'] == 1).all():
+        return pd.Series({'1': DNA('ATCG')})
 
     # Filters down to only clusters that include multiple sequences 
     multiple_mapped = reconstruction_summary['num_seqs_mapped'] > 1

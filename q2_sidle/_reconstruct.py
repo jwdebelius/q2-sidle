@@ -24,6 +24,7 @@ def reconstruct_counts(manifest: Metadata,
     max_mismatch: int=2,
     min_abund: float=1e-5,
     region_normalize: bool=True,
+    block_size : int=10000,
     debug: bool=False, 
     n_workers: int=0,
     client_address: str=None,
@@ -77,7 +78,6 @@ def reconstruct_counts(manifest: Metadata,
         A map between the final kmer name and the original database sequence.
         Useful for reconstructing taxonomy and trees.
     """
-    blocksize=1e5
     
     # Sets up the client
     _setup_dask_client(debug=debug, cluster_config=None,  
@@ -128,7 +128,7 @@ def reconstruct_counts(manifest: Metadata,
     # sequence and the original name
     db_map = _untangle_database_ids(kmer_map.copy(),
                                     num_regions=num_regions,
-                                    block_size=500,
+                                    block_size=block_size / 10,
                                     )
     print('Database map assembled')    
 
@@ -151,6 +151,7 @@ def reconstruct_counts(manifest: Metadata,
                                     seq_summary=db_summary,
                                     nucleotide_error=per_nucleotide_error, 
                                     max_mismatch=max_mismatch, 
+                                    blocksize=block_size,
                                     )
     print('Alignment map constructed')
     
@@ -228,7 +229,7 @@ def reconstruct_counts(manifest: Metadata,
 
 def _construct_align_mat(match, sequence_map, seq_summary, 
     nucleotide_error=0.005, max_mismatch=2, kmer_name='kmer', asv_name='asv',
-    seq_name='clean_name', miss_col='mismatch'):
+    seq_name='clean_name', miss_col='mismatch', blocksize=5000):
     """
     Constructs a long form matrix describing alignmnet
 
@@ -265,10 +266,16 @@ def _construct_align_mat(match, sequence_map, seq_summary,
         kmers for iterative processing and reconstruction.
 
     """
+
     # Expands the kmer identifiers and then maps back to the database
-    align_mat = _expand_duplicate_sequences(match, id_col=kmer_name)
+    align_mat = dd.from_pandas(
+        _expand_duplicate_sequences(match, id_col=kmer_name),
+        chunksize=blocksize
+    )
+
     align_mat['db-seq'] = \
-        align_mat[kmer_name].apply(lambda x: x.split('@')[0])
+        align_mat[kmer_name].apply(lambda x: x.split('@')[0],
+                                   meta=('kmer_name', 'str'))
     align_mat[seq_name] = align_mat['db-seq'].replace(sequence_map)
 
     # Collapses into ASV-ref seq combos where for degenerates, the closet
@@ -302,9 +309,14 @@ def _construct_align_mat(match, sequence_map, seq_summary,
     # Normalizes the alignment probability based on the pre-region 
     # amplification
     region_amp = seq_summary['num-regions']
-    region_norm = asv_ref[seq_name].replace(region_amp)
 
-    asv_ref['norm'] = (asv_ref['match_prob'] / region_norm)
+    asv_ref = asv_ref.set_index(seq_name)
+    asv_ref['region-norm'] = region_amp.astype(int)
+
+    asv_ref['norm'] = (asv_ref['match_prob'] / asv_ref['region-norm'])
+
+    asv_ref  = asv_ref.reset_index().compute()
+    asv_ref.drop(columns='region-norm', inplace=True)
 
     return asv_ref
 
