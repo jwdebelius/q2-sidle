@@ -176,7 +176,7 @@ plugin.methods.register_function(
     ],
     parameters={
         'region': Str,
-        'max_mismatch': Int % Range(1, None),
+        'max_mismatch': Int % Range(0, None),
         'chunk_size':  (Int % Range(1, None)),
         'client_address': Str,
         'n_workers': Int % Range(0, None),

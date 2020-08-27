@@ -298,7 +298,9 @@ def _construct_align_mat(match, sequence_map, seq_summary,
         np.power(nucleotide_error / 3, max_mismatch)
     )
 
-    # Calculates the maximum error rate to get the mismatch
+    # Calculates the maximum error rate to get the mismatch. 0.1 multiplier comes
+    # directly from the SMURF code
+    # https://github.com/NoamShental/SMURF/blob/master/mFiles/solve_iterative_noisy.m#L53
     asv_ref['error_thresh'] = \
         (asv_ref['perfect_prob'] - 0.1*asv_ref['max_error_prob'] - 
             np.spacing(1))
@@ -396,7 +398,6 @@ def _detangle_names(long_):
     num_connections = (long_.groupby('db-seq')['counter'].max() + 1)
     long_.set_index('clean_name', inplace=True)
     long_['co-connection'] = num_connections[long_.index]
-    long_.reset_index(inplace=True)
     co_min = long_.groupby('db-seq')['co-connection'].min()
     connection_penalty = (num_connections - co_min + 1)
 
@@ -538,38 +539,46 @@ def _scale_relative_abundance(align_mat, relative, counts, seq_summary,
         sequence where the total counts represents the sum of counts across 
         all sequencing regions. 
     """
+    align_mat = align_mat.loc[align_mat[seq_name].isin(relative.index)]
+    align = align_mat.pivot_table(values='norm', index=asv_name, 
+                                  columns=seq_name, fill_value=0
+                                  )
 
-    # Gets the sequence positions
-    align_mat = align_mat.loc[align_mat[seq_name].isin(relative.index)].copy()
-    align_seqs = align_mat[seq_name].values
-    align_asvs = align_mat[asv_name].values
+    # And then we get indexing because I like to have the indexing
+    # references
+    align_seqs = align.columns
+    align_asvs = align.index
+    align = align.values
+
+    relative = relative.loc[align_seqs]
+    counts = counts.loc[align_asvs]
     samples = relative.columns
+    spacer =  np.spacing(1)
 
-    # Calculates the probability of a count showing up in a particular 
-    # reference x ASV pair
-    p_r_and_j = pd.concat(axis=1, objs=[
-        align_mat.set_index(seq_name)[asv_name],
-        (relative.loc[align_seqs].T * align_mat['norm'].values).T
-        ])
-    p_r_and_j.index.set_names(seq_name, inplace=True)
-    p_r_and_j.reset_index(inplace=True)
-    
-    # Calculates the probability of a count mapping to the reference given 
-    # that it mapped to the jth ASV
-    j_ind = p_r_and_j.groupby('asv')[samples].sum() + np.spacing(1)
-    p_r_given_j = \
-        (p_r_and_j.set_index([seq_name, asv_name]) /
-         j_ind.loc[align_asvs].values)
+    # A simple per-sample function to solve the counts because frequency is fun
+    # and pandas rounding may be what's killing this
+    @dask.delayed
+    def _solve_sample(align, freq, count):
+        # Probability a count shows up in a particular ASV/reference pairing
+        p_r_and_j = freq.values.T * align
+        # Normalized for the number of asvs mapped to that reference
+        p_r_given_j = p_r_and_j / np.atleast_2d(p_r_and_j.sum(axis=1) + spacer).T
+        # sums the counts
+        count_j_given_r = count.values * p_r_given_j
 
-    # Maps the counts to the sequence given the probability
-    counts_r_given_j = p_r_given_j * counts.loc[align_asvs].values
-    counts_r_given_j.reset_index(inplace=True)
+        return np.atleast_2d(count_j_given_r.sum(axis=0))
 
-    # And then sums the counts over the sequence (so we get the total counts)
-    counts_r = (counts_r_given_j.groupby(seq_name)[samples].sum().T / 
-                seq_summary['num-regions']).T
+    scaled_counts = pd.DataFrame(
+        data=np.vstack(dask.compute(*[
+            _solve_sample(align, relative[[sample]], counts[[sample]])
+            for sample in samples])),
+        index=samples,
+        columns=align_seqs
+        )
+    counts_r = scaled_counts / seq_summary['num-regions']
 
-    return counts_r.round(0)
+
+    return counts_r.round(0).T
 
 
 def _solve_iterative_noisy(align_mat, table, seq_summary, tolerance=1e-7,

@@ -26,9 +26,7 @@ from q2_sidle._reconstruct import (reconstruct_counts,
                                    _solve_iterative_noisy,
                                    _sort_untidy,
                                    _tidy_sequence_set,
-
                                    _untangle_database_ids,
-                                   
                                    )
 import q2_sidle.tests.test_set as ts
 
@@ -241,6 +239,7 @@ class ReconstructTest(TestCase):
             ))
         count_table, summary, mapping = \
             reconstruct_counts(manifest, debug=True, min_abund=1e-2)
+
 
         npt.assert_array_equal(
             count_table.matrix_data.todense(),
