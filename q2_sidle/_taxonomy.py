@@ -104,7 +104,7 @@ def reconstruct_taxonomy(reconstruction_map: pd.Series,
         if pd.isnull(x).all():
             return np.nan
         else:
-            return '|'.join(x.dropna().unique())
+            return '|'.join(np.sort(x.dropna().unique()))
 
     def _combine_taxa(g):
         """Help function ot tidy taxonomy"""

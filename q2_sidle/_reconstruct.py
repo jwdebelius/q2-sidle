@@ -162,6 +162,7 @@ def reconstruct_counts(manifest: Metadata,
         objs=_read_manifest_files(manifest, 'frequency-table', 
                                  'FeatureTable[Frequency]', pd.DataFrame)).T
     counts.fillna(0, inplace=True)
+    print('counts loaded')
 
     # We have to account for the fact that some of hte ASVs may have been 
     # discarded because they didn't meet the match parameters we've set or 
@@ -175,6 +176,7 @@ def reconstruct_counts(manifest: Metadata,
 
     # Normalizes the alignment table
     n_table = counts / counts.sum(axis=0)
+    print('counts normalized')
 
     # Performs the maximum liklihood reconstruction on a per-sample basis. 
     # Im not sure if this could be refined to optimize the alogirthm
@@ -635,18 +637,17 @@ def _solve_iterative_noisy(align_mat, table, seq_summary, tolerance=1e-7,
     align = align_mat.pivot_table(values='norm', index=asv_name, 
                                   columns=seq_name, fill_value=0
                                   )
+    align = align.loc[table.index]
     # And then we get indexing because I like to have the indexing
     # references
     align_seqs = align.columns
     align_asvs = align.index
-    align = align.values
 
     recon = []
-    for sample, col_ in table.loc[align_asvs].iteritems():
-        abund = dask.delayed(col_.values)
+    for sample, col_ in table.iteritems():
         freq_ = dask.delayed(_solve_ml_em_iterative_1_sample)(
-            align=align,
-            abund=abund,
+            align=align.loc[col_ > 0].values,
+            abund=dask.delayed(col_[col_ > 0].values),
             sample=sample,
             align_kmers=align_seqs,
             num_iter=num_iter,
