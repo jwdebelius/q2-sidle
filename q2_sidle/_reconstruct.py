@@ -92,6 +92,7 @@ def reconstruct_counts(manifest: Metadata,
     region_order = region_order - region_order.min()
     region_names = {i: r for r, i in region_order.items()}
     num_regions = len(region_order)
+    npartitions = int(np.floor(num_regions / 2))
 
     # Imports the alignment maps and gets the kmers that were aligned
     align_map = pd.concat(
@@ -121,6 +122,9 @@ def reconstruct_counts(manifest: Metadata,
     kmer_map = kmer_map.reset_index().set_index('db-seq').reset_index()
     kmer_map['region'] = kmer_map['region'].replace(region_order)
     kmer_map  = kmer_map.loc[kmer_map['db-seq'].isin(kmers)]
+
+    kmer_map = \
+        kmer_map.repartition(npartitions=npartitions)
     
     print('Regional Kmers Loaded')
 
@@ -541,7 +545,8 @@ def _scale_relative_abundance(align_mat, relative, counts, seq_summary,
         sequence where the total counts represents the sum of counts across 
         all sequencing regions. 
     """
-    align_mat = align_mat.loc[align_mat[seq_name].isin(relative.index)]
+    align_mat = align_mat.loc[align_mat[seq_name].isin(relative.index) & 
+                              align_mat[asv_name].isin(counts.index)]
     align = align_mat.pivot_table(values='norm', index=asv_name, 
                                   columns=seq_name, fill_value=0
                                   )
@@ -560,7 +565,7 @@ def _scale_relative_abundance(align_mat, relative, counts, seq_summary,
     # A simple per-sample function to solve the counts because frequency is fun
     # and pandas rounding may be what's killing this
     @dask.delayed
-    def _solve_sample(align, freq, count):
+    def _solve_sample(align, freq, count, align_seqs, sample):
         # Probability a count shows up in a particular ASV/reference pairing
         p_r_and_j = freq.values.T * align
         # Normalized for the number of asvs mapped to that reference
@@ -568,15 +573,24 @@ def _scale_relative_abundance(align_mat, relative, counts, seq_summary,
         # sums the counts
         count_j_given_r = count.values * p_r_given_j
 
-        return np.atleast_2d(count_j_given_r.sum(axis=0))
+        return pd.DataFrame(
+            np.atleast_2d(count_j_given_r.sum(axis=0)),
+            index=[sample], columns=align_seqs,
+            )
+    scaled_counts = []
+    for sample in samples:
+        non_zero_asvs = (counts[sample] > 0).values
+        non_zero_seqs = (relative[sample] > 0).values
 
-    scaled_counts = pd.DataFrame(
-        data=np.vstack(dask.compute(*[
-            _solve_sample(align, relative[[sample]], counts[[sample]])
-            for sample in samples])),
-        index=samples,
-        columns=align_seqs
-        )
+        counted = _solve_sample(align[non_zero_asvs][:, non_zero_seqs],
+                                relative.loc[non_zero_seqs, [sample]],
+                                counts.loc[non_zero_asvs, [sample]],
+                                align_seqs[non_zero_seqs],
+                                sample
+                                )
+        scaled_counts.append(counted)
+    scaled_counts = pd.concat(objs=dask.compute(*scaled_counts), sort=False)
+
     counts_r = scaled_counts / seq_summary['num-regions']
 
 
@@ -682,13 +696,21 @@ def _solve_ml_em_iterative_1_sample(align, abund, align_kmers, sample,
     as at least an original estimation of what's happening  
     Parameters
     ----------
-    align : 
-    n : int
-        The number of regions explored
+    align : ndarray
+        The alignment matrix describing  the probability a given ASV belongs 
+        to a reference sequence
+    abund : 1D-ndarray
+        The relative  abundance of each ASV feature assigned to each region
+    align_kmers: ndarray
+        The names of the reference sequences
+    sample : str
+        The name of the sample
     n_iter: int
         the number of iterations to try before giving up
     tol : float
-        The error tolerance???
+        The error tolerance for solving the data in optimization
+    min_abund : float
+        The minimum relative abundance  to retain  a  feature
     Returns
     --------
     DataFrame
