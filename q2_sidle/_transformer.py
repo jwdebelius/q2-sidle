@@ -82,6 +82,12 @@ def _8(obj: pd.DataFrame) -> KmerAlignFormat:
     return ff
 
 @plugin.register_transformer
+def _15(obj: dd.DataFrame) -> KmerAlignFormat:
+    ff = KmerAlignFormat()
+    obj.to_csv(str(ff), sep='\t', index=False, single_file=True)
+    return ff
+
+@plugin.register_transformer
 def _9(ff: SidleReconFormat) -> pd.Series:
     df = pd.read_csv(str(ff), sep='\t', dtype=str)
     if df.index.name is None:

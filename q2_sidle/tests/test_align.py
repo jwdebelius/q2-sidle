@@ -43,7 +43,8 @@ class AlignTest(TestCase):
             known0[['mismatch', 'length']].astype(int)
         test0 = _align_kmers(self.seq_array,
                              self.reads2, 
-                             allowed_mismatch=0)
+                             allowed_mismatch=0,
+                             )
         known0.sort_values(['kmer', 'asv'], inplace=True)
         test0.sort_values(['kmer', 'asv'], inplace=True)
         known0.reset_index(drop=True, inplace=True)
@@ -90,7 +91,7 @@ class AlignTest(TestCase):
                                               rep_set.view(pd.Series),
                                               region='Bludhaven',
                                               debug=True)
-        pdt.assert_frame_equal(known, match.reset_index(drop=True))
+        pdt.assert_frame_equal(known, match.compute().reset_index(drop=True))
         known_discard = pd.Series(['AGAGTTTCTGAATCC'], 
                                    pd.Index(['asv06']))
         pdt.assert_series_equal(

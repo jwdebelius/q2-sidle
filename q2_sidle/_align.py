@@ -26,7 +26,7 @@ def align_regional_kmers(kmers: pd.Series,
     chunk_size:int=100, 
     debug:bool=False, 
     n_workers:int=0,
-    client_address:str=None) -> (pd.DataFrame, pd.Series):
+    client_address:str=None) -> (dd.DataFrame, dd.Series):
     """
     Performs regional alignment between database "kmers" and ASVs
 
@@ -75,6 +75,7 @@ def align_regional_kmers(kmers: pd.Series,
 
     # Converts the representative sequences to a delayed object
     num_asvs, asv_length = _check_read_lengths(rep_seq, 'rep_seq')
+    rep_seq_ids  = rep_seq.index.values
     rep_seq = dd.from_pandas(rep_seq.astype(str),
                              chunksize=chunk_size)
 
@@ -87,14 +88,17 @@ def align_regional_kmers(kmers: pd.Series,
         dask.delayed(_align_kmers)(kmer, asv, max_mismatch)
         for kmer, asv in it.product(kmers.to_delayed(), rep_seq.to_delayed())
         ])
-    aligned = pd.concat(axis=0, sort=False, objs=dask.compute(*aligned))
+    aligned = dd.from_delayed(aligned)
+    aligned_asvs = rep_seq_ids[~np.isin(rep_seq_ids,
+                                       aligned['asv'].unique().compute())]
+    print(aligned_asvs)
 
     aligned['region'] = region
-    aligned.sort_values(['kmer', 'asv'], inplace=True)
 
-    discard = rep_seq.loc[~rep_seq.index.isin(aligned['asv'])].compute()
 
-    return aligned, discard
+    discard = rep_seq.loc[aligned_asvs]
+
+    return aligned, discard.compute()
 
 
 def _align_kmers(reads1, reads2, allowed_mismatch=2, read1_label='kmer', 
