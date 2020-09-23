@@ -26,7 +26,7 @@ def align_regional_kmers(kmers: pd.Series,
     chunk_size:int=100, 
     debug:bool=False, 
     n_workers:int=0,
-    client_address:str=None) -> (dd.DataFrame, pd.Series):
+    client_address:str=None) -> (dd.DataFrame):
     """
     Performs regional alignment between database "kmers" and ASVs
 
@@ -92,14 +92,10 @@ def align_regional_kmers(kmers: pd.Series,
     aligned = dd.from_delayed(aligned, 
                               meta=[('kmer', 'object'), ('asv', 'object'), 
                                     ('length', int), ('mismatch', int)])
-    aligned_asvs = rep_seq_ids[~np.isin(rep_seq_ids,
-                                       aligned['asv'].unique().compute())]
+
     aligned['region'] = region
 
-
-    discard = rep_seq.loc[aligned_asvs]
-
-    return aligned, discard.compute()
+    return aligned
 
 
 def _align_kmers(reads1, reads2, allowed_mismatch=2, read1_label='kmer', 

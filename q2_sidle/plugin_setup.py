@@ -171,7 +171,7 @@ plugin.methods.register_function(
     },
     outputs=[
         ('regional_alignment', FeatureData[KmerAlignment]),
-        ('discarded_sequences', FeatureData[Sequence]),
+        # ('discarded_sequences', FeatureData[Sequence]),
 
     ],
     parameters={
@@ -192,8 +192,8 @@ plugin.methods.register_function(
     output_descriptions={
         'regional_alignment': ('A mapping between the database kmer name and'
                                ' the asv'),
-        'discarded_sequences': ('The sequences which could not be aligned to'
-                                ' the database at the matching threshhold.'),
+        # 'discarded_sequences': ('The sequences which could not be aligned to'
+        #                         ' the database at the matching threshhold.'),
     },
      parameter_descriptions={
         'region': ('A unique description of the hypervariable region being '

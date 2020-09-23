@@ -87,17 +87,17 @@ class AlignTest(TestCase):
         known['length'] = known['length'].astype(int)
         known['mismatch'] = known['mismatch'].astype(int)
         
-        match, discard = align_regional_kmers(kmers.view(pd.Series),
+        match = align_regional_kmers(kmers.view(pd.Series),
                                               rep_set.view(pd.Series),
                                               region='Bludhaven',
                                               debug=True)
         pdt.assert_frame_equal(known, match.compute().reset_index(drop=True))
-        known_discard = pd.Series(['AGAGTTTCTGAATCC'], 
-                                   pd.Index(['asv06']))
-        pdt.assert_series_equal(
-            discard.view(pd.Series).astype(str), 
-            known_discard, 
-        )
+        # known_discard = pd.Series(['AGAGTTTCTGAATCC'], 
+        #                            pd.Index(['asv06']))
+        # pdt.assert_series_equal(
+        #     discard.view(pd.Series).astype(str), 
+        #     known_discard, 
+        # )
 
     def test_check_read_length_pass(self):
         number_, length_ = _check_read_lengths(self.in_mer, 'inmer')

@@ -98,15 +98,14 @@ class PluginSetupTest(TestCase):
     def test_align_regional_kmers(self):
         warnings.filterwarnings('ignore', 
                                 category=skbio.io.FormatIdentificationWarning)
-        test_align, test_discard = \
+        test_align = \
             sidle.align_regional_kmers(self.region1_db_seqs,
                                        self.rep_seqs1,
                                        region='Bludhaven',
                                        max_mismatch=2,
                                        debug=True,
-                                       )
-
-        self.assertEqual(len(test_discard.view(pd.Series)), 0)
+                                       ).regional_alignment
+        # self.assertEqual(len(test_discard.view(pd.Series)), 0)
         pdt.assert_frame_equal(self.align1.view(pd.DataFrame),
                                test_align.view(pd.DataFrame))
 
@@ -331,37 +330,37 @@ class PluginSetupTest(TestCase):
 
         
         ### Regiomal Alignment
-        align1, discard1 = sidle.align_regional_kmers(
+        align1 = sidle.align_regional_kmers(
             region1_seqs, 
             Artifact.load(os.path.join(data_dir, 'region1-rep-seq.qza')),
             region='1',
             max_mismatch=2,
             debug=True,
-            )
+            ).regional_alignment
         known = \
             Artifact.load(os.path.join(known_dir, 'region1-align-map.qza'))
         pdt.assert_frame_equal(align1.view(pd.DataFrame), 
                                known.view(pd.DataFrame))
 
-        align2, discard2 = sidle.align_regional_kmers(
+        align2 = sidle.align_regional_kmers(
             region2_seqs, 
             Artifact.load(os.path.join(data_dir, 'region2-rep-seq.qza')),
             region='2',
             max_mismatch=2,
             debug=True,
-            )
+            ).regional_alignment
         known = \
             Artifact.load(os.path.join(known_dir, 'region2-align-map.qza'))
         pdt.assert_frame_equal(align2.view(pd.DataFrame), 
                                known.view(pd.DataFrame))
         
-        align3, discard3 = sidle.align_regional_kmers(
+        align3 = sidle.align_regional_kmers(
             region3_seqs, 
             Artifact.load(os.path.join(data_dir, 'region3-rep-seq.qza')),
             region='3',
             max_mismatch=2,
              debug=True,
-            )
+            ).regional_alignment
         known = \
             Artifact.load(os.path.join(known_dir, 'region3-align-map.qza'))
         pdt.assert_frame_equal(align3.view(pd.DataFrame), 
