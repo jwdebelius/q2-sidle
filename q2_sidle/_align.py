@@ -88,11 +88,12 @@ def align_regional_kmers(kmers: pd.Series,
         dask.delayed(_align_kmers)(kmer, asv, max_mismatch)
         for kmer, asv in it.product(kmers.to_delayed(), rep_seq.to_delayed())
         ])
-    aligned = dd.from_delayed(aligned)
+
+    aligned = dd.from_delayed(aligned, 
+                              meta=[('kmer', 'object'), ('asv', 'object'), 
+                                    ('length', int), ('mismatch', int)])
     aligned_asvs = rep_seq_ids[~np.isin(rep_seq_ids,
                                        aligned['asv'].unique().compute())]
-    print(aligned_asvs)
-
     aligned['region'] = region
 
 
@@ -148,6 +149,9 @@ def _align_kmers(reads1, reads2, allowed_mismatch=2, read1_label='kmer',
     match.name = 'mismatch'
     match = match.reset_index()
     match['length'] = length
+
+    match[read1_label] = match[read1_label].astype(str)
+    match[read2_label] = match[read2_label].astype(str)
 
     return match[[read1_label, read2_label, 'length', 'mismatch']]
 
