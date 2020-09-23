@@ -203,6 +203,8 @@ def reconstruct_counts(manifest: Metadata,
                                             relative=rel_abund,
                                             counts=counts,
                                             seq_summary=db_summary)
+    count_table = count_table.filter(lambda v, id_,  md: v.sum() > 0,  
+                                     axis='observation')
 
     summary = db_summary.loc[count_table.ids(axis='observation')]
     summary['mapped-asvs'] = \

@@ -18,7 +18,8 @@
 # -- Project information -----------------------------------------------------
 
 project = 'q2-sidle'
-copyright = '2020, Justine Debelius'
+copyright = ('2020, Justine Debelius, Centre for '
+		     'Translational Microbiome Reserach')
 author = 'Justine Debelius'
 
 # The full version, including alpha/beta/rc tags
@@ -49,7 +50,7 @@ exclude_patterns = []
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'nature'
+html_theme = 'sphinx_material'
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,

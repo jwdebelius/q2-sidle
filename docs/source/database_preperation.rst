@@ -1,58 +1,75 @@
 Database Preparation
 ====================
 
-If you do not already have a database for reconstruction, you will need to prepare your own. (We recommend checking the Resources page to see if you can find one that suits your needs already.) Database preperation will only need to be done once his only each database, primer pair and kmer length, since the reference files can  be reused. For database preperation, you will need
+If you do not already have a database for reconstruction, you will need to prepare your own. (We recommend checking the Resources page to see if you can find one that suits your needs already.) Database preparation will only need to be done once for each database, primer pair and kmer length, since the reference files can  be reused.
 
 
 You will need:
 
-    * A working `installation`_
-    * A list of the forward and reverse files used to amplify each region of interest
-    * A reference database of your choice
-    * Patience to run the extraction
+* A working sidle :doc:`installation <install>`
+* A list of the forward and reverse files used to amplify each region of interest
+* A reference database of your choice
+* Patience to run the extraction
 
 
 You can start the tutorial by downloading the database sequences and taxonomy. These have already been imported into qiime2 and as Artifacts.
     
 .. code-block:: shell
-    mkdir sidle-database-tutorial
-    cd sidle-database-tutorial
-    wget https://docs.qiime2.org/2020.2/data/tutorials/feature-classifier/85_otus.qza
-    wget https://docs.qiime2.org/2020.2/data/tutorials/feature-classifier/ref-taxonomy.qza
 
+    mkdir -p sidle_tutorial
+    wget 
+    tar -czf database.tgz
+    cd database
+
+Let's start by checking the number of sequences in the original dataset. We can do this using QIIME to summarize the sequences. 
+
+.. code:: bash
+
+    qiime feature-table tabulate-seqs \
+     --i-data sidle-db-full-sequences.qza \
+     --o-visualization sidle-db-full-sequences.qzv
+
+You can view the artifact using `qiime2 view`_. You should find that there are 5647 squences when you check  the data.
 
 Filtering the Database
 ----------------------
 
-Database preparation can optionally begin by filtering the database to remove sequences with too many degenerate nucleotides or with taxonomic assignments that will not be used. Degenerate filtering limits memory consumption through out. The authors of SMURF [1]_ recommend filtering the database to remove sequences with more than 3 degenerate nucleotides. This represents about X% of the greengenes 13_8 database at 99% [2]_ specificity about Y% of the Silva 132 database [3]_.
+Database preparation can optionally begin by filtering the database to remove sequences with too many degenerate nucleotides or with taxonomic assignments that will not be used. 
 
-We'll start by filtering to remove anything with more than 3 degenerate nucleotides using the ``--p-max-degen`` parameter.
+Degenerate filtering limits memory consumption throughout. The authors of SMURF [[1]_] recommend filtering the database to remove sequences with more than 3 degenerate nucleotides. This represents about X% of the greengenes 13_8 database at 99% [[2]_] specificity about Y% of the Silva 138 database [[3]_]. Increasing the number of allowed degenerates (the ``--p-max-degen`` parameter) will allow more sequences through the filter, and may mean more matches in downstream alignment. However, this comes at a substantial increase in the run time and memory needed, since degenerate sequences have to be expanded.
 
-.. code-block:: shell
+For this tutorial, we'll start by filtering to remove anything with more than 3 degenerate nucleotides, since this was the recommended threshhold in the original algorithm.
+
+.. code:: bash
 
     qiime sidle filter-degenerate-sequences \
-     --i-sequences 85_otus.qza \
+     --i-sequences sidle-db-full-sequences.qza \
      --p-max-degen 3 \
-     --o-filtered-sequences 85_otus-filtered.qza
+     --o-filtered-sequences sidle-db-full-degen-filtered-sequences.qza
 
-If you check the dataset, you'll find the original database contained 5088 sequences, and the new database contains 4790.
 
-Some users may also want to filter out sequences which have undefined taxonomy below a certain level, for example, a sequence without a phylum level assignment. For greengenes, this can be accomplished using the existing qiime command, ``qiime taxa fitler-sequences`` and using the fact that greengenes uses an empty string for missing assignments.
+Try summarizing your database again. There should be about 4800 sequences remaining. How many do you have?
 
-.. code-block:: shell
-    
+Some users may also want to filter out sequences which may not be relevant to their analysis, for example, mitochondria or chloroplasts or sequences which are undefined at a high taxonomic level. (Phylum or class, for example.) You can learn more about `filtering by taxonomy`_ in the QIIME2 tutorial, but as a brief example, we'll show filtering a greengenes database for features missing a phylum (**p__;**) or kingdom(**k__;**) designation.
+
+.. code:: bash
+
     qiime taxa filter-seqs \
-     --i-sequences 85_otus-filtered.qza \
-     --i-taxonomy ref-taxonomy.qza \
+     --i-sequences sidle-db-full-degen-filtered-sequences.qza \
+     --i-taxonomy sidle-db-taxonomy.qza \
      --p-exclude "p__;,k__;" \
      --p-mode contains \
-     --o-filtered-sequences 85-otus-filtered-defined-phylum.qza
+     --o-filtered-sequences sidle-db-full-degen-filtered-phylum-def-sequences.qza
 
-For databases with more complicated strings that include taxonomy, it will be necessary to the level designation to avoid removing taxa which may be undefined at lower levels. Once you have finished pre-filtering, you are ready to start extracting regions. 
+If you summarize the sequences, you should find that you now have 5419 sequences remaining.
+
+For databases with more complicated strings that include taxonomy, it will be necessary to include the level designation to avoid removing taxa which may be undefined at lower levels. 
 
 .. Note::
     
-    The taxonomic filtering should be considered carefully and pre-filtering should be very permissive. Many common databases lack clear taxonomic resolution at lower taxonomic levels and these sequences still provide meaningful information in reconstruction. 
+    The taxonomic filtering should be considered carefully and pre-filtering should be very permissive. Many common databases lack clear taxonomic resolution at lower taxonomic levels (family, genus, species) and these sequences still provide meaningful information in reconstruction. 
+
+Once you have finished pre-filtering, you are ready to start extracting regions. 
 
 
 Prepare a regional database
@@ -60,95 +77,213 @@ Prepare a regional database
 
 The next step is to extract a region of the database. Alignment with the SMURF algorithm relies on extracting the exact kmer to be aligned with your ASVs, so the primer pair and read length must match exactly. Unlike other techniques, there is, unfortunately, no "good enough" approach. To maximize memory efficiency, the database is also prepared by expanding degenerate nucleotides and collapsing duplicated kmers into a single sequence.
 
-Single Region Extraction
-++++++++++++++++++++++++
+First, the region is extracted from the pre-filtered database using the ``extract-reads`` function from the q2-feature-classifier plugin. As an example, we’ll look at extracting a region between 316F and 484R using the second primer pair from the SMURF paper (5’-``TCCTACGGGAGGCAGCAG``-3’) and (5’-``TATTACCGCGGCTGCTGG``-3’).
 
-A regional database can be extracted and processed in a single step using ``extract-regional-database``. As an example, we’ll look at extracting a region between 74f and 315R using he first primer pair from the SMURF paper (5’-TGGCGGACGGGTGAGTAA-3’) and (5’-CTGCTGCCTCCCGTAGGA-3’). For kmer-based alignment we’ll need a set trim length (``--trim-length``), let’s use 100nt. We’ll also trim the primers (``--trim-primers``) before we trim the sequences. The command will also collapse the sequences in preperation for use with sidle. We can optionally specify a regional identifier in the database using the ``--region`` parameter. If nothing is specified, then region will be specified as the forward and reverse primer.
+.. code:: bash
+
+    qiime feature-classifier extract-reads \
+     --i-sequences sidle-db-full-degen-filtered-phylum-def-sequences.qza \
+     --p-f-primer TCCTACGGGAGGCAGCAG \
+     --p-r-primer TATTACCGCGGCTGCTGG \
+     --o-reads sidle-db-filt-jl.qza
+
+For this example, we used the default settings, although these are slightly different from the original SMURF algorithm: In QIIME, the primers are extracted if they have at least an 80% match with the sequence by default; the Matlab implementation of SMURF used 2 nucleotides [1]_. If you wish to use a limit closer to the original algorithm, this can be changed using the ``--p-identity`` parameter, however, for the sake of this tutorial, we'll use the defaults.
+
+Once the reads have been extracted, then they need to be prepared to be used in alignment. This step will expand any degenerate reads that have been extracted, collapse duplicate reads, and trim them to a consistent length. For  the full pipeline to work correctly, the primers need to be specified in this step, so once again, you'll need  to pass your primers. You'll also need to specify a trim length; let's use 100nt. Finally, we need to specify a regional identifier in the database using the ``--region`` parameter. This should be the same regional parameter that you use during alignment. We'll call it "WonderWoman" because (a) Diana Prince is amazing and (b) the regional name doesn't matter. 
+
+.. code:: bash
+
+    qiime sidle prepare-extracted-region \
+     --i-sequences sidle-db-filt-jl.qza \
+     --p-region "WonderWoman" \
+     --p-fwd-primer TCCTACGGGAGGCAGCAG \
+     --p-rev-primer TATTACCGCGGCTGCTGG \
+     --p-trim-length 100 \
+     --o-collapsed-kmers sidle-db-wonder-woman-100nt-kmers.qza \
+     --o-kmer-map sidle-db-wonder-woman-100nt-map.qza
+
+The command will output the sequences (``--o-collapsed-kmers``) with degenerate sequences expanded and duplicated sequences removed and a mapping between the original sequence name and the kmer name (``--o-kmer-map``). You can use qiime to visualize your kmer map, which gives you the relationship between  the original database sequence name (**db-seq**), an expanded name which accounts for degenerates (**seq-name**), the collapsed regional identifier (**kmer**), the primers (**fwd-primer** and **rev-primer**), the region identifier (**region**), and the  sequence length  (**trim-length**).
+
+.. code:: bash
+
+    qiime metadata tabulate \
+     --m-input-file sidle-db-wonder-woman-100nt-map.qza \
+     --o-visualization sidle-db-wonder-woman-100nt-map.qzv
+
+
+In some cases, the reference region and sequencing length may not be long enough to cover the full amplicon. If that's the case, you can extract the read starting from the reverse primer by setting the trim length to a negative value. You can even reverse complement the resultant amplicon using the ``--reverse_complement_result`` flag. Let's do an example using the same primers as before, but call the region "Batman".
+
+.. code:: bash
+
+    qiime sidle prepare-extracted-region \
+     --i-sequences sidle-db-filt-jl.qza \
+     --p-region "Batman" \
+     --p-fwd-primer TATTACCGCGGCTGCTGG \
+     --p-rev-primer TCCTACGGGAGGCAGCAG \
+     --p-trim-length -100 \
+     --p-reverse-complement-result \
+     --o-collapsed-kmers sidle-db-batman-100nt-kmers.qza \
+     --o-kmer-map sidle-db-batman-100nt-map.qza
+
+As an exercise, try using the 486-650 primers (3-``CAGCAGCCGCGGTAATAC``-5 forward; 3-``CGCATTTCACCGCTACAC``-5 reverse) to extract a 100nt region called "GreenLantern". Use the same naming convention as the other two extracted regions.
+
+Next Steps: Read Preperation
+----------------------------
+
+Now, you have a database that's ready to use for alignment and reconstruction.
+
+
+TL;DR, Database Preperation
+---------------------------
+
+Database Filtering
+^^^^^^^^^^^^^^^^^^
+
+* Filtering only needs to be performed once per dataset
+* Degenerate filtering speeds up preparation and alignment
+* You can exclude sequences during database generation that you don't want included in the final table
+
+
+Degenerate Filtering
+""""""""""""""""""""
+
+**Syntax**
+
+.. code-block:: bash
+    
+    qiime sidle filter-degenerate-sequences \
+     --i-sequences [unfiltered sequences].qza \ 
+     --p-max-degen [degenerate threshold] \
+     --o-filtered-sequences [filtered sequences].qza
+
+**Example**
+
+.. code-block:: bash
+    
+    qiime sidle filter-degenerate-sequences \
+     --i-sequences sidle-db-full-sequences.qza \
+     --p-max-degen 3 \
+     --o-filtered-sequences sidle-db-full-degen-filtered-sequences.qza
+
+Taxonomic Filtering
+"""""""""""""""""""
+
+Please see the `qiime filtering tutorial`_ for more information.
+
+**Syntax**
+
+.. code-block:: bash
+    
+    qiime taxa filter-seqs \
+     --i-sequences [unfiltered sequences].qza \
+     --i-taxonomy [taxonomic descriptions].qza \ 
+     --p-exclude [criteria to exclude] \
+     --p-mode contains \
+     --o-filtered-sequences [filtered sequences].qza
+
+**Example**
+
+.. code-block:: bash
+    
+    qiime taxa filter-seqs \
+     --i-sequences 85_otus-filtered.qza \
+     --i-taxonomy ref-taxonomy.qza \ 
+     --p-exclude "p__;,k__;" \
+     --p-mode contains \
+     --o-filtered-sequences 85-otus-filtered-defined-phylum.qza
+
+
+Database Region Preparation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+* The primers used to extract regions must be the same as the primers used to amplify your sequences in that region
+* The extraction command must be re-run for each primer pair and database
+* Read preparation needs to be re-run for each primer pair, read length, and database
+* A negative trim length to ``qiime sidle prepare-extracted-region`` will trim from the reverse primer (right)
+
+
+Read Extraction
+"""""""""""""""
+
+Please see the `qiime feature classifier`_ documentation for more information.
+
+**Syntax**
 
 .. code-block:: bash
 
-    qiime sidle extract-regional-database \
-     --i-sequences 85-otus-filtered-defined-phylum.qza \
-     --p-region "74-315" \
-     --p-fwd-primer TGGCGGACGGGTGAGTAA \
-     --p-rev-primer CTGCTGCCTCCCGTAGGA \
-     --p-trim-length 100 \
-     --o-collapsed-kmers 85_otus-74-315-100nt-kmers.qza \
-     --o-kmer-map 85_otus-74-315-100nt-map.qza
+    qiime feature-classifier extract-reads \
+     --i-sequences [full length sequences] \
+     --p-f-primer [forward primer] \
+     --p-r-primer [reverse primer] \
+     --o-reads [extracted region]
 
-The command will output the sequences (``--o-collapsed-kmers``) with degenerate sequences expanded and duplicated sequences removed and a mapping between the original sequence name and the kmer-name (``--o-kmer-map``).
-
-It is finally worth noting that sequences prepared this way cannot be re-used for other purposese (for example, training a classifier).
-
-Two step database preparation
-+++++++++++++++++++++++++++++
-
-You can also prepare a database from regional sequences you have already extract. As an example, this might be a region you've already extracted to train a naive bayesian classifier. All q2-sidle needs to do with these regions is to expand the degenerate sequences, collapse the duplicates, and map the regions. 
-
-To do this, we'll start by using q2-feature-classifier to extract sequences from the second region in the SMURF paper.
+**Example**
 
 .. code-block:: bash
 
     qiime feature-classifier extract-reads \
      --i-sequences 85-otus-filtered-defined-phylum.qza \
-     --p-f-primer TCCTACGGGAGGCAGCAG \
-     --p-r-primer TATTACCGCGGCTGCTGG \
-     --p-min-length 50 \
-     --p-max-length 200 \
-     --o-reads 85-otus-316-484-extracted.qza
+     --p-f-primer TGGCGGACGGGTGAGTAA \
+     --p-r-primer CTGCTGCCTCCCGTAGGA \
+     --o-reads 85-outs-filtered-defined-phylum-extract-jl.qza
 
+Regional Database Preparation
+"""""""""""""""""""""""""""""
 
-Once we have these sequences extracted, then we'll use the ``prepare-extracted-region`` to expand the degenerates and build the database map.
+**Syntax**
 
-.. code-block::bash
+.. code-block:: bash
     
     qiime sidle prepare-extracted-region \
-     --i-sequences 85-otus-316-484-extracted.qza \
-     --p-region "316-484" \
-     --p-trim-length 100 \
-     --o-collapsed-kmers 85_otus-316-484-100nt-kmers.qza \
-     --o-kmer-map 85_otus-316-484-100nt-map.qza
+     --i-sequences [extracted sequences].qza \
+     --p-region [region label] \
+     --p-fwd-primer [forward primer for region] \
+     --p-rev-primer [reverse primer for region] \
+     --p-trim-length [kmer length] \
+     --o-collapsed-kmers [kmer sequences].qza \
+     --o-kmer-map [kmer to database map].qza
 
-Now, you have a regional kmer database that is ready for reconstruction.
+**Example**
+
+For forward reads (trim from the left)
+
+.. code-block:: bash
+
+    qiime sidle prepare-extracted-region \
+     --i-sequences sidle-db-filt-jl.qza \
+     --p-region "WonderWoman" \
+     --p-fwd-primer TCCTACGGGAGGCAGCAG \
+     --p-rev-primer TATTACCGCGGCTGCTGG \
+     --p-trim-length 100 \
+     --o-collapsed-kmers sidle-db-wonder-woman-100nt-kmers.qza \
+     --o-kmer-map sidle-db-wonder-woman-100nt-map.qza
+
+For reverse reads (trim from the right and in this case, reverse complement). The primers should be flipped (we'll trim from the forward primer)
+
+.. code-block:: bash
+    
+    qiime sidle prepare-extracted-region \
+     --i-sequences sidle-db-filt-jl.qza \
+     --p-region "Batman" \
+     --p-fwd-primer TATTACCGCGGCTGCTGG \
+     --p-rev-primer TCCTACGGGAGGCAGCAG \
+     --p-trim-length -100 \
+     --p-reverse-complement-result \
+     --o-collapsed-kmers sidle-db-batmap-100nt-kmers.qzv \
+     --o-kmer-map sidle-db-batman-100nt-map.qzv
+
+
+References
+----------
+
+..  websites
+.. _filtering by taxonomy: https://docs.qiime2.org/2020.6/tutorials/filtering/#taxonomy-based-filtering-of-tables-and-sequences
+.. _qiime filtering tutorial: https://docs.qiime2.org/2020.6/tutorials/filtering/#taxonomy-based-filtering-of-tables-and-sequences
+.. _qiime feature classifier: https://docs.qiime2.org/2020.6/tutorials/feature-classifier/#extract-reference-reads
+.. _qiime2 view : https://view.qiime2.org
 
 .. citations
 
 .. [1] Fuks, C; Elgart, M; Amir, A; et al (2018) "Combining 16S rRNA gene variable regions enables high-resolution microbial community profiling." *Microbiome*. **6**:17. doi: 10.1186/s40168-017-0396-x
 .. [2] McDonald, D; Price, NM; Goodrich, J, et al (2012). "An improved Greengenes taxonomy with explicit ranks for ecological and evolutionary analyses of bacteria and archaea." *ISME J*. **6**: 610. doi: 10.1038/ismej.2011.139
 .. [3] Quast, C.; Pruesse, E; Yilmaz, P; et al. (2013) "The SILVA ribosomal RNA gene database project: improved data processing and web-based tools." *Nucleic Acids Research*. **41**:D560. doi: 10.1093/nar/gks1219
-
-
-
-.. .. Mass Database Preperation
-.. .. +++++++++++++++++++++++++
-
-.. .. The most effecient way to process a database in Sidle is using the `extract` command. This takes a full length 16s database and a list of primer pairs and extracts and tidies the corresponding primer pairs and an output directory to the extracted regions and regional maps. 
-
-.. .. This is accomplished by preparing a database map file, which lists the region identifier (``region-id``), the forward primer sequence (``forward-primer``) and reverse primer sequence (``reverse-primer``) in a tab-seperated format. For example, if we were using the first three SMURF primers [1]_, our database map would be ::
-
-.. ..     region-id   forward-primer  reverse-primer
-.. ..     74-315  TGGCGGACGGGTGAGTAA  CTGCTGCCTCCCGTAGGA
-.. ..     316-484 TCCTACGGGAGGCAGCAG  TATTACCGCGGCTGCTGG
-.. ..     486-650 CAGCAGCCGCGGTAATAC  CGCATTTCACCGCTACAC
-
-.. .. In this example, this file is the `primer_map.tsv`. 
- 
-.. .. It should alos be noted that this type of extraction apply consistent parameters across all regions. For example, the sample ``--trim-length`` is applied to all regions, so if you want a unique trim length in each region it is better to consider per region extractions (below).
-
-.. .. As an example, we'll extract 100nt sequences using the first 3 smurf primers.
-
-.. .. .. code-block:: bash
-
-.. ..     sidle extract \
-.. ..      --full-seq-fp 88_otus-filtered-seqs.fasta \
-.. ..      --primer-fp primer_map.tsv \
-.. ..      --outdir extracted-100 \
-.. ..      --trim-length 100
-
-.. .. The function outputs to a directory (``--outdir``) which will contain all the per-region extracted files where the database maps are named `[region]-map.tsv` and `[region]-seqs.tsv`. In this example, the output files should be
-
-.. .. .. code-block:: bash
-
-.. ..     ls extracted
-.. ..     75-315-map.tsv   74-315-seqs.fasta   316-484-map.tsv
-.. ..     316-484-seqs.fasta   486-650-map.tsv 484-650-seqs.fasta
