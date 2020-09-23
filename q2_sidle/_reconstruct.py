@@ -1,5 +1,8 @@
+import copy
 import itertools as it
 import os
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 import biom
 import dask
@@ -92,7 +95,7 @@ def reconstruct_counts(manifest: Metadata,
     region_order = region_order - region_order.min()
     region_names = {i: r for r, i in region_order.items()}
     num_regions = len(region_order)
-    npartitions = int(np.floor(num_regions / 2))
+    npartitions = int(np.floor(num_regions / 4))
 
     # Imports the alignment maps and gets the kmers that were aligned
     align_map = pd.concat(
@@ -122,9 +125,6 @@ def reconstruct_counts(manifest: Metadata,
     kmer_map = kmer_map.reset_index().set_index('db-seq').reset_index()
     kmer_map['region'] = kmer_map['region'].replace(region_order)
     kmer_map  = kmer_map.loc[kmer_map['db-seq'].isin(kmers)]
-
-    kmer_map = \
-        kmer_map.repartition(npartitions=npartitions)
     
     print('Regional Kmers Loaded')
 
@@ -146,8 +146,9 @@ def reconstruct_counts(manifest: Metadata,
                                 count_degenerates, 
                                 kmer='seq-name')
     if region_normalize == False:
-        print('normalize!')
         db_summary['num-regions'] = 1
+
+    print('Database map summarized')   
 
     ### Constructs the regional alignment
     align_mat = _construct_align_mat(align_map,
@@ -187,24 +188,22 @@ def reconstruct_counts(manifest: Metadata,
     # to allow multiple samples ot be solved together, but... eh?
     sample_ids = n_table.columns.values
     n_samples = len(sample_ids)
+    print('start normalization')
 
     rel_abund = _solve_iterative_noisy(align_mat=align_mat, 
                                        table=n_table,
                                        min_abund=min_abund,
                                        seq_summary=db_summary)
 
-    db_summary = db_summary.loc[rel_abund.index]
+    db_summary = db_summary.loc[rel_abund.ids(axis='observation')]
     print('Relative abundance calculated')
 
     # Puts together the regional normalized counts
     count_table = _scale_relative_abundance(align_mat=align_mat,
                                             relative=rel_abund,
                                             counts=counts,
-                                            seq_summary=db_summary).fillna(0)
-    count_table = biom.Table(count_table.values,
-                             sample_ids=count_table.columns,
-                             observation_ids=count_table.index)
-    count_table.filter(lambda v, id_, md: v.sum() > 0, axis='observation')
+                                            seq_summary=db_summary)
+
     summary = db_summary.loc[count_table.ids(axis='observation')]
     summary['mapped-asvs'] = \
         align_mat.groupby('clean_name')['asv'].apply(lambda x: '|'.join(x))
@@ -545,21 +544,23 @@ def _scale_relative_abundance(align_mat, relative, counts, seq_summary,
         sequence where the total counts represents the sum of counts across 
         all sequencing regions. 
     """
-    align_mat = align_mat.loc[align_mat[seq_name].isin(relative.index) & 
-                              align_mat[asv_name].isin(counts.index)]
+    align_mat = align_mat.loc[
+        align_mat[seq_name].isin(relative.ids(axis='observation')) & 
+        align_mat[asv_name].isin(counts.index)
+        ]
     align = align_mat.pivot_table(values='norm', index=asv_name, 
                                   columns=seq_name, fill_value=0
                                   )
 
     # And then we get indexing because I like to have the indexing
     # references
+    align = align[relative.ids(axis='observation')]
     align_seqs = align.columns
     align_asvs = align.index
     align = align.values
 
-    relative = relative.loc[align_seqs]
     counts = counts.loc[align_asvs]
-    samples = relative.columns
+    samples = list(relative.ids(axis='sample'))
     spacer =  np.spacing(1)
 
     # A simple per-sample function to solve the counts because frequency is fun
@@ -567,34 +568,54 @@ def _scale_relative_abundance(align_mat, relative, counts, seq_summary,
     @dask.delayed
     def _solve_sample(align, freq, count, align_seqs, sample):
         # Probability a count shows up in a particular ASV/reference pairing
-        p_r_and_j = freq.values.T * align
+        p_r_and_j = freq * align
         # Normalized for the number of asvs mapped to that reference
-        p_r_given_j = p_r_and_j / np.atleast_2d(p_r_and_j.sum(axis=1) + spacer).T
+        p_r_given_j = \
+            p_r_and_j / np.atleast_2d(p_r_and_j.sum(axis=1) + spacer).T
         # sums the counts
         count_j_given_r = count.values * p_r_given_j
 
-        return pd.DataFrame(
-            np.atleast_2d(count_j_given_r.sum(axis=0)),
-            index=[sample], columns=align_seqs,
+
+
+        return biom.Table(
+            np.atleast_2d(count_j_given_r.sum(axis=0)).T,
+            sample_ids=[sample], observation_ids=align_seqs,
             )
     scaled_counts = []
     for sample in samples:
         non_zero_asvs = (counts[sample] > 0).values
-        non_zero_seqs = (relative[sample] > 0).values
+        non_zero_seqs = (relative.data(sample) > 0)
+        relative_seqs = relative.copy().filter(align_seqs[non_zero_seqs], 
+                                               axis='observation')
 
-        counted = _solve_sample(align[non_zero_asvs][:, non_zero_seqs],
-                                relative.loc[non_zero_seqs, [sample]],
-                                counts.loc[non_zero_asvs, [sample]],
-                                align_seqs[non_zero_seqs],
-                                sample
-                                )
+        counted = _solve_sample(
+            align[non_zero_asvs][:, non_zero_seqs],
+            relative_seqs.data(sample),
+            counts.loc[non_zero_asvs, [sample]],
+            align_seqs[non_zero_seqs],
+            sample
+            )
         scaled_counts.append(counted)
-    scaled_counts = pd.concat(objs=dask.compute(*scaled_counts), sort=False)
 
-    counts_r = scaled_counts / seq_summary['num-regions']
+    @dask.delayed
+    def _combine_tables(*tables):
+        tables = list(tables)
+        if len(tables) == 1:
+            return tables[0]
+        else:
+            return tables[0].concat(tables[1:], axis='sample')
 
+    scaled_counts = _combine_tables(*scaled_counts).compute()
+    scaled_counts.add_metadata(
+        seq_summary[['num-regions']].to_dict(orient='index'),
+        axis='observation')
+    scaled_counts.transform(
+        lambda v, id_, md: np.round(v / md['num-regions'], 0),
+        axis='observation',
+        inplace=True
+        )
 
-    return counts_r.round(0).T
+    return scaled_counts
 
 
 def _solve_iterative_noisy(align_mat, table, seq_summary, tolerance=1e-7,
@@ -654,32 +675,50 @@ def _solve_iterative_noisy(align_mat, table, seq_summary, tolerance=1e-7,
     align = align.loc[table.index]
     # And then we get indexing because I like to have the indexing
     # references
-    align_seqs = align.columns
-    align_asvs = align.index
+    align_seqs = align.columns.values
+    align_asvs = align.index.values
 
     recon = []
     for sample, col_ in table.iteritems():
+        filt_align = align.loc[col_ > 0].values
+        abund = col_[col_ > 0].values
+        sub_seqs = align_seqs[filt_align.sum(axis=0) > 0]
+        filt_align = filt_align[:, (filt_align > 0).sum(axis=0) > 0]
+
         freq_ = dask.delayed(_solve_ml_em_iterative_1_sample)(
-            align=align.loc[col_ > 0].values,
-            abund=dask.delayed(col_[col_ > 0].values),
+            align=filt_align,
+            abund=abund,
             sample=sample,
-            align_kmers=align_seqs,
+            align_kmers=sub_seqs,
             num_iter=num_iter,
             tolerance=tolerance,
             min_abund=min_abund,
             )
-        df = dask.delayed(pd.DataFrame)(freq_, columns=[sample])
-        recon.append(df)
-    # Puts together the table as optimiziation
-    recon = pd.concat(axis=1, sort=False, objs=dask.compute(*recon))
-    recon.dropna(how='all', axis=0, inplace=True)
-    recon.fillna(0, inplace=True)
 
-    # # Region normalization
-    recon = recon / seq_summary.loc[recon.index, ['num-regions']].values
-    recon = recon / recon.sum(axis=0)
-    recon.sort_index(axis='index', inplace=True)
-    recon.sort_index(axis='columns', inplace=True)
+        recon.append(freq_)
+    recon = dask.compute(*recon)
+    print('recon_constructed')
+    @dask.delayed
+    def _combine_tables(*tables):
+        tables = list(tables)
+        if len(tables) == 1:
+            return tables[0]
+        else:
+            return tables[0].concat(tables[1:], axis='sample')
+
+    recon = _combine_tables(*recon)
+    print('recon_combined')
+    recon, = dask.compute(recon)
+
+    recon.add_metadata(
+        seq_summary.loc[recon.ids(axis='observation'), 
+                       ['num-regions']].to_dict(orient='index'),
+        axis='observation'
+        )
+    recon.transform(lambda v, id_, md: v / md['num-regions'],
+                         axis='observation',
+                         inplace=True)
+    recon.norm(axis='sample', inplace=True)
 
     return recon
 
@@ -754,7 +793,9 @@ def _solve_ml_em_iterative_1_sample(align, abund, align_kmers, sample,
     bact_freq[bact_freq <= min_abund] = 0
     bact_freq = bact_freq / bact_freq.sum()
 
-    return pd.Series(bact_freq, align_kmers, name=sample)
+    return biom.Table(np.atleast_2d(bact_freq).T, 
+                      observation_ids=align_kmers, 
+                      sample_ids=[sample])
 
 
 def _sort_untidy(df, clean_seqs):
@@ -843,11 +884,11 @@ def _untangle_database_ids(region_db, num_regions, block_size=500):
     clean_seqs = set([])
     last_tidy = len(clean_kmers)
 
-    while untidy:
+    for i  in np.arange(0, 2):
         clean_kmers, clean_seqs = _tidy_sequence_set(clean_kmers, clean_seqs)
         tidy_seqs = ~clean_kmers['tidy'].compute()
         untidy = tidy_seqs.any()
-        if (last_tidy == tidy_seqs.sum()):
+        if (last_tidy == tidy_seqs.sum()) | ~untidy:
             break
         last_tidy = tidy_seqs.sum()
 

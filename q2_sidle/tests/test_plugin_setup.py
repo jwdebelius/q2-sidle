@@ -174,8 +174,8 @@ class PluginSetupTest(TestCase):
                 columns=['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 'seq6']
             )
         )
-        pdt.assert_series_equal(self.seq_map.view(pd.Series), 
-                               mapping.view(pd.Series))
+        pdt.assert_frame_equal(self.seq_map.view(pd.DataFrame), 
+                               mapping.view(pd.DataFrame))
         pdt.assert_frame_equal(known_summary, summary.view(pd.DataFrame))
 
     def test_reconstruct_taxonomy(self):

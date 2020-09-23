@@ -129,4 +129,3 @@ def _14(obj:Metadata) -> ReconSummaryFormat:
     ff = ReconSummaryFormat()
     obj.save(str(ff))
     return ff
-

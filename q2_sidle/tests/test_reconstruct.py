@@ -2,6 +2,7 @@ from unittest import TestCase, main
 
 import os
 
+import biom
 import dask
 import dask.dataframe as dd
 import numpy as np
@@ -151,11 +152,10 @@ class ReconstructTest(TestCase):
                      'asv07', 'asv08', 'asv09', 'asv10', 'asv11']
             ).T
         self.table = self.table / self.table.sum()
-        self.freq = pd.Series(
-            np.array([0.1818, 0.1818, 0.1818, 0.0909, 0.1818, 0.1818]),
-            index=pd.Index(['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 'seq6'], 
-                            name='clean_name'),
-            name='sample.1'
+        self.freq = biom.Table(
+            np.array([[0.1818, 0.1818, 0.1818, 0.0909, 0.1818, 0.1818]]).T,
+            observation_ids=['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 'seq6'],
+            sample_ids=['sample.1']
             )
         self.base_dir = \
             os.path.join(os.path.dirname(os.path.realpath(__file__)), 
@@ -494,12 +494,11 @@ class ReconstructTest(TestCase):
         npt.assert_array_equal(test, known)
 
     def test_scale_relative_abundance(self):
-        known = pd.DataFrame(
-            data=np.array([[10., 10., 10., 10., 10., 10.]]),
-            index=['sample.1'],
-            columns=pd.Index(['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 'seq6'],
-                             name='clean_name'),
-            ).T
+        known = biom.Table(
+            data=np.array([[10., 10., 10., 10., 10., 10.]]).T,
+            sample_ids=['sample.1'],
+            observation_ids=['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 'seq6'],
+            )
         counts = pd.DataFrame(
             data=np.array([[20, 10, 10, 10, 10, 10, 10, 10, 10, 10]]),
             index=['sample.1'],
@@ -508,11 +507,16 @@ class ReconstructTest(TestCase):
             ).T
         test = _scale_relative_abundance(
             pd.concat([self.align1, self.align2]),
-            relative=pd.DataFrame(self.freq),
+            relative=self.freq,
             counts=counts,
             seq_summary=self.seq_summary,
             )
-        pdt.assert_frame_equal(known, test)
+        npt.assert_array_equal(test.ids(axis='observation'),
+                               known.ids(axis='observation'))
+        npt.assert_array_equal(test.ids(axis='sample'),
+                               known.ids(axis='sample'))
+        npt.assert_array_equal(known.matrix_data.todense(),
+                               test.matrix_data.todense())
 
     def test_solve_iterative_noisy(self):
         known = pd.DataFrame(
@@ -526,7 +530,14 @@ class ReconstructTest(TestCase):
             table=self.table / self.table.sum(),
             seq_summary=self.seq_summary,
             )
-        pdt.assert_frame_equal(known, test)
+        npt.assert_array_equal(['s.1'], list(test.ids(axis='sample')))
+        npt.assert_array_equal(np.array(['seq1', 'seq2', 'seq3', 
+                                         'seq4', 'seq5', 'seq6']),
+                               list(test.ids(axis='observation')))
+        npt.assert_almost_equal(
+            np.array([[1] * 6]) / 6,
+            test.matrix_data.todense().T
+        )
 
     def test_solve_ml_em_iterative_1_sample(self):
         abund = np.array([0.18181818, 0.09090909, 0.09090909,
@@ -550,11 +561,17 @@ class ReconstructTest(TestCase):
             abund=abund,
             align_kmers=pd.Index(['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 
                                   'seq6'], 
-                                 name='clean_name'),
+                                 name='clean_name').values,
             sample='sample.1'
             )
-        pdt.assert_series_equal(self.freq, t_freq,
-                                check_less_precise=True)
+        npt.assert_array_equal(['sample.1'], list(t_freq.ids(axis='sample')))
+        npt.assert_array_equal(np.array(['seq1', 'seq2', 'seq3', 
+                                         'seq4', 'seq5', 'seq6']),
+                               list(t_freq.ids(axis='observation')))
+        npt.assert_array_equal(
+            np.array([[0.1818, 0.1818, 0.1818, 0.0909, 0.1818, 0.1818]]).T,
+            t_freq.matrix_data.todense().round(4)
+        )
 
     def test_sort_untidy(self):
         pass

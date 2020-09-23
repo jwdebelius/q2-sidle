@@ -26,7 +26,7 @@ def align_regional_kmers(kmers: pd.Series,
     chunk_size:int=100, 
     debug:bool=False, 
     n_workers:int=0,
-    client_address:str=None) -> (dd.DataFrame, dd.Series):
+    client_address:str=None) -> (dd.DataFrame, pd.Series):
     """
     Performs regional alignment between database "kmers" and ASVs
 
