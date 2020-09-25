@@ -109,7 +109,7 @@ def align_regional_kmers(kmers: DNAFASTAFormat,
 
         aligned_batch['region'] = region
         aligned_batch.to_csv(str(ff), sep='\t', index=False, 
-                             single_file=True, mode='w+')
+                             single_file=True, mode='a')
 
     return ff
 
