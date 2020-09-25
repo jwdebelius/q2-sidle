@@ -21,7 +21,8 @@ class TrimTest(TestCase):
         self.rep_seq = ts.region1_rep_seqs
 
     def test_trim_dada2_posthoc_min_no_hash(self):
-        test_table, test_seqs = trim_dada2_posthoc(self.table, self.rep_seq, 
+        test_table, test_seqs = trim_dada2_posthoc(self.table, 
+                                                   self.rep_seq.view(pd.Series), 
                                                    hashed_feature_ids=False)
         npt.assert_array_equal(self.rep_seq.view(pd.Series).astype(str).values,
                                test_seqs.view(pd.Series).astype(str).values)
@@ -35,7 +36,8 @@ class TrimTest(TestCase):
                                self.rep_seq.view(pd.Series).astype(str).values)
 
     def test_trim_dada2_posthoc_trim_hash(self):
-        test_table, test_seqs = trim_dada2_posthoc(self.table, self.rep_seq,
+        test_table, test_seqs = trim_dada2_posthoc(self.table, 
+                                                   self.rep_seq.view(pd.Series),
                                                    trim_length=5)
         known_seqs = pd.Series({
             '21f1ded98563f87f5699c8aae7e1639e': 'GCGAA',

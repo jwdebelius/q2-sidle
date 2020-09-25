@@ -18,7 +18,7 @@ from q2_types.feature_data import (DNAFASTAFormat,
                                    )
 
 def trim_dada2_posthoc(table: biom.Table, 
-                       representative_sequences: DNAFASTAFormat, 
+                       representative_sequences: pd.Series, 
                        trim_length:int=0, 
                        hashed_feature_ids:bool=True
                        ) -> (biom.Table, DNAFASTAFormat):
@@ -39,31 +39,34 @@ def trim_dada2_posthoc(table: biom.Table,
     """
 
     # Trims the sequences
-    rep_seqs = pd.concat(
-        axis=0, 
-        objs=_convert_generator_to_seq_block(
-                representative_sequences.view(DNAIterator))
-        )
+    seq_length = representative_sequences.apply(lambda x: len(x))
+
     if trim_length == 0:
-        rep_seqs.dropna(how='any', axis=1, inplace=True)
-    else:
-        rep_seqs = rep_seqs[np.arange(0, trim_length)].copy()
-        if pd.isnull(rep_seqs).any().any():
-            warnings.warn("There are ASVs shorter than the trim length. "
+        trim_length = seq_length.min()
+    
+    if (seq_length < trim_length).any():
+        warnings.warn("There are ASVs shorter than the trim length. "
                           "These sequences will be discarded.", UserWarning)
-        rep_seqs.dropna(how='any',  axis=0, inplace=True)
+    rep_seqs = representative_sequences.astype(str)
+    rep_seqs = rep_seqs.loc[seq_length >= trim_length].copy()
+    rep_seqs = pd.DataFrame(data=[rep_seqs.apply(lambda x: x[:trim_length])],
+                            index=['sequence']
+                            ).T
 
     # Collapses the table based on the trimmed sequences
-    table = table.filter(rep_seqs.index, axis='observation')
-    sub_seq = pd.DataFrame(rep_seqs.apply(lambda x: ''.join(x), axis=1), 
-                           columns=['representative-sequence'])
-    table.add_metadata(sub_seq.to_dict(orient='index'), axis='observation')
+    table.filter(lambda v, id_, md: id_ in rep_seqs.index,
+                 axis='observation',
+                 inplace=True
+                 )
+    table.add_metadata(
+        rep_seqs.loc[table.ids(axis='observation')].to_dict(orient='index'),
+        axis='observation')
 
-    table2 = table.collapse(lambda id_, md: md['representative-sequence'], 
+    table2 = table.collapse(lambda id_, md: md['sequence'], 
                             norm=False,
                             axis='observation')
 
-    seqs2 = sub_seq.drop_duplicates()['representative-sequence'].copy()
+    seqs2 = rep_seqs.drop_duplicates()['sequence'].copy()
 
     if hashed_feature_ids:
         table2.update_ids(
