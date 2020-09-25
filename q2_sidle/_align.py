@@ -10,6 +10,8 @@ import pandas as pd
 import regex
 
 from q2_types.feature_data import (DNAFASTAFormat, DNAIterator)
+from q2_sidle._formats import KmerAlignFormat
+from q2_feature_classifier._skl import _chunks
 
 from q2_sidle._utils import (_setup_dask_client, 
                              _convert_generator_to_seq_block,
@@ -19,14 +21,14 @@ from q2_sidle._utils import (_setup_dask_client,
                              )
 
 
-def align_regional_kmers(kmers: pd.Series, 
+def align_regional_kmers(kmers: DNAFASTAFormat, 
     rep_seq: pd.Series, 
     region: str, 
     max_mismatch: int=2, 
     chunk_size:int=100, 
     debug:bool=False, 
     n_workers:int=0,
-    client_address:str=None) -> (dd.DataFrame):
+    client_address:str=None) -> KmerAlignFormat:
     """
     Performs regional alignment between database "kmers" and ASVs
 
@@ -68,34 +70,48 @@ def align_regional_kmers(kmers: pd.Series,
     _setup_dask_client(debug=debug, cluster_config=None,  
                        n_workers=n_workers, address=client_address)
 
-    # Checks the kmer size
-    num_kmers, kmer_length = _check_read_lengths(kmers, 'kmer')
-    kmers = dd.from_pandas(kmers.astype(str), 
-                           chunksize=chunk_size)
-
     # Converts the representative sequences to a delayed object
     num_asvs, asv_length = _check_read_lengths(rep_seq, 'rep_seq')
     rep_seq_ids  = rep_seq.index.values
     rep_seq = dd.from_pandas(rep_seq.astype(str),
                              chunksize=chunk_size)
 
-    if kmer_length != asv_length:
-        raise ValueError('The kmer and ASV sequences must be the same length')
-
+    ff = KmerAlignFormat()
 
     # Performs the alignment
-    aligned = np.hstack([
-        dask.delayed(_align_kmers)(kmer, asv, max_mismatch)
-        for kmer, asv in it.product(kmers.to_delayed(), rep_seq.to_delayed())
-        ])
+    for i,  batch in enumerate(_chunks(kmers.view(DNAIterator), 
+                               chunk_size * 100)):
+       
 
-    aligned = dd.from_delayed(aligned, 
-                              meta=[('kmer', 'object'), ('asv', 'object'), 
-                                    ('length', int), ('mismatch', int)])
+        if i == 0:
+            batch = pd.Series({s.metadata['id']: str(s) for s in batch})
+            num_kmers, kmer_length = _check_read_lengths(batch, 'kmer')
 
-    aligned['region'] = region
+            if kmer_length != asv_length:
+                raise ValueError('The kmer and ASV sequences must be the'
+                                 ' same length')
+            batch = dd.from_pandas(batch, chunksize=chunk_size)
+        else:
+            batch = dd.from_pandas(
+                pd.Series({s.metadata['id']: str(s) for s in batch}),
+                chunksize=chunk_size
+                )
 
-    return aligned
+        aligned_batch = np.hstack([
+            dask.delayed(_align_kmers)(kmer, asv, max_mismatch)
+            for kmer, asv in it.product(batch.to_delayed(), rep_seq.to_delayed())
+            ])
+
+        aligned_batch = dd.from_delayed(
+            aligned_batch, 
+            meta=[('kmer', 'object'), ('asv', 'object'), 
+                  ('length', int), ('mismatch', int)])
+
+        aligned_batch['region'] = region
+        aligned_batch.to_csv(str(ff), sep='\t', index=False, 
+                             single_file=True, mode='w+')
+
+    return ff
 
 
 def _align_kmers(reads1, reads2, allowed_mismatch=2, read1_label='kmer', 

@@ -27,6 +27,8 @@ from q2_sidle import (KmerMap,
                       )
 import q2_sidle
 
+citations = Citations.load('citations.bib', package='q2_sidle')
+
 plugin = Plugin(
     name='sidle',
     version='2020.08',
@@ -36,7 +38,6 @@ plugin = Plugin(
                  'reads over a marker gene region using the Short MUltiple '
                  'Read Framework (SMURF) algorithm'),
     short_description='Plugin for taxonomic classification.',
-    # citations=[citations['bokulich2018optimizing']]
 )
 
 plugin.methods.register_function(
@@ -80,7 +81,7 @@ plugin.methods.register_function(
                           ),
         'debug': ('Whether the function should be run in debug mode (without '
                   'a client) or not. `debug` superceeds all options'),
-    }
+    },
 )
 
 
@@ -154,6 +155,8 @@ plugin.methods.register_function(
                            'https://distributed.dask.org/en/latest/client.html'
                            ),
     },
+    citations=[citations['Fuks2018']],
+
 )
 
 
@@ -217,6 +220,7 @@ plugin.methods.register_function(
         'debug': ('Whether the function should be run in debug mode (without '
                   'a client) or not. `debug` superceeds all options'),
     },
+    citations=[citations['Fuks2018']],
 )
 
 
@@ -306,7 +310,8 @@ plugin.methods.register_function(
                           ),
         'debug': ('Whether the function should be run in debug mode (without '
                   'a client) or not. `debug` superceeds all options'),
-    }
+    },
+    citations=[citations['Fuks2018']],
 )
 
 
@@ -359,7 +364,8 @@ plugin.methods.register_function(
         'ambiguity_handling': ('whether "ambigious taxa" (Silva-specific) '
                                'should be treated as missing values '
                                '(`"missing`") or ignored (`"ignore"`)')
-    }
+    },
+    citations=[citations['Fuks2018']],
 )
 
 

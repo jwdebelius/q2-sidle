@@ -106,8 +106,10 @@ class PluginSetupTest(TestCase):
                                        debug=True,
                                        ).regional_alignment
         # self.assertEqual(len(test_discard.view(pd.Series)), 0)
-        pdt.assert_frame_equal(self.align1.view(pd.DataFrame),
-                               test_align.view(pd.DataFrame))
+        pdt.assert_frame_equal(
+            self.align1.view(pd.DataFrame),
+            test_align.view(pd.DataFrame).sort_values(['kmer', 'asv'])
+            )
 
     def test_reconstruct_counts(self):
 
@@ -339,7 +341,7 @@ class PluginSetupTest(TestCase):
             ).regional_alignment
         known = \
             Artifact.load(os.path.join(known_dir, 'region1-align-map.qza'))
-        pdt.assert_frame_equal(align1.view(pd.DataFrame), 
+        pdt.assert_frame_equal(align1.view(pd.DataFrame).sort_values(['kmer', 'asv']),
                                known.view(pd.DataFrame))
 
         align2 = sidle.align_regional_kmers(
@@ -351,7 +353,7 @@ class PluginSetupTest(TestCase):
             ).regional_alignment
         known = \
             Artifact.load(os.path.join(known_dir, 'region2-align-map.qza'))
-        pdt.assert_frame_equal(align2.view(pd.DataFrame), 
+        pdt.assert_frame_equal(align2.view(pd.DataFrame).sort_values(['kmer', 'asv']),
                                known.view(pd.DataFrame))
         
         align3 = sidle.align_regional_kmers(
@@ -363,7 +365,7 @@ class PluginSetupTest(TestCase):
             ).regional_alignment
         known = \
             Artifact.load(os.path.join(known_dir, 'region3-align-map.qza'))
-        pdt.assert_frame_equal(align3.view(pd.DataFrame), 
+        pdt.assert_frame_equal(align3.view(pd.DataFrame).sort_values(['kmer', 'asv']),
                                known.view(pd.DataFrame))
 
         align1.save(os.path.join(test_dir, 'region1-align-map.qza'))

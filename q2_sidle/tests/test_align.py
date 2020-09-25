@@ -3,7 +3,7 @@ from unittest import TestCase, main
 import numpy as np
 import pandas as pd
 import pandas.util.testing as pdt
-import skbio
+from skbio import DNA
 
 from qiime2 import Artifact
 from q2_types.feature_data import DNAIterator, DNAFASTAFormat
@@ -16,8 +16,14 @@ from q2_sidle._align import (align_regional_kmers,
 
 class AlignTest(TestCase):
     def setUp(self):
-        self.seq_array = pd.Series(['AGTC', 'ARWS', 'CTWK', 'GTCM', 'ATGN'],
-                                   index=['A', 'B', 'C', 'D', 'E'])
+        self.seq_array = pd.Series(
+            data=[DNA('AGTC', metadata={'id': 'A'}),
+                  DNA('ARWS', metadata={'id': 'B'}),
+                  DNA('CTWK', metadata={'id': 'C'}),
+                  DNA('GTCM', metadata={'id': 'D'}),
+                  DNA('ATGN', metadata={'id': 'E'})],
+            index=['A', 'B', 'C', 'D', 'E']
+        )
         self.seq_array.index = self.seq_array.index.astype(str)
         self.in_mer = pd.Series(
             data=np.array(['AGTCCATGC', 'TACGAGTGA', 
@@ -30,7 +36,11 @@ class AlignTest(TestCase):
 
     def test_align_kmers_length_error(self):
         with self.assertRaises(ValueError):
-            align_regional_kmers(self.seq_array, self.in_mer, region='Gotham')
+            align_regional_kmers(
+              Artifact.import_data('FeatureData[Sequence]', self.seq_array), 
+              self.in_mer, 
+              region='Gotham',  
+              debug=True)
 
 
     def test_align_kmers_with_no_degen(self):
@@ -41,7 +51,7 @@ class AlignTest(TestCase):
         )
         known0[['mismatch', 'length']] = \
             known0[['mismatch', 'length']].astype(int)
-        test0 = _align_kmers(self.seq_array,
+        test0 = _align_kmers(self.seq_array.astype(str),
                              self.reads2, 
                              allowed_mismatch=0,
                              )
@@ -52,23 +62,23 @@ class AlignTest(TestCase):
 
     def test_align_regional_kmers(self):
         kmers = Artifact.import_data('FeatureData[Sequence]', pd.Series({
-            'seq1|seq2': skbio.DNA('GCGAAGCGGCTCAGG', metadata={'id': 'seq1 | seq2'}),
-            'seq3@0001': skbio.DNA('ATCCGCGTTGGAGTT', 
+            'seq1|seq2': DNA('GCGAAGCGGCTCAGG', metadata={'id': 'seq1 | seq2'}),
+            'seq3@0001': DNA('ATCCGCGTTGGAGTT', 
                                    metadata={'id': 'seq3@0001'}),
-            'seq3@0002': skbio.DNA('TTCCGCGTTGGAGTT', 
+            'seq3@0002': DNA('TTCCGCGTTGGAGTT', 
                                    metadata={'id': 'seq3@0002'}),
-            'seq5': skbio.DNA('CGTTTATGTATGCCC', 
+            'seq5': DNA('CGTTTATGTATGCCC', 
                               metadata={'id': 'seq5'}),
-            'seq6':  skbio.DNA('CGTTTATGTATGCCT', 
+            'seq6':  DNA('CGTTTATGTATGCCT', 
                               metadata={'id': 'seq6'})
             }))
         rep_set = Artifact.import_data('FeatureData[Sequence]', pd.Series({
-            'asv01': skbio.DNA('GCGAAGCGGCTCAGG', metadata={'id': 'asv01'}),
-            'asv02': skbio.DNA('ATCCGCGTTGGAGTT', metadata={'id': 'asv02'}),
-            'asv03': skbio.DNA('TTCCGCGTTGGAGTT', metadata={'id': 'asv03'}),
-            'asv04': skbio.DNA('CGTTTATGTATGCCC', metadata={'id': 'asv04'}),
-            'asv05': skbio.DNA('CGTTTATGTATGCCT', metadata={'id': 'asv05'}),
-            'asv06': skbio.DNA('AGAGTTTCTGAATCC', metadata={'id': 'asv07'})
+            'asv01': DNA('GCGAAGCGGCTCAGG', metadata={'id': 'asv01'}),
+            'asv02': DNA('ATCCGCGTTGGAGTT', metadata={'id': 'asv02'}),
+            'asv03': DNA('TTCCGCGTTGGAGTT', metadata={'id': 'asv03'}),
+            'asv04': DNA('CGTTTATGTATGCCC', metadata={'id': 'asv04'}),
+            'asv05': DNA('CGTTTATGTATGCCT', metadata={'id': 'asv05'}),
+            'asv06': DNA('AGAGTTTCTGAATCC', metadata={'id': 'asv07'})
             }))
 
         known = pd.DataFrame(
@@ -90,8 +100,14 @@ class AlignTest(TestCase):
         match = align_regional_kmers(kmers.view(pd.Series),
                                               rep_set.view(pd.Series),
                                               region='Bludhaven',
-                                              debug=True)
-        pdt.assert_frame_equal(known, match.compute().reset_index(drop=True))
+                                              debug=True,
+                                              chunk_size=2,
+                                              )
+        pdt.assert_frame_equal(
+            known,
+            match.view(pd.DataFrame).sort_values(['kmer', 'asv']
+                ).reset_index(drop=True)
+            )
         # known_discard = pd.Series(['AGAGTTTCTGAATCC'], 
         #                            pd.Index(['asv06']))
         # pdt.assert_series_equal(
