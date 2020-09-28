@@ -21,7 +21,7 @@ database data.
 	wget 
 
 Regional alignment
-++++++++++++++++++
+------------------
 
 The first step in reconstruction is to perform per-region alignment between the sequences and the database. We’ll do this with the ``align-regional-kmers`` command. We set the reference database that we extracted previously as the (``--kmer-db-fp``). The ASV represent sequences are passed as the ``--rep-seq-fp``. Finally, we supply a regional defination. This should be the same as the region name that you gave when you extracted the kmers. In this case, the region name was “WonderWoman”.
 
@@ -71,7 +71,7 @@ Table Reconstruction
 The table is reconstucted in 3 parts. First, the regional fragments get re-assembled into complete database sequences. Then, the relative abundance of the pooled counts gets computed through an optimization process. Finally, the relative abundance is used to reconstruct table of counts.
 
 Manifest
-~~~~~~~~
+++++++++
 
 To do this, the function needs to bring together the regional pieces
 (database map, alignment, and table) to compute a pooled,
@@ -104,7 +104,7 @@ Let's look at an example::
 
 
 Parameters
-~~~~~~~~~~
+++++++++++
 
 The ``max-mismatch`` and ``per-nucleotide-error`` are used to estimate the probability that a sequence that from the reference is actually a sequencing error or belongs to that sequence. The ``max-mismatch`` value used in reconstruction should match the alignment; by default this is 2 but you may choose to change it in alignmnent with your sequencing length. The authors of the method claim the error rate doesn’t matter; we refer interested reader to original paper’s supplemental material.
 
@@ -244,7 +244,7 @@ TL;DR
 -----
 
 Regional Alignment Commands
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
++++++++++++++++++++++++++++
 
 * The region name for the alignment **must match** the region name used for building the kmer map
 * Kmers and representative sequences must be the same length
@@ -271,7 +271,7 @@ Regional Alignment Commands
 	 --o-regional-alignment wonderwoman-align-map.qza
 
 Reconstructing the Table
-^^^^^^^^^^^^^^^^^^^^^^^^
+++++++++++++++++++++++++
 
 * Make sure your :ref:`input manifest <Table Reconstruction>` conforms to the guidelines 
 * Your region names must  match between the alignment, kmer, and manifest
@@ -300,7 +300,8 @@ Reconstructing the Table
 	 --o-reconstruction-map league_map.qza
 
 Reconstructing taxonomy
-^^^^^^^^^^^^^^^^^^^^^^^
++++++++++++++++++++++++
+
 * A database specification is required 
 
 **Syntax**
@@ -325,7 +326,7 @@ Reconstructing taxonomy
 	 --o-reconstructed-taxonomy reconstruction/league_taxonomy.qza
 
 Reconstructing the Tree
-^^^^^^^^^^^^^^^^^^^^^^^^
++++++++++++++++++++++++
 
 * A phylogenetic tree can be reconstructed by first, estimating the concensus fragments for the original sequences and then inserting them into a tree.
 * See the `q2-fragment-insertion`_ documentation for more inforation
