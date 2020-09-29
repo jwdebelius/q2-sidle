@@ -240,9 +240,12 @@ class ReconstructTest(TestCase):
         count_table, summary, mapping = \
             reconstruct_counts(manifest, debug=True, min_abund=1e-2)
 
-
+        print(count_table)
+        print(np.array([[100,  50,   0,  50,  50, 50],
+                      [100,  25, 100,  25,  25, 25],
+                      [  0, 100, 100,   0,  50, 50]]).T)
         npt.assert_array_equal(
-            count_table.matrix_data.todense(),
+            np.array(count_table.matrix_data.todense()),
             np.array([[100,  50,   0,  50,  50, 50],
                       [100,  25, 100,  25,  25, 25],
                       [  0, 100, 100,   0,  50, 50]]).T

@@ -117,28 +117,34 @@ def reconstruct_counts(manifest: Metadata,
     # Filters database down to kmers which are present in the sequences 
     # because otherwise we're trying to untangle a huge amount of data and it 
     # just gets memory intensive and slow
-    kmer_map = dd.concat(
+    kmer_map = pd.concat(
         axis=0,
-        dfs=_read_manifest_files(manifest, 'kmer-map', 
-                                 'FeatureData[KmerMap]', dd.DataFrame)
+        objs=_read_manifest_files(manifest, 'kmer-map', 
+                                 'FeatureData[KmerMap]', pd.DataFrame)
     )
-    kmer_map = kmer_map.reset_index().set_index('db-seq').reset_index()
     kmer_map['region'] = kmer_map['region'].replace(region_order)
-    kmer_map  = kmer_map.loc[kmer_map['db-seq'].isin(kmers)]
+    kmer_map.sort_values(['db-seq', 'region', 'kmer'], inplace=True)
     
+    kmer_map = kmer_map.loc[kmer_map['kmer'].isin(kmers)]
+    kmer_map = dd.from_pandas(kmer_map, npartitions=num_regions)
+
     print('Regional Kmers Loaded')
 
     # Builds database mapping bettween the kmer, the original database
     # sequence and the original name
-    db_map = _untangle_database_ids(kmer_map.copy(),
+    db_map = _untangle_database_ids(kmer_map.copy().reset_index(),
                                     num_regions=num_regions,
                                     block_size=block_size / 10,
                                     )
     print('Database map assembled')    
 
     ### Summarizes the database
-    kmer_map = kmer_map.compute()
-    kmer_map.set_index('db-seq', inplace=True)
+    kmer_map = pd.concat(
+        axis=0,
+        objs=_read_manifest_files(manifest, 'kmer-map', 
+                                 'FeatureData[KmerMap]', pd.DataFrame)
+    )
+    kmer_map['region'] = kmer_map['region'].replace(region_order)
     kmer_map['clean_name'] = db_map
     kmer_map.reset_index(inplace=True)
 
@@ -722,6 +728,8 @@ def _solve_iterative_noisy(align_mat, table, seq_summary, tolerance=1e-7,
                          inplace=True)
     recon.norm(axis='sample', inplace=True)
 
+    
+
     return recon
 
 
@@ -789,7 +797,10 @@ def _solve_ml_em_iterative_1_sample(align, abund, align_kmers, sample,
             # print(np.arange(0, len(bact_freq))[~high_enough])
         align = align[:, high_enough]
         bact_freq = bact_freq[high_enough]
-        align_kmers = align_kmers[high_enough]
+        try:
+            align_kmers = align_kmers[high_enough]
+        except:
+            print(sample)
 
     # And then we do hard threshholding
     bact_freq[bact_freq <= min_abund] = 0
