@@ -377,7 +377,7 @@ class PluginSetupTest(TestCase):
         table, summary, map_ = sidle.reconstruct_counts(
             manifest,
             debug=True,
-            min_abund=1e-3,
+            # min_abund=1e-5,
             count_degenerates=False,
         )
         known = \

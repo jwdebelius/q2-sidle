@@ -125,28 +125,23 @@ def reconstruct_counts(manifest: Metadata,
     kmer_map['region'] = kmer_map['region'].replace(region_order)
     kmer_map.sort_values(['db-seq', 'region', 'kmer'], inplace=True)
     
-    kmer_map = kmer_map.loc[kmer_map['kmer'].isin(kmers)]
-    kmer_map = dd.from_pandas(kmer_map, npartitions=num_regions)
+    kmer_map = kmer_map.loc[kmers]
 
     print('Regional Kmers Loaded')
 
     # Builds database mapping bettween the kmer, the original database
     # sequence and the original name
-    db_map = _untangle_database_ids(kmer_map.copy().reset_index(),
-                                    num_regions=num_regions,
-                                    block_size=block_size / 10,
-                                    )
-    print('Database map assembled')    
+    db_map = _untangle_database_ids(
+        dd.from_pandas(kmer_map.reset_index(), npartitions=num_regions),
+        num_regions=num_regions,
+        block_size=block_size / 10,
+        )
+    print('Database map assembled')
 
-    ### Summarizes the database
-    kmer_map = pd.concat(
-        axis=0,
-        objs=_read_manifest_files(manifest, 'kmer-map', 
-                                 'FeatureData[KmerMap]', pd.DataFrame)
-    )
-    kmer_map['region'] = kmer_map['region'].replace(region_order)
+    ### Summarizes the database 
     kmer_map['clean_name'] = db_map
     kmer_map.reset_index(inplace=True)
+
 
     db_summary = _count_mapping(kmer_map.reset_index(), 
                                 count_degenerates, 
@@ -154,7 +149,7 @@ def reconstruct_counts(manifest: Metadata,
     if region_normalize == False:
         db_summary['num-regions'] = 1
 
-    print('Database map summarized')   
+    print('Database map summarized')
 
     ### Constructs the regional alignment
     align_mat = _construct_align_mat(align_map,
@@ -164,6 +159,8 @@ def reconstruct_counts(manifest: Metadata,
                                     max_mismatch=max_mismatch, 
                                     blocksize=block_size,
                                     )
+    if align_mat['norm'].isna().any():
+        raise ValueError('normalization cannot be found!')
     print('Alignment map constructed')
     
     ### Solves the relative abundance
@@ -173,7 +170,7 @@ def reconstruct_counts(manifest: Metadata,
         objs=_read_manifest_files(manifest, 'frequency-table', 
                                  'FeatureTable[Frequency]', pd.DataFrame)).T
     counts.fillna(0, inplace=True)
-    print('counts loaded')
+    
 
     # We have to account for the fact that some of hte ASVs may have been 
     # discarded because they didn't meet the match parameters we've set or 
@@ -187,20 +184,19 @@ def reconstruct_counts(manifest: Metadata,
 
     # Normalizes the alignment table
     n_table = counts / counts.sum(axis=0)
-    print('counts normalized')
+    print('counts loaded')
 
     # Performs the maximum liklihood reconstruction on a per-sample basis. 
     # Im not sure if this could be refined to optimize the alogirthm
     # to allow multiple samples ot be solved together, but... eh?
     sample_ids = n_table.columns.values
     n_samples = len(sample_ids)
-    print('start normalization')
+    # print('start normalization')
 
     rel_abund = _solve_iterative_noisy(align_mat=align_mat, 
                                        table=n_table,
                                        min_abund=min_abund,
                                        seq_summary=db_summary)
-
     db_summary = db_summary.loc[rel_abund.ids(axis='observation')]
     print('Relative abundance calculated')
 
@@ -690,7 +686,7 @@ def _solve_iterative_noisy(align_mat, table, seq_summary, tolerance=1e-7,
     for sample, col_ in table.iteritems():
         filt_align = align.loc[col_ > 0].values
         abund = col_[col_ > 0].values
-        sub_seqs = align_seqs[filt_align.sum(axis=0) > 0]
+        sub_seqs = copy.copy(align_seqs)[(filt_align > 0).any(axis=0)]
         filt_align = filt_align[:, (filt_align > 0).sum(axis=0) > 0]
 
         freq_ = dask.delayed(_solve_ml_em_iterative_1_sample)(
@@ -705,7 +701,6 @@ def _solve_iterative_noisy(align_mat, table, seq_summary, tolerance=1e-7,
 
         recon.append(freq_)
     recon = dask.compute(*recon)
-    print('recon_constructed')
     @dask.delayed
     def _combine_tables(*tables):
         tables = list(tables)
@@ -715,7 +710,6 @@ def _solve_iterative_noisy(align_mat, table, seq_summary, tolerance=1e-7,
             return tables[0].concat(tables[1:], axis='sample')
 
     recon = _combine_tables(*recon)
-    print('recon_combined')
     recon, = dask.compute(recon)
 
     recon.add_metadata(
@@ -727,7 +721,6 @@ def _solve_iterative_noisy(align_mat, table, seq_summary, tolerance=1e-7,
                          axis='observation',
                          inplace=True)
     recon.norm(axis='sample', inplace=True)
-
     
 
     return recon
@@ -800,7 +793,7 @@ def _solve_ml_em_iterative_1_sample(align, abund, align_kmers, sample,
         try:
             align_kmers = align_kmers[high_enough]
         except:
-            print(sample)
+            print('Could not align!', sample)
 
     # And then we do hard threshholding
     bact_freq[bact_freq <= min_abund] = 0
