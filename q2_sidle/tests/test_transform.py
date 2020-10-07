@@ -91,10 +91,11 @@ class TestTransform(TestCase):
 
     def test_kmer_align_to_dataframe(self):
         known = pd.DataFrame(
-            data=[['Batman', 'Bruce Wayne', 80, 2, 'Gotham'],
-                  ['Flash', 'Barry Allen', 50, 0, 'Central City'],
-                  ['GreenArrow', 'Oliver Queen', 30, 0, 'Star City']],
-            columns=['kmer', 'asv', 'length', 'mismatch', 'region']
+            data=[['Batman', 'Bruce Wayne', 80, 2, 2, 'Gotham'],
+                  ['Flash', 'Barry Allen', 50, 0, 2, 'Central City'],
+                  ['GreenArrow', 'Oliver Queen', 30, 0, 2, 'Star City']],
+            columns=['kmer', 'asv', 'length', 'mismatch',  
+                     'max-mismatch', 'region']
             )
         filepath = os.path.join(self.base_dir, 'kmer-align.tsv')
         format = KmerAlignFormat(filepath, mode='r')
@@ -105,33 +106,39 @@ class TestTransform(TestCase):
 
     def test_kmer_align_to_metadata(self):
         known = pd.DataFrame(
-            data=[['Batman', 'Bruce Wayne', 80., 2., 'Gotham'],
-                  ['Flash', 'Barry Allen', 50, 0, 'Central City'],
-                  ['GreenArrow', 'Oliver Queen', 30, 0, 'Star City']],
-            columns=['kmer', 'asv', 'length', 'mismatch', 'region']
+            data=[['Batman', 'Bruce Wayne', 80., 2., 2., 'Gotham'],
+                  ['Flash', 'Barry Allen', 50, 0, 2, 'Central City'],
+                  ['GreenArrow', 'Oliver Queen', 30, 0, 2, 'Star City']],
+            columns=['kmer', 'asv', 'length', 'mismatch', 
+                     'max-mismatch', 'region']
             )
+        known.index.set_names('feature-id', inplace=True)
+        known.index = known.index.astype(str)
         filepath = os.path.join(self.base_dir, 'kmer-align.tsv')
         format = KmerAlignFormat(filepath, mode='r')
         test = t._6(format)
         self.assertTrue(isinstance(test, Metadata))
         columns = dict(test.columns)
-        npt.assert_array_equal(list(columns.keys()),
-                              ['kmer', 'asv', 'length',  'mismatch', 'region']
-                               )
+        npt.assert_array_equal(
+            list(columns.keys()),
+            ['kmer', 'asv', 'length',  'mismatch', 
+             'max-mismatch', 'region']
+            )
         for k, v in columns.items():
-            if k in {'mismatch', 'length'}:
+            if k in {'mismatch', 'length', 'max-mismatch'}:
                 self.assertEqual(v.type, 'numeric')
             else:
                 self.assertEqual(v.type, 'categorical')
-        pdt.assert_frame_equal(test.to_dataframe().reset_index(drop=True), 
+        pdt.assert_frame_equal(test.to_dataframe(), 
                                known)
 
     def test_kmer_align_to_dask_dataframe(self):
         known = pd.DataFrame(
-            data=[['Batman', 'Bruce Wayne', 80, 2, 'Gotham'],
-                  ['Flash', 'Barry Allen', 50, 0, 'Central City'],
-                  ['GreenArrow', 'Oliver Queen', 30, 0, 'Star City']],
-            columns=['kmer', 'asv', 'length', 'mismatch', 'region']
+            data=[['Batman', 'Bruce Wayne', 80, 2, 2, 'Gotham'],
+                  ['Flash', 'Barry Allen', 50, 0, 2, 'Central City'],
+                  ['GreenArrow', 'Oliver Queen', 30, 0, 2, 'Star City']],
+            columns=['kmer', 'asv', 'length', 'mismatch', 
+                     'max-mismatch', 'region']
             )
         filepath = os.path.join(self.base_dir, 'kmer-align.tsv')
         format = KmerAlignFormat(filepath, mode='r')

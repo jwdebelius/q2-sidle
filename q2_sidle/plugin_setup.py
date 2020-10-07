@@ -159,7 +159,6 @@ plugin.methods.register_function(
 
 )
 
-
 plugin.methods.register_function(
     function=q2_sidle.align_regional_kmers,
     name='Aligns ASV representative sequences to a regional kmer database',
@@ -240,10 +239,10 @@ plugin.methods.register_function(
     parameters={
         'manifest': Metadata,
         'per_nucleotide_error': Float % Range(0, 1),
-        'max_mismatch': Int % Range(0, None),
         'min_abund': Float % Range(0, 1),
         'count_degenerates': Bool,
         'region_normalize': Bool,
+        'min_counts': Int % Range(0, None),
         'block_size': Int,
         'n_workers': Int % Range(0, None),
         'client_address': Str,
@@ -282,13 +281,12 @@ plugin.methods.register_function(
                               "be used."),
         'per_nucleotide_error': ('The assumed per-nucelotide error rate '
                                  'through out amplification and sequencing'),
-        'max_mismatch': ('The maximum number of nucelotides which can differ '
-                         'between a kmer and an ASV representative sequence '
-                         'for it to still be considered a match'),
         'min_abund': ('The minimum frequency for a feature to be retained '
                       'during reconstruction. The default from the original '
                       'smurf algorithm is 1e-10, the number here may depend'
                       ' on the total number of sequences in your sample'),
+        'min_counts': ('The mininum depth across all regions after alignment '
+                       'for a sample to be included in a reconstruction'),
         'region_normalize': ('Whether the relative abundance should be '
                              'normalized by region during reconstruction. '
                              'When using kmer-based alignment to '

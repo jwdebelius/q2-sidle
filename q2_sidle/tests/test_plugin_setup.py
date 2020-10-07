@@ -164,7 +164,7 @@ class PluginSetupTest(TestCase):
             index=pd.Index(['Bludhaven', 'Gotham'], name='id')
             ))
         count_table, summary, mapping = \
-            sidle.reconstruct_counts(manifest, debug=True, min_abund=1e-2)
+            sidle.reconstruct_counts(manifest, debug=True, min_abund=1e-2, min_counts=10)
         pdt.assert_frame_equal(
             count_table.view(pd.DataFrame),
             pd.DataFrame( 
@@ -338,6 +338,7 @@ class PluginSetupTest(TestCase):
             region='1',
             max_mismatch=2,
             debug=True,
+            chunk_size=1,
             ).regional_alignment
         known = \
             Artifact.load(os.path.join(known_dir, 'region1-align-map.qza'))

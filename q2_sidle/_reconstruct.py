@@ -21,13 +21,14 @@ from q2_sidle._utils import (_setup_dask_client,
                              _read_manifest_files
                              )
 
-def reconstruct_counts(manifest: Metadata,
+def reconstruct_counts(
+    manifest: Metadata,
     count_degenerates: bool=True,
     per_nucleotide_error: float=0.005,
-    max_mismatch: int=2,
     min_abund: float=1e-5,
     region_normalize: bool=True,
     block_size : int=10000,
+    min_counts: int=1000,
     debug: bool=False, 
     n_workers: int=0,
     client_address: str=None,
@@ -50,9 +51,6 @@ def reconstruct_counts(manifest: Metadata,
         The assumed per-nucleotide error rate from amplifican and sequencing.
         The value used here is based on benchmarking from the original smurf
         paper
-    max_mismatch: int
-        The maximum number of nucleotides that can differ between a kmer and
-        a sequence for it to be considered a match
     min_abund: float
         The minimum relative abundance for a feature to be retained during 
         reconstruction. The default from the original smurf algorithm is '
@@ -95,7 +93,6 @@ def reconstruct_counts(manifest: Metadata,
     region_order = region_order - region_order.min()
     region_names = {i: r for r, i in region_order.items()}
     num_regions = len(region_order)
-    npartitions = int(np.floor(num_regions / 4))
 
     # Imports the alignment maps and gets the kmers that were aligned
     align_map = pd.concat(
@@ -104,9 +101,6 @@ def reconstruct_counts(manifest: Metadata,
         objs=_read_manifest_files(manifest, 'alignment-map', 
                                   'FeatureData[KmerAlignment]', pd.DataFrame)
         )
-    align_map.reset_index(drop=True, inplace=True)
-    align_map[['mismatch', 'length']] = \
-        align_map[['mismatch', 'length']].astype(int)
     align_map.replace({'region': region_order}, inplace=True)
     kmers = _get_unique_kmers(align_map['kmer'])
 
@@ -122,9 +116,7 @@ def reconstruct_counts(manifest: Metadata,
         objs=_read_manifest_files(manifest, 'kmer-map', 
                                  'FeatureData[KmerMap]', pd.DataFrame)
     )
-    kmer_map['region'] = kmer_map['region'].replace(region_order)
-    kmer_map.sort_values(['db-seq', 'region', 'kmer'], inplace=True)
-    
+    kmer_map['region'] = kmer_map['region'].replace(region_order)    
     kmer_map = kmer_map.loc[kmers]
 
     print('Regional Kmers Loaded')
@@ -132,7 +124,7 @@ def reconstruct_counts(manifest: Metadata,
     # Builds database mapping bettween the kmer, the original database
     # sequence and the original name
     db_map = _untangle_database_ids(
-        dd.from_pandas(kmer_map.reset_index(), npartitions=num_regions),
+        kmer_map.reset_index(),
         num_regions=num_regions,
         block_size=block_size / 10,
         )
@@ -156,7 +148,6 @@ def reconstruct_counts(manifest: Metadata,
                                     sequence_map=db_map.to_dict(),
                                     seq_summary=db_summary,
                                     nucleotide_error=per_nucleotide_error, 
-                                    max_mismatch=max_mismatch, 
                                     blocksize=block_size,
                                     )
     if align_mat['norm'].isna().any():
@@ -178,6 +169,21 @@ def reconstruct_counts(manifest: Metadata,
     keep_asvs = list(set(align_mat['asv'].values) & (set(counts.index)))
     unaligned_counts = counts.copy().drop(keep_asvs).sum(axis=1)
     counts = counts.loc[keep_asvs]
+    keep_samples = counts.sum(axis=0) > min_counts
+    if keep_samples.sum() == 0:
+        raise ValueError('None of the samples have more than the %i total '
+                         'sequences required for reconstruction.' 
+                         % min_counts)
+    elif not keep_samples.all():
+        warnings.warn("There are %i samples with fewer than %i total"
+                      " reads. These samples will be discarded."
+                      % ((keep_samples==False).sum(), min_counts),
+                      UserWarning)
+    counts = counts[keep_samples.index.values[keep_samples.values]]
+    counts = counts.loc[counts.sum(axis=1) > 0]
+    keep_asvs = counts.index
+
+
     align_mat = align_mat.loc[align_mat['asv'].isin(keep_asvs)]
     keep_kmers = align_mat['clean_name'].unique()
     db_summary = db_summary.loc[keep_kmers]
@@ -237,7 +243,7 @@ def reconstruct_counts(manifest: Metadata,
 
 
 def _construct_align_mat(match, sequence_map, seq_summary, 
-    nucleotide_error=0.005, max_mismatch=2, kmer_name='kmer', asv_name='asv',
+    nucleotide_error=0.005, kmer_name='kmer', asv_name='asv',
     seq_name='clean_name', miss_col='mismatch', blocksize=5000):
     """
     Constructs a long form matrix describing alignmnet
@@ -252,8 +258,6 @@ def _construct_align_mat(match, sequence_map, seq_summary,
         identifiers
     nucleotide_error: float, optional
         The assumed per-nucleotide error rate.
-    max_mismatch : int, optional
-        The maximum number of nucelotides which can differ between an ASV
         and the asigned kmer
     kmer_name: str, optional
         The column name in `mismatch` that identifies the reference sequences
@@ -289,7 +293,7 @@ def _construct_align_mat(match, sequence_map, seq_summary,
 
     # Collapses into ASV-ref seq combos where for degenerates, the closet
     # match is retained as the sequence.
-    asv_ref = align_mat.groupby([seq_name, asv_name, 'region'])
+    asv_ref = align_mat.groupby([seq_name, asv_name, 'region', 'max-mismatch'])
     asv_ref = asv_ref[[miss_col, 'length']].min().reset_index()
 
     ## E(ih) : Pr(read = i | kmer = h)
@@ -303,8 +307,8 @@ def _construct_align_mat(match, sequence_map, seq_summary,
     asv_ref['perfect_prob'] = \
         np.power(1-nucleotide_error, asv_ref['length'])
     asv_ref['max_error_prob'] = (
-        np.power(1 - nucleotide_error, asv_ref['length'] - max_mismatch) * 
-        np.power(nucleotide_error / 3, max_mismatch)
+        np.power(1 - nucleotide_error, asv_ref['length'] - asv_ref['max-mismatch']) * 
+        np.power(nucleotide_error / 3, asv_ref['max-mismatch'])
     )
 
     # Calculates the maximum error rate to get the mismatch. 0.1 multiplier comes
@@ -820,19 +824,17 @@ def _tidy_sequence_set(clean_kmers, clean_seqs):
     # Gets the sequences that are still shared with other sequences
     shared_seqs = clean_kmers.loc[~clean_kmers['tidy']].copy()
     shared_seqs = shared_seqs.groupby('db-seq')['shared-set'].apply(
-        lambda x: set.intersection(*x), 
-        meta=('shared-set', 'object')
+        lambda x: set.intersection(*x)
     )
     shared_seqs = shared_seqs.reset_index()
     shared_seqs.columns = ['db-seq', 'shared-set']
     shared_seqs['kmer'] = shared_seqs['shared-set'].apply(
-        lambda x: '|'.join(sorted(x)), 
-        meta=('shared-set', 'str')
+        lambda x: '|'.join(sorted(x))
     )
     # Updates the mapped sequence
     clean_check = shared_seqs.groupby('kmer').apply(
         lambda x: (set.union(*x['shared-set'].values)) == set(x['db-seq']),
-        meta=(None, 'bool')).compute()
+        )
     if clean_check.any():
         cleaned = np.hstack([
             x.split("|") for x in clean_check.index[clean_check].values
@@ -846,7 +848,6 @@ def _tidy_sequence_set(clean_kmers, clean_seqs):
         clean_kmers.apply(_sort_untidy, 
                           clean_seqs=clean_seqs,
                           axis=1, 
-                          meta=(None, 'object')
                          )
     return clean_kmers, clean_seqs
 
@@ -876,14 +877,12 @@ def _untangle_database_ids(region_db, num_regions, block_size=500):
         number per region.
     """
     # Cleans up the kmers by pulling off shared labels
-    shared = [dask.delayed(_get_shared_seqs)(df) 
-              for df in region_db.to_delayed()]
-    clean_kmers = dd.from_delayed([dask.delayed(_get_clean)(df) 
-                                   for df in shared])
+    shared = _get_shared_seqs(region_db)
+    clean_kmers = _get_clean(shared)
     clean_kmers['tidy'] = False
     # Formats for an id set
     clean_kmers['shared-set'] = clean_kmers['value'].apply(
-        lambda x: set(x.split("|")), meta=('value', 'object'))
+        lambda x: set(x.split("|")))
 
     # Sets up a while loop. Because somehow it makes sense here?
     untidy = True
@@ -892,7 +891,7 @@ def _untangle_database_ids(region_db, num_regions, block_size=500):
 
     for i  in np.arange(0, 2):
         clean_kmers, clean_seqs = _tidy_sequence_set(clean_kmers, clean_seqs)
-        tidy_seqs = ~clean_kmers['tidy'].compute()
+        tidy_seqs = ~clean_kmers['tidy']
         untidy = tidy_seqs.any()
         if (last_tidy == tidy_seqs.sum()) | ~untidy:
             break
@@ -901,15 +900,14 @@ def _untangle_database_ids(region_db, num_regions, block_size=500):
     # Maps the tidy kmers into a single kmer
     db_map1 = clean_kmers.loc[clean_kmers['tidy']
                              ].groupby('db-seq')['shared-set'].apply(
-        lambda x: '|'.join(sorted(set.intersection(*x))), 
-        meta=('shared-set', str)
+        lambda x: '|'.join(sorted(set.intersection(*x)))
     )
     db_map1.name = 'clean_name'
     # If anything else remains untidy, we need to continue mapping...
     if untidy:
         # Finds the sequences that need to be mapped and pulls out the data
         bad_ = ~clean_kmers['tidy']
-        to_map = clean_kmers.loc[bad_].compute()
+        to_map = clean_kmers.loc[bad_]
         unique_ids = to_map['db-seq'].unique()
 
         to_map = to_map.groupby('db-seq')['shared-set'].apply(
@@ -923,7 +921,8 @@ def _untangle_database_ids(region_db, num_regions, block_size=500):
                             index=pd.Index([], name='db-seq'),  
                             name='clean_name')
     
-    db_map = pd.concat(axis=0, objs=[db_map1.compute(), db_map2])
+    db_map = pd.concat(axis=0, objs=[db_map1, db_map2])
     
     return db_map
+
 

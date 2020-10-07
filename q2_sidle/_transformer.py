@@ -54,37 +54,34 @@ def _4(obj: pd.DataFrame) -> KmerMapFormat:
 @plugin.register_transformer
 def _5(ff:KmerAlignFormat) -> pd.DataFrame:
     df = pd.read_csv(str(ff), sep='\t', dtype=str)
-    df = df[['kmer', 'asv', 'length', 'mismatch', 'region']]
-    df[['mismatch', 'length']] = df[['mismatch', 'length']].astype(int)
+    df = df[['kmer', 'asv', 'length', 'mismatch', 'max-mismatch', 'region']]
+    df[['mismatch', 'max-mismatch', 'length']] = \
+        df[['mismatch', 'max-mismatch', 'length']].astype(int)
     return df
 
 
 @plugin.register_transformer
 def _6(ff:KmerAlignFormat) -> Metadata:
     df = pd.read_csv(str(ff), sep='\t', dtype=str)
-    df = df[['kmer', 'asv', 'length', 'mismatch', 'region']]
+    df =  df[['kmer', 'asv', 'length', 'mismatch', 'max-mismatch', 'region']]
+    df.index = df.index.astype(int).astype(str)
     df.index.set_names('feature-id', inplace=True)
-    df.index = df.index.astype(str)
-    df[['mismatch', 'length']] = df[['mismatch', 'length']].astype(int)
+    df[['mismatch', 'max-mismatch', 'length']] = \
+        df[['mismatch', 'max-mismatch', 'length']].astype(int)
     return Metadata(df)
 
 @plugin.register_transformer
 def _7(ff:KmerAlignFormat) -> dd.DataFrame:
     df = dd.read_csv(str(ff), sep='\t', dtype=str)
-    df = df[['kmer', 'asv', 'length', 'mismatch', 'region']]
-    df[['mismatch', 'length']] = df[['mismatch', 'length']].astype(int)
+    df = df[['kmer', 'asv', 'length', 'mismatch', 'max-mismatch', 'region']]
+    df[['mismatch', 'max-mismatch', 'length']] = \
+        df[['mismatch', 'max-mismatch', 'length']].astype(int)
     return df
 
 @plugin.register_transformer
 def _8(obj: pd.DataFrame) -> KmerAlignFormat:
     ff = KmerAlignFormat()
     obj.to_csv(str(ff), sep='\t', index=False)
-    return ff
-
-@plugin.register_transformer
-def _15(obj: dd.DataFrame) -> KmerAlignFormat:
-    ff = KmerAlignFormat()
-    obj.to_csv(str(ff), sep='\t', index=False, single_file=True)
     return ff
 
 @plugin.register_transformer
@@ -129,3 +126,12 @@ def _14(obj:Metadata) -> ReconSummaryFormat:
     ff = ReconSummaryFormat()
     obj.save(str(ff))
     return ff
+
+@plugin.register_transformer
+def _15(obj: dd.DataFrame) -> KmerAlignFormat:
+    ff = KmerAlignFormat()
+    obj.to_csv(str(ff), sep='\t', index=False, single_file=True)
+    return ff
+
+# @plugin.register_transformer
+    # @_16(obj: pd.DataFrame) -> 

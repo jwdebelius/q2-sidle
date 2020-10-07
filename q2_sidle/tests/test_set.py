@@ -55,28 +55,28 @@ region1_rep_seqs = Artifact.import_data('FeatureData[Sequence]', pd.Series({
     }))
 region1_align = \
     Artifact.import_data('FeatureData[KmerAlignment]', pd.DataFrame(
-        data=np.array([['seq1|seq2', 'asv01', 15, 0, 'Bludhaven'],
-                       ['seq3@0001', 'asv02', 15, 0, 'Bludhaven'],
-                       ['seq3@0001', 'asv03', 15, 1, 'Bludhaven'],
-                       ['seq3@0002', 'asv02', 15, 1, 'Bludhaven'],
-                       ['seq3@0002', 'asv03', 15, 0, 'Bludhaven'],
-                       ['seq5', 'asv04', 15, 0, 'Bludhaven'],
-                       ['seq5', 'asv05', 15, 1, 'Bludhaven'],
-                       ['seq6', 'asv04', 15, 1, 'Bludhaven'],
-                       ['seq6', 'asv05', 15, 0, 'Bludhaven']],
+        data=np.array([['seq1|seq2', 'asv01', 15, 0, 2, 'Bludhaven'],
+                       ['seq3@0001', 'asv02', 15, 0, 2, 'Bludhaven'],
+                       ['seq3@0001', 'asv03', 15, 1, 2, 'Bludhaven'],
+                       ['seq3@0002', 'asv02', 15, 1, 2, 'Bludhaven'],
+                       ['seq3@0002', 'asv03', 15, 0, 2, 'Bludhaven'],
+                       ['seq5', 'asv04', 15, 0, 2, 'Bludhaven'],
+                       ['seq5', 'asv05', 15, 1, 2, 'Bludhaven'],
+                       ['seq6', 'asv04', 15, 1, 2, 'Bludhaven'],
+                       ['seq6', 'asv05', 15, 0, 2, 'Bludhaven']],
                        dtype=object),
-        columns=['kmer', 'asv',  'length', 'mismatch', 'region']
+        columns=['kmer', 'asv',  'length', 'mismatch', 'max-mismatch', 'region']
     ))
 region2_align = \
     Artifact.import_data('FeatureData[KmerAlignment]', pd.DataFrame(
-        data=np.array([['seq1', 'asv06', 15, 0, 'Gotham'],
-                       ['seq2', 'asv07', 15, 0, 'Gotham'],
-                       ['seq3', 'asv08', 15, 0, 'Gotham'],
-                       ['seq4', 'asv09', 15, 0, 'Gotham'],
-                       ['seq5', 'asv10', 15, 0, 'Gotham'],
-                       ['seq6', 'asv11', 15, 0, 'Gotham']],
+        data=np.array([['seq1', 'asv06', 15, 0, 2, 'Gotham'],
+                       ['seq2', 'asv07', 15, 0, 2, 'Gotham'],
+                       ['seq3', 'asv08', 15, 0, 2, 'Gotham'],
+                       ['seq4', 'asv09', 15, 0, 2, 'Gotham'],
+                       ['seq5', 'asv10', 15, 0, 2, 'Gotham'],
+                       ['seq6', 'asv11', 15, 0, 2, 'Gotham']],
                        dtype=object),
-        columns=['kmer', 'asv', 'length', 'mismatch', 'region']
+        columns=['kmer', 'asv', 'length', 'mismatch', 'max-mismatch', 'region']
     ))
 region1_counts = Artifact.import_data('FeatureTable[Frequency]', biom.Table(
     np.array([[150,   0,   0,  50, 50],
@@ -84,6 +84,13 @@ region1_counts = Artifact.import_data('FeatureTable[Frequency]', biom.Table(
               [100,   0, 100,  50, 50]]).T,
     sample_ids=['sample1', 'sample2', 'sample3'],
     observation_ids=['asv01', 'asv02', 'asv03', 'asv04', 'asv05'],
+    ))
+region1_alt_counts = Artifact.import_data('FeatureTable[Frequency]', biom.Table(
+    np.array([[150,   0,   0,  50, 50, 50],
+              [125,  50,  50,  25, 25, 25],
+              [100,   0, 100,  50, 50, 0]]).T,
+    sample_ids=['sample1', 'sample2', 'sample3'],
+    observation_ids=['asv01', 'asv02', 'asv03', 'asv04', 'asv05', 'asv20'],
     ))
 region2_counts = Artifact.import_data('FeatureTable[Frequency]', biom.Table(
     data=np.array([[100,  50,    0,  50,  50, 50],

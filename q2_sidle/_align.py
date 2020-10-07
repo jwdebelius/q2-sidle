@@ -102,14 +102,17 @@ def align_regional_kmers(kmers: DNAFASTAFormat,
             for kmer, asv in it.product(batch.to_delayed(), rep_seq.to_delayed())
             ])
 
-        aligned_batch = dd.from_delayed(
-            aligned_batch, 
-            meta=[('kmer', 'object'), ('asv', 'object'), 
-                  ('length', int), ('mismatch', int)])
+        aligned_batch = pd.concat(axis=0, objs=dask.compute(*aligned_batch))
 
         aligned_batch['region'] = region
-        aligned_batch.to_csv(str(ff), sep='\t', index=False, 
-                             single_file=True, mode='w+')
+        aligned_batch['max-mismatch'] = max_mismatch
+        if i  == 0:
+            aligned_batch.to_csv(str(ff), sep='\t', index=False, 
+                                 mode='w')
+        else:
+            aligned_batch.to_csv(str(ff), sep='\t', index=False, 
+                                 header=False,
+                                 mode='a')
 
     return ff
 

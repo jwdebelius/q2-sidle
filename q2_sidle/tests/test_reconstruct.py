@@ -1,6 +1,7 @@
 from unittest import TestCase, main
 
 import os
+import warnings
 
 import biom
 import dask
@@ -62,29 +63,29 @@ class ReconstructTest(TestCase):
         self.kmer1 = ts.region1_db_map.view(pd.DataFrame).copy()
 
         self.align1 = pd.DataFrame(
-            data=np.array([['seq1', 'asv01', 'Bludhaven', 0, 15, 0.92757, 0.92757, 0.0, 0.92757,  True, 0.4638],
-                           ['seq2', 'asv01', 'Bludhaven', 0, 15, 0.92757, 0.92757, 0.0, 0.92757,  True, 0.4638],
-                           ['seq3', 'asv02', 'Bludhaven', 0, 15, 0.92757, 0.92757, 0.0, 0.92757,  True, 0.4638],
-                           ['seq5', 'asv04', 'Bludhaven', 0, 15, 0.92757, 0.92757, 0.0, 0.92757,  True, 0.4638],
-                           ['seq5', 'asv05', 'Bludhaven', 1, 15, 0.00155, 0.92757, 0.0, 0.92757, False, 0.0008],
-                           ['seq6', 'asv04', 'Bludhaven', 1, 15, 0.00155, 0.92757, 0.0, 0.92757, False, 0.0008],
-                           ['seq6', 'asv05', 'Bludhaven', 0, 15, 0.92757, 0.92757, 0.0, 0.92757,  True, 0.4638]], dtype=object),
-            columns=['clean_name', 'asv', 'region', 'mismatch', 'length', 
+            data=np.array([['seq1', 'asv01', 'Bludhaven', 2, 0, 15, 0.92757, 0.92757, 0.0, 0.92757,  True, 0.4638],
+                           ['seq2', 'asv01', 'Bludhaven', 2, 0, 15, 0.92757, 0.92757, 0.0, 0.92757,  True, 0.4638],
+                           ['seq3', 'asv02', 'Bludhaven', 2, 0, 15, 0.92757, 0.92757, 0.0, 0.92757,  True, 0.4638],
+                           ['seq5', 'asv04', 'Bludhaven', 2, 0, 15, 0.92757, 0.92757, 0.0, 0.92757,  True, 0.4638],
+                           ['seq5', 'asv05', 'Bludhaven', 2, 1, 15, 0.00155, 0.92757, 0.0, 0.92757, False, 0.0008],
+                           ['seq6', 'asv04', 'Bludhaven', 2, 1, 15, 0.00155, 0.92757, 0.0, 0.92757, False, 0.0008],
+                           ['seq6', 'asv05', 'Bludhaven', 2, 0, 15, 0.92757, 0.92757, 0.0, 0.92757,  True, 0.4638]], dtype=object),
+            columns=['clean_name', 'asv', 'region', 'max-mismatch', 'mismatch', 'length', 
                      'match_prob', 'perfect_prob',  
                      'max_error_prob', 'error_thresh', 'perf_match', 'norm']
             )
         self.align2 = pd.DataFrame(
-            data=np.array([['seq1', 'asv06', 'Gotham', 0, 15, 0.92757, 0.92757, 0.0, 0.92757,  True, 0.4638],
-                           ['seq2', 'asv07', 'Gotham', 0, 15, 0.92757, 0.92757, 0.0, 0.92757,  True, 0.4638],
-                           ['seq3', 'asv08', 'Gotham', 0, 15, 0.92757, 0.92757, 0.0, 0.92757,  True, 0.4638],
-                           ['seq4', 'asv09', 'Gotham', 0, 15, 0.92757, 0.92757, 0.0, 0.92757,  True, 0.9276],
-                           ['seq5', 'asv10', 'Gotham', 0, 15, 0.92757, 0.92757, 0.0, 0.92757,  True, 0.4638],
-                           ['seq6', 'asv11', 'Gotham', 0, 15, 0.92757, 0.92757, 0.0, 0.92757,  True, 0.4638]], dtype=object),
-            columns=['clean_name', 'asv', 'region', 'mismatch', 'length', 
+            data=np.array([['seq1', 'asv06', 'Gotham', 2, 0, 15, 0.92757, 0.92757, 0.0, 0.92757,  True, 0.4638],
+                           ['seq2', 'asv07', 'Gotham', 2, 0, 15, 0.92757, 0.92757, 0.0, 0.92757,  True, 0.4638],
+                           ['seq3', 'asv08', 'Gotham', 2, 0, 15, 0.92757, 0.92757, 0.0, 0.92757,  True, 0.4638],
+                           ['seq4', 'asv09', 'Gotham', 2, 0, 15, 0.92757, 0.92757, 0.0, 0.92757,  True, 0.9276],
+                           ['seq5', 'asv10', 'Gotham', 2, 0, 15, 0.92757, 0.92757, 0.0, 0.92757,  True, 0.4638],
+                           ['seq6', 'asv11', 'Gotham', 2, 0, 15, 0.92757, 0.92757, 0.0, 0.92757,  True, 0.4638]], dtype=object),
+            columns=['clean_name', 'asv', 'region', 'max-mismatch', 'mismatch', 'length',
                      'match_prob', 'perfect_prob',  
                      'max_error_prob', 'error_thresh', 'perf_match', 'norm']
             )
-        self.int_cols = ['length', 'mismatch']
+        self.int_cols = ['length', 'mismatch',  'max-mismatch']
         self.float_cols = ['match_prob', 'perfect_prob', 'max_error_prob', 
                            'error_thresh', 'norm']
         self.align1[self.int_cols] = self.align1[self.int_cols].astype(int)
@@ -172,6 +173,18 @@ class ReconstructTest(TestCase):
             columns=['db-seq', 'region', 'value']
             )
 
+        self.manifest = Metadata(pd.DataFrame(
+            data=[[os.path.join(self.base_dir, 'region1_db_map.qza'),
+                   os.path.join(self.base_dir, 'region1_align.qza'),
+                   os.path.join(self.base_dir, 'region1_counts.qza'), 0],
+                  [os.path.join(self.base_dir, 'region2_db_map.qza'),
+                   os.path.join(self.base_dir, 'region2_align.qza'),
+                   os.path.join(self.base_dir, 'region2_counts.qza'), 1]],
+            columns=['kmer-map', 'alignment-map', 'frequency-table', 
+                     'region-order'],
+            index=pd.Index(['Bludhaven', 'Gotham'], name='id')
+            ))
+
     def test_reconstruct_counts(self):
         known_map = pd.DataFrame(
             data=[['seq1', 'WANTCAT', 'CACCTCGTN', 15],
@@ -226,24 +239,12 @@ class ReconstructTest(TestCase):
             })
         known_summary.index.set_names('feature-id', inplace=True)
         
-        manifest = Metadata(pd.DataFrame(
-            data=[[os.path.join(self.base_dir, 'region1_db_map.qza'),
-                   os.path.join(self.base_dir, 'region1_align.qza'),
-                   os.path.join(self.base_dir, 'region1_counts.qza'), 0],
-                  [os.path.join(self.base_dir, 'region2_db_map.qza'),
-                   os.path.join(self.base_dir, 'region2_align.qza'),
-                   os.path.join(self.base_dir, 'region2_counts.qza'), 1]],
-            columns=['kmer-map', 'alignment-map', 'frequency-table', 
-                     'region-order'],
-            index=pd.Index(['Bludhaven', 'Gotham'], name='id')
-            ))
+        
         count_table, summary, mapping = \
-            reconstruct_counts(manifest, debug=True, min_abund=1e-2)
-
-        print(count_table)
-        print(np.array([[100,  50,   0,  50,  50, 50],
-                      [100,  25, 100,  25,  25, 25],
-                      [  0, 100, 100,   0,  50, 50]]).T)
+            reconstruct_counts(self.manifest, 
+                               debug=True, 
+                               min_counts=10,
+                               min_abund=1e-2)
         npt.assert_array_equal(
             np.array(count_table.matrix_data.todense()),
             np.array([[100,  50,   0,  50,  50, 50],
@@ -261,90 +262,131 @@ class ReconstructTest(TestCase):
         pdt.assert_frame_equal(known_map, mapping)
         pdt.assert_frame_equal(known_summary, summary.to_dataframe())
 
-    def test_reconstruct_counts_unweighted(self):
-        known_map = pd.DataFrame(
-            data=[['seq1', 'WANTCAT', 'CACCTCGTN', 15],
-                  ['seq2', 'WANTCAT', 'CACCTCGTN', 15],
-                  ['seq3', 'WANTCAT', 'CACCTCGTN', 15],
-                  ['seq4', 'CACCTCGTN', 'CACCTCGTN', 15],
-                  ['seq5', 'WANTCAT', 'CACCTCGTN', 15],
-                  ['seq6', 'WANTCAT', 'CACCTCGTN', 15]],
-            index=pd.Index(['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 'seq6'], 
-                            name='db-seq'),
-            columns=['clean_name', 'first-fwd-primer', 'last-fwd-primer', 
-                     'last-kmer-length'],
+    # def test_reconstruct_counts_unweighted(self):
+    #     known_map = pd.DataFrame(
+    #         data=[['seq1', 'WANTCAT', 'CACCTCGTN', 15],
+    #               ['seq2', 'WANTCAT', 'CACCTCGTN', 15],
+    #               ['seq3', 'WANTCAT', 'CACCTCGTN', 15],
+    #               ['seq4', 'CACCTCGTN', 'CACCTCGTN', 15],
+    #               ['seq5', 'WANTCAT', 'CACCTCGTN', 15],
+    #               ['seq6', 'WANTCAT', 'CACCTCGTN', 15]],
+    #         index=pd.Index(['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 'seq6'], 
+    #                         name='db-seq'),
+    #         columns=['clean_name', 'first-fwd-primer', 'last-fwd-primer', 
+    #                  'last-kmer-length'],
+    #         )
+
+    #     known_summary = pd.DataFrame.from_dict(orient='index', data={
+    #         'seq1': {'num-regions': 1., 
+    #                  'total-kmers-mapped': 2., 
+    #                  'mean-kmer-per-region': 1.,
+    #                  'stdv-kmer-per-region': 0.,
+    #                  'mapped-asvs': 'asv01|asv06'
+    #                 },
+    #         'seq2': {'num-regions': 1, 
+    #                  'total-kmers-mapped': 2, 
+    #                  'mean-kmer-per-region': 1,
+    #                 'stdv-kmer-per-region': 0,
+    #                 'mapped-asvs': 'asv01|asv07',
+    #                 },
+    #         'seq3': {'num-regions': 1, 
+    #                  'total-kmers-mapped': 3, 
+    #                  'mean-kmer-per-region': 1.5,
+    #                  'stdv-kmer-per-region': np.std([1, 2], ddof=1),
+    #                  'mapped-asvs': 'asv02|asv03|asv08'
+    #                 },
+    #         'seq4': {'num-regions': 1, 
+    #                  'total-kmers-mapped': 1, 
+    #                  'mean-kmer-per-region': 1,
+    #                  'stdv-kmer-per-region': 0,
+    #                  'mapped-asvs': 'asv09'
+    #                 },
+    #         'seq5': {'num-regions': 1, 
+    #                  'total-kmers-mapped': 2, 
+    #                  'mean-kmer-per-region': 1,
+    #                  'stdv-kmer-per-region': 0,
+    #                  'mapped-asvs': 'asv04|asv05|asv10',
+    #                 },
+    #         'seq6': {'num-regions': 1, 
+    #                  'total-kmers-mapped': 2, 
+    #                  'mean-kmer-per-region': 1,
+    #                  'stdv-kmer-per-region': 0,
+    #                  'mapped-asvs': 'asv04|asv05|asv11',
+    #                 },
+    #         })
+    #     known_summary.index.set_names('feature-id', inplace=True)
+        
+    #     manifest = Metadata(pd.DataFrame(
+    #         data=[[os.path.join(self.base_dir, 'region1_db_map.qza'),
+    #                os.path.join(self.base_dir, 'region1_align.qza'),
+    #                os.path.join(self.base_dir, 'region1_counts.qza'), 0],
+    #               [os.path.join(self.base_dir, 'region2_db_map.qza'),
+    #                os.path.join(self.base_dir, 'region2_align.qza'),
+    #                os.path.join(self.base_dir, 'region2_counts.qza'), 1]],
+    #         columns=['kmer-map', 'alignment-map', 'frequency-table', 
+    #                  'region-order'],
+    #         index=pd.Index(['Bludhaven', 'Gotham'], name='id')
+    #         ))
+    #     count_table, summary, mapping = \
+    #         reconstruct_counts(manifest, debug=True, min_abund=1e-2, 
+    #                            region_normalize=False)
+    #     npt.assert_array_equal(
+    #         count_table.matrix_data.todense(),
+    #         np.array([[200, 100,   0,  50, 100, 100],
+    #                   [200,  50, 200,  25,  50,  50],
+    #                   [  0, 200, 200,   0, 100, 100]]).T * 1.
+    #        )
+    #     npt.assert_array_equal(
+    #         np.array(list(count_table.ids(axis='sample'))),
+    #         np.array(['sample1', 'sample2', 'sample3'])
+    #     )
+    #     npt.assert_array_equal(
+    #         np.array(list(count_table.ids(axis='observation'))),
+    #         np.array(['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 'seq6']),
+    #     )
+    #     pdt.assert_frame_equal(known_map, mapping)
+    #     pdt.assert_frame_equal(known_summary, summary.to_dataframe())
+
+    # def test_reconstruct_align_error(self):
+    #     manifest = self.manifest.to_dataframe()
+    #     manifest.loc['Bludhaven', 'alignment-map'] = \
+    #         os.path.join(self.base_dir, 'region1_error_align.qza')
+    #     with self.assertRaises(ValueError) as err:
+    #         count_table, summary, mapping = \
+    #             reconstruct_counts(Metadata(manifest), 
+    #                                min_counts=10,
+    #                                debug=True, 
+    #                                min_abund=1e-2)
+    #     self.assertEqual(
+    #         str(err.exception),
+    #         'normalization cannot be found!'
+    #         )
+
+    def test_reconstruct_align_drop_samples_error(self):
+        with self.assertRaises(ValueError) as err:
+            count_table, summary, mapping = \
+                reconstruct_counts(self.manifest, 
+                                   debug=True, 
+                                   min_abund=1e-2)
+        self.assertEqual(
+            str(err.exception),
+            'None of the samples have more than the 1000 total '
+            'sequences required for reconstruction.' 
             )
 
-        known_summary = pd.DataFrame.from_dict(orient='index', data={
-            'seq1': {'num-regions': 1., 
-                     'total-kmers-mapped': 2., 
-                     'mean-kmer-per-region': 1.,
-                     'stdv-kmer-per-region': 0.,
-                     'mapped-asvs': 'asv01|asv06'
-                    },
-            'seq2': {'num-regions': 1, 
-                     'total-kmers-mapped': 2, 
-                     'mean-kmer-per-region': 1,
-                    'stdv-kmer-per-region': 0,
-                    'mapped-asvs': 'asv01|asv07',
-                    },
-            'seq3': {'num-regions': 1, 
-                     'total-kmers-mapped': 3, 
-                     'mean-kmer-per-region': 1.5,
-                     'stdv-kmer-per-region': np.std([1, 2], ddof=1),
-                     'mapped-asvs': 'asv02|asv03|asv08'
-                    },
-            'seq4': {'num-regions': 1, 
-                     'total-kmers-mapped': 1, 
-                     'mean-kmer-per-region': 1,
-                     'stdv-kmer-per-region': 0,
-                     'mapped-asvs': 'asv09'
-                    },
-            'seq5': {'num-regions': 1, 
-                     'total-kmers-mapped': 2, 
-                     'mean-kmer-per-region': 1,
-                     'stdv-kmer-per-region': 0,
-                     'mapped-asvs': 'asv04|asv05|asv10',
-                    },
-            'seq6': {'num-regions': 1, 
-                     'total-kmers-mapped': 2, 
-                     'mean-kmer-per-region': 1,
-                     'stdv-kmer-per-region': 0,
-                     'mapped-asvs': 'asv04|asv05|asv11',
-                    },
-            })
-        known_summary.index.set_names('feature-id', inplace=True)
-        
-        manifest = Metadata(pd.DataFrame(
-            data=[[os.path.join(self.base_dir, 'region1_db_map.qza'),
-                   os.path.join(self.base_dir, 'region1_align.qza'),
-                   os.path.join(self.base_dir, 'region1_counts.qza'), 0],
-                  [os.path.join(self.base_dir, 'region2_db_map.qza'),
-                   os.path.join(self.base_dir, 'region2_align.qza'),
-                   os.path.join(self.base_dir, 'region2_counts.qza'), 1]],
-            columns=['kmer-map', 'alignment-map', 'frequency-table', 
-                     'region-order'],
-            index=pd.Index(['Bludhaven', 'Gotham'], name='id')
-            ))
-        count_table, summary, mapping = \
-            reconstruct_counts(manifest, debug=True, min_abund=1e-2, 
-                               region_normalize=False)
-        npt.assert_array_equal(
-            count_table.matrix_data.todense(),
-            np.array([[200, 100,   0,  50, 100, 100],
-                      [200,  50, 200,  25,  50,  50],
-                      [  0, 200, 200,   0, 100, 100]]).T * 1.
-           )
-        npt.assert_array_equal(
-            np.array(list(count_table.ids(axis='sample'))),
-            np.array(['sample1', 'sample2', 'sample3'])
-        )
-        npt.assert_array_equal(
-            np.array(list(count_table.ids(axis='observation'))),
-            np.array(['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 'seq6']),
-        )
-        pdt.assert_frame_equal(known_map, mapping)
-        pdt.assert_frame_equal(known_summary, summary.to_dataframe())
+    def test_reconstruct_align_drop_samples_warning(self):
+        with warnings.catch_warnings(record=True) as w:
+            count_table, summary, mapping = reconstruct_counts(
+                self.manifest, 
+                debug=True, 
+                min_counts=590,
+                min_abund=1e-2
+                )
+            self.assertEqual(len(w), 1)  
+            self.assertTrue(issubclass(w[0].category, UserWarning))
+            self.assertEqual(str(w[0].message), 
+                             'There are 2 samples with fewer than 590 '
+                             'total reads. These samples will be discarded.')
 
     def test_construct_align_mat(self):
         sequence_map = pd.Series({'seq1': 'seq1',
@@ -580,7 +622,7 @@ class ReconstructTest(TestCase):
         pass
 
     def test_tidy_sequence_set(self):
-        clean_kmer = dd.from_pandas(npartitions=1, data=pd.DataFrame(
+        clean_kmer = pd.DataFrame(
             columns=['db-seq', 'region', 'shared-set'],
             data=[['seq00', 0, {'seq00'}], ['seq00', 1, {'seq00'}],
                   ['seq01', 0, {'seq01', 'seq02'}], ['seq01', 1, {'seq01'}],
@@ -604,7 +646,7 @@ class ReconstructTest(TestCase):
                   ['seq21', 0, {'seq21'}], ['seq21', 1, {'seq21', 'seq22', 'seq23'}],
                   ['seq22', 1, {'seq21', 'seq22', 'seq23'}],
                   ['seq23', 1, {'seq21', 'seq22', 'seq23'}], ['seq23', 2, {'seq23'}]]
-            ))
+            )
         clean_kmer['tidy'] = False
         known_seqs = set(['seq00', 'seq01', 'seq02', 'seq05', 'seq06',
                           'seq07', 'seq09', 'seq10', 'seq11', 'seq16', 'seq17', 
@@ -655,10 +697,10 @@ class ReconstructTest(TestCase):
         test_kmers = test_kmers
         test_kmers['shared-set'] =  \
             test_kmers['shared-set'].apply(lambda x: "|".join(sorted(x)))
-        pdt.assert_frame_equal(known_kmers, test_kmers.compute())
+        pdt.assert_frame_equal(known_kmers, test_kmers)
 
     def test_untangle_database_ids(self):
-        matches = dd.from_pandas(npartitions=1, data=pd.DataFrame(
+        matches = pd.DataFrame(
             data=np.array([['seq00', 'seq00', 'seq00', '0'],
                            ['seq01', 'seq01', 'seq01|seq02', '0'],
                            ['seq02', 'seq02', 'seq01|seq02', '0'],
@@ -709,7 +751,7 @@ class ReconstructTest(TestCase):
                            ['seq22', 'seq22', 'seq22', '2'],
                            ], dtype=object),
             columns=['db-seq', 'seq-name', 'kmer', 'region'],
-            ))
+            )
         matches['region'] =  matches['region'].astype(int)
         known_seq = pd.Series({'seq00': 'seq00', 
                                 'seq01': 'seq01',

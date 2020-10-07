@@ -1,4 +1,4 @@
-kmer	asv	mismatch	length	region
-Batman	Bruce Wayne	2	80	Gotham
-Flash	Barry Allen	0	50	Central City
-GreenArrow	Oliver Queen	0	30	Star City
+kmer	asv	mismatch	max-mismatch	length	region
+Batman	Bruce Wayne	2	2	80	Gotham
+Flash	Barry Allen	0	2	50	Central City
+GreenArrow	Oliver Queen	0	2	30	Star City

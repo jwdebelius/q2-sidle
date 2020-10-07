@@ -82,20 +82,21 @@ class AlignTest(TestCase):
             }))
 
         known = pd.DataFrame(
-            data=np.array([['seq1|seq2', 'asv01', 15, 0, 'Bludhaven'],
-                           ['seq3@0001', 'asv02', 15, 0, 'Bludhaven'],
-                           ['seq3@0001', 'asv03', 15, 1, 'Bludhaven'],
-                           ['seq3@0002', 'asv02', 15, 1, 'Bludhaven'],
-                           ['seq3@0002', 'asv03', 15, 0, 'Bludhaven'],
-                           ['seq5', 'asv04', 15, 0, 'Bludhaven'],
-                           ['seq5', 'asv05', 15, 1, 'Bludhaven'],
-                           ['seq6', 'asv04', 15, 1, 'Bludhaven'],
-                           ['seq6', 'asv05', 15, 0, 'Bludhaven']], 
+            data=np.array([['seq1|seq2', 'asv01', 15, 0, 2, 'Bludhaven'],
+                           ['seq3@0001', 'asv02', 15, 0, 2,  'Bludhaven'],
+                           ['seq3@0001', 'asv03', 15, 1, 2, 'Bludhaven'],
+                           ['seq3@0002', 'asv02', 15, 1, 2, 'Bludhaven'],
+                           ['seq3@0002', 'asv03', 15, 0, 2, 'Bludhaven'],
+                           ['seq5', 'asv04', 15, 0, 2, 'Bludhaven'],
+                           ['seq5', 'asv05', 15, 1, 2, 'Bludhaven'],
+                           ['seq6', 'asv04', 15, 1, 2, 'Bludhaven'],
+                           ['seq6', 'asv05', 15, 0, 2, 'Bludhaven']], 
                            dtype=object),
-            columns=['kmer', 'asv', 'length', 'mismatch', 'region'],
+            columns=['kmer', 'asv', 'length', 'mismatch', 'max-mismatch',  'region'],
             )
         known['length'] = known['length'].astype(int)
         known['mismatch'] = known['mismatch'].astype(int)
+        known['max-mismatch'] = known['max-mismatch'].astype(int)
         
         match = align_regional_kmers(kmers.view(pd.Series),
                                               rep_set.view(pd.Series),
@@ -108,12 +109,7 @@ class AlignTest(TestCase):
             match.view(pd.DataFrame).sort_values(['kmer', 'asv']
                 ).reset_index(drop=True)
             )
-        # known_discard = pd.Series(['AGAGTTTCTGAATCC'], 
-        #                            pd.Index(['asv06']))
-        # pdt.assert_series_equal(
-        #     discard.view(pd.Series).astype(str), 
-        #     known_discard, 
-        # )
+
 
     def test_check_read_length_pass(self):
         number_, length_ = _check_read_lengths(self.in_mer, 'inmer')
