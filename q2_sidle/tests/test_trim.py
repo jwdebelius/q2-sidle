@@ -44,13 +44,15 @@ class TrimTest(TestCase):
             '17e8ebf20d380363085629b22ea39722': 'ATCCG',
             '57a67d2f8243b5c4573798582153bd48': 'TTCCG',
             '74f4d3364948ee9313062e0f0b43a5e9': 'CGTTT',
-            })
+            },
+            name='sequence')
+
         known_counts = np.array([[150,  0,   0, 100],
                                  [125, 50,  50,  50],
                                  [100,  0, 100, 100],
                                  ]).T
         pdt.assert_series_equal(known_seqs, 
-                                test_seqs.view(pd.Series).astype(str))
+                                test_seqs)
         npt.assert_array_equal(known_seqs.index, 
                                test_table.ids(axis='observation'))
         npt.assert_array_equal(known_counts, test_table.matrix_data.todense())
