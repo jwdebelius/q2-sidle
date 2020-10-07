@@ -8,9 +8,9 @@ You can get the tutorial data `here`_ or by running
 .. code-block:: bash
 	
     mkdir -p sidle_tutorial/alignment
-    mkdir -p sidle_tutorial/reconstruction
-    
     cd sidle_tutorial
+    wget https://github.com/jwdebelius/q2-sidle/blob/main/docs/tutorial_data/data.tgz
+    wget https://github.com/jwdebelius/q2-sidle/blob/main/docs/tutorial_data/.tgz
 
 
 If you have not run the database tutorial, you will also want to get the
@@ -240,8 +240,8 @@ Next Steps: Analysis!
 
 You now have a reconstructed table, and associated taxonomy. Go forth and enjoy your analysis. The `QIIME 2 tutorials`_ offer some good options of downstream diversity and statistical analyses that can be done with this data.
 
-TL;DR
------
+TL;DR Reconstruction
+--------------------
 
 Regional Alignment Commands
 +++++++++++++++++++++++++++
@@ -353,8 +353,8 @@ Reconstructing the Tree
 	 --m-manifest-file manifest.txt \
 	 --o-representative-fragments reconstruction/league-rep-seq-fragments.qza
 
-Citations
-+++++++++
+References
+++++++++++
 
 .. [1] Fuks, C; Elgart, M; Amir, A; et al (2018) "Combining 16S rRNA gene variable regions enables high-resolution microbial community profiling." *Microbiome*. **6**:17. doi: 10.1186/s40168-017-0396-x
 .. .. .. [2] McDonald, D; Price, NM; Goodrich, J, et al (2012). "An improved Greengenes taxonomy with explicit ranks for ecological and evolutionary analyses of bacteria and archaea." *ISME J*. **6**: 610. doi: 10.1038/ismej.2011.139
@@ -366,7 +366,7 @@ Citations
 
 .. links
 
-.. .. _here: 
+.. _here: https://github.com/jwdebelius/q2-sidle/tree/main/docs/tutorial_data
 .. _view.qiime2.org: https://view.qiime2.org
 .. _absloute paths: https://www.linux.com/training-tutorials/absolute-path-vs-relative-path-linuxunix/
 .. _original manuscript: https://microbiomejournal.biomedcentral.com/articles/10.1186/s40168-017-0396-x

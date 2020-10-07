@@ -214,8 +214,8 @@ Denoising and Table Preparation
 	 --o-trimmed-table table-dada2-100nt.qza \
 	 --o-trimmed-representative-sequences rep-seq-dada2-100nt.qza
 
-References
-----------
+Read Preperation References
++++++++++++++++++++++++++++
 
 .. [1] Martin, M. (2011). "Cutadapt removes adapter sequences from high-throughput sequencing reads". *EMBnet.journal* **17**:10. doi: https://doi.org/10.14806/ej.17.1.200
 .. [2] Callahan, B; McMurdie, P; Rosen, M; et al (2016) "Dada2: High resolution sample inference from Illumina amplicon dada." *Nature Methods*. **13**: 581. doi: https://doi.org/10.1038/nmeth.3869

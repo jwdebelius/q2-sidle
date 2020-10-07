@@ -273,8 +273,8 @@ For reverse reads (trim from the right and in this case, reverse complement). Th
      --o-kmer-map sidle-db-batman-100nt-map.qzv
 
 
-References
-----------
+Database References
++++++++++++++++++++
 
 ..  websites
 .. _filtering by taxonomy: https://docs.qiime2.org/2020.6/tutorials/filtering/#taxonomy-based-filtering-of-tables-and-sequences
