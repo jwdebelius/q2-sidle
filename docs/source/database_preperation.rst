@@ -17,7 +17,7 @@ You can start the tutorial by downloading the database sequences and taxonomy. T
 .. code-block:: shell
 
     mkdir -p sidle_tutorial
-    wget 
+    wget https://github.com/jwdebelius/q2-sidle/blob/main/docs/tutorial_data/database.tgz
     tar -czf database.tgz
     cd database
 
@@ -67,7 +67,7 @@ For databases with more complicated strings that include taxonomy, it will be ne
 
 .. Note::
     
-    The taxonomic filtering should be considered carefully and pre-filtering should be very permissive. Many common databases lack clear taxonomic resolution at lower taxonomic levels (family, genus, species) and these sequences still provide meaningful information in reconstruction. 
+    The taxonomic filtering should be considered carefully and pre-filtering should be very permissive. Many common databases lack clear taxonomic resolution at lower taxonomic levels (family, genus, species) and these sequences still provide meaningful information in reconstruction.
 
 Once you have finished pre-filtering, you are ready to start extracting regions. 
 
@@ -127,14 +127,8 @@ In some cases, the reference region and sequencing length may not be long enough
 
 As an exercise, try using the 486-650 primers (3-``CAGCAGCCGCGGTAATAC``-5 forward; 3-``CGCATTTCACCGCTACAC``-5 reverse) to extract a 100nt region called "GreenLantern". Use the same naming convention as the other two extracted regions.
 
-Next Steps: Read Preperation
-----------------------------
-
 Now, you have a database that's ready to use for alignment and reconstruction.
 
-
-TL;DR, Database Preperation
----------------------------
 
 Database Filtering
 ^^^^^^^^^^^^^^^^^^

@@ -9,8 +9,11 @@ You can get the tutorial data `here`_ or by running
 	
     mkdir -p sidle_tutorial/alignment
     cd sidle_tutorial
+    
     wget https://github.com/jwdebelius/q2-sidle/blob/main/docs/tutorial_data/data.tgz
-    wget https://github.com/jwdebelius/q2-sidle/blob/main/docs/tutorial_data/.tgz
+    tar -xzf data.tgz
+
+    wget https://github.com/jwdebelius/q2-sidle/blob/main/docs/tutorial_data/manifest.txt
 
 
 If you have not run the database tutorial, you will also want to get the
@@ -18,7 +21,8 @@ database data.
 
 .. code-block:: bash
 	
-	wget 
+	wget https://github.com/jwdebelius/q2-sidle/blob/main/docs/tutorial_data/database.tgz
+	tar -xzf database.tgz
 
 Regional alignment
 ------------------
@@ -333,7 +337,7 @@ Reconstructing the Tree
 
 **Fragment reconstruction syntax**
 
-..code-block:: shell
+.. code-block:: shell
 	
 	qiime sidle reconstruct-fragment-rep-seqs \
 	 --i-reconstruction-map [reconstruction map] \
@@ -344,7 +348,7 @@ Reconstructing the Tree
 
 **Example reconstruction syntax**
 
-..code-block:: shell
+.. code-block:: shell
 	
 	qiime sidle reconstruct-fragment-rep-seqs \
 	 --i-reconstruction-map reconstruction/league_map.qza \
@@ -357,12 +361,6 @@ References
 ++++++++++
 
 .. [1] Fuks, C; Elgart, M; Amir, A; et al (2018) "Combining 16S rRNA gene variable regions enables high-resolution microbial community profiling." *Microbiome*. **6**:17. doi: 10.1186/s40168-017-0396-x
-.. .. .. [2] McDonald, D; Price, NM; Goodrich, J, et al (2012). "An improved Greengenes taxonomy with explicit ranks for ecological and evolutionary analyses of bacteria and archaea." *ISME J*. **6**: 610. doi: 10.1038/ismej.2011.139
-.. .. .. [3] Quast, C.; Pruesse, E; Yilmaz, P; et al. (2013) "The SILVA ribosomal RNA gene database project: improved data processing and web-based tools." *Nucleic Acids Research*. **41**:D560. doi: 10.1093/nar/gks1219
-.. .. .. [4] Martin, M. (2011). "Cutadapt removes adapter sequences from high-throughput sequencing reads". *EMBnet.journal* **17**:10. doi: https://doi.org/10.14806/ej.17.1.200
-.. .. .. [5] Callahan, B; McMurdie, P; Rosen, M; et al (2016) "Dada2: High resolution sample inference from Illumina amplicon dada." *Nature Methods*. **13**: 581. doi: https://doi.org/10.1038/nmeth.3869
-.. .. .. [6] Amir, A; McDonald, D; Navas-Molina, JA et al. (2017) "Deblur Rapidly Resolves Single-Nucleotide Community Sequence Patterns". *mSystems*. **2**:e00191 doi: 10.1128/mSystems.00191-16
-.. .. .. [7] Rognes T, Flouri T, Nichols B, Quince C, Mahé F. (2016) "VSEARCH: a versatile open source tool for metagenomics." *PeerJ* 4:e2584 doi: 10.7717/peerj.2584
 
 .. links
 
