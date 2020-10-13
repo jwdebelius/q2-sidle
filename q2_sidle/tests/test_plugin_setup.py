@@ -35,16 +35,11 @@ class PluginSetupTest(TestCase):
         self.rep_seqs1 = \
             Artifact.load(os.path.join(self.base_dir, 'region1_rep_set.qza'))
         self.align1 = ts.region1_align
-        self.manfiest = Metadata(pd.DataFrame(
-            data=[[os.path.join(self.base_dir, 'region1_db_map.qza'),
-                   os.path.join(self.base_dir, 'region1_align.qza'),
-                   os.path.join(self.base_dir, 'region1_counts.qza')],
-                  [os.path.join(self.base_dir, 'region1_db_map.qza'),
-                   os.path.join(self.base_dir, 'region1_align.qza'),
-                   os.path.join(self.base_dir, 'region1_counts.qza')]],
-            columns=['kmer-map', 'alignment-map', 'frequency-table'],
-            index=pd.Index(['Bludhaven', 'Gotham'], name='id')
-            ))
+        self.align2 = ts.region2_align
+        self.kmer_map1 = ts.region1_db_map
+        self.kmer_map2 = ts.region2_db_map
+        self.table1 = ts.region1_counts
+        self.table2 = ts.region2_counts
         self.seq_map = ts.seq_map
         self.taxonomy = ts.taxonomy
         self.count1 = ts.region1_counts
@@ -152,19 +147,15 @@ class PluginSetupTest(TestCase):
                     },
             })
         known_summary.index.set_names('feature-id', inplace=True)        
-        manifest = Metadata(pd.DataFrame(
-            data=[[os.path.join(self.base_dir, 'region1_db_map.qza'),
-                   os.path.join(self.base_dir, 'region1_align.qza'),
-                   os.path.join(self.base_dir, 'region1_counts.qza'), '0'],
-                  [os.path.join(self.base_dir, 'region2_db_map.qza'),
-                   os.path.join(self.base_dir, 'region2_align.qza'),
-                   os.path.join(self.base_dir, 'region2_counts.qza'), '1']],
-            columns=['kmer-map', 'alignment-map', 'frequency-table', 
-                     'region-order'],
-            index=pd.Index(['Bludhaven', 'Gotham'], name='id')
-            ))
         count_table, summary, mapping = \
-            sidle.reconstruct_counts(manifest, debug=True, min_abund=1e-2, min_counts=10)
+            sidle.reconstruct_counts(
+                region=['Bludhaven', 'Gotham'],
+                kmer_map=[self.kmer_map1, self.kmer_map2],
+                regional_alignment=[self.align1, self.align2],
+                regional_table=[self.table1, self.table2],
+                debug=True,
+                min_abund=1e-2,
+                min_counts=10)
         pdt.assert_frame_equal(
             count_table.view(pd.DataFrame),
             pd.DataFrame( 
@@ -213,17 +204,6 @@ class PluginSetupTest(TestCase):
                                          'stdv-kmer-per-region', 
                                          'mapped-asvs']))
         )
-        manifest = Metadata(pd.DataFrame(
-            data=[[os.path.join(self.base_dir, 'frag_r1_db_map.qza'),
-                   os.path.join(self.base_dir, 'region1_align.qza'),
-                   os.path.join(self.base_dir, 'region1_counts.qza'), 0],
-                  [os.path.join(self.base_dir, 'frag_r2_db_map.qza'),
-                   os.path.join(self.base_dir, 'region2_align.qza'),
-                   os.path.join(self.base_dir, 'region2_counts.qza'), 1]],
-            columns=['kmer-map', 'alignment-map', 'frequency-table', 
-                     'region-order'],
-            index=pd.Index(['Gotham', 'Bludhaven'], name='id')
-        ))
         aligned_seqs = Artifact.import_data(
             'FeatureData[AlignedSequence]', 
             skbio.TabularMSA([
@@ -244,9 +224,16 @@ class PluginSetupTest(TestCase):
                   'WTCCGCGTTGGAGTTATGATGATGAGACCACCTCGTCCCAGTTCCGCGCTTC'],
             index=pd.Index(['seq01|seq02', 'seq03|seq04']),
             )
-        test = sidle.reconstruct_fragment_rep_seqs(recon_map, recon_summary, 
-                                                   aligned_seqs, manifest,
-                                                   ).representative_fragments
+        test = sidle.reconstruct_fragment_rep_seqs(
+            region=['Bludhaven', 'Gotham'],
+            kmer_map=[Artifact.load(os.path.join(self.base_dir, 
+                                    'frag_r1_db_map.qza')),
+                      Artifact.load(os.path.join(self.base_dir, 
+                                    'frag_r2_db_map.qza'))],
+            reconstruction_map=recon_map, 
+            reconstruction_summary=recon_summary, 
+            aligned_sequences=aligned_seqs,
+            ).representative_fragments
         pdt.assert_series_equal(known, test.view(pd.Series).astype(str))
 
     def test_integration(self):
@@ -258,22 +245,6 @@ class PluginSetupTest(TestCase):
         data_dir = os.path.join(base_dir, 'data')
         if os.path.exists(test_dir):
             shutil.rmtree(test_dir)
-        os.makedirs(test_dir)
-
-        # Sets up the temporary manifest
-        manifest = Metadata(pd.DataFrame(
-            data=[[os.path.join(test_dir, 'region1-kmer-db.qza'),
-                   os.path.join(test_dir, 'region1-align-map.qza'),
-                   os.path.join(data_dir, 'region1-counts.qza'), '0'],
-                  [os.path.join(test_dir, 'region2-kmer-db.qza'),
-                   os.path.join(test_dir, 'region2-align-map.qza'),
-                   os.path.join(data_dir, 'region2-counts.qza'), '1'],
-                  [os.path.join(test_dir, 'region3-kmer-db.qza'),
-                   os.path.join(test_dir, 'region3-align-map.qza'),
-                   os.path.join(data_dir, 'region3-counts.qza'), '2']],
-            columns=['kmer-map', 'alignment-map', 'frequency-table', 'region-order'],
-            index=pd.Index(['1', '2', '3'], name='id'),
-        ))    
 
         ### Sequence extraction
         region1_seqs, region1_map = sidle.prepare_extracted_region(
@@ -326,10 +297,6 @@ class PluginSetupTest(TestCase):
         pdt.assert_frame_equal(known.view(pd.DataFrame), 
                               region3_map.view(pd.DataFrame))
 
-        region1_map.save(os.path.join(test_dir, 'region1-kmer-db.qza'))
-        region2_map.save(os.path.join(test_dir, 'region2-kmer-db.qza'))
-        region3_map.save(os.path.join(test_dir, 'region3-kmer-db.qza'))
-
         
         ### Regiomal Alignment
         align1 = sidle.align_regional_kmers(
@@ -369,16 +336,19 @@ class PluginSetupTest(TestCase):
         pdt.assert_frame_equal(align3.view(pd.DataFrame).sort_values(['kmer', 'asv']),
                                known.view(pd.DataFrame))
 
-        align1.save(os.path.join(test_dir, 'region1-align-map.qza'))
-        align2.save(os.path.join(test_dir, 'region2-align-map.qza'))
-        align3.save(os.path.join(test_dir, 'region3-align-map.qza'))
-
+        count1 = Artifact.load(os.path.join(data_dir, 'region1-counts.qza'))
+        count2 = Artifact.load(os.path.join(data_dir, 'region2-counts.qza'))
+        count3 = Artifact.load(os.path.join(data_dir, 'region3-counts.qza'))
 
         ### Reconstruction
         table, summary, map_ = sidle.reconstruct_counts(
-            manifest,
+            region=['1', '2', '3'],
+            kmer_map=[region1_map, region2_map, region3_map],
+            regional_alignment=[align1, align2, align3],
+            regional_table=[count1, count2, count3],
             debug=True,
-            # min_abund=1e-5,
+            min_counts=100,
+            min_abund=1e-5,
             count_degenerates=False,
         )
         known = \
@@ -396,8 +366,6 @@ class PluginSetupTest(TestCase):
         known = \
             Artifact.load(os.path.join(known_dir, 'sidle-reconstruction.qza'))
         pdt.assert_series_equal(known.view(pd.Series), map_.view(pd.Series))
-
-        shutil.rmtree(test_dir)
 
 
 

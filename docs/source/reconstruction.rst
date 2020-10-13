@@ -35,8 +35,7 @@ The first step in reconstruction is to perform per-region alignment between the 
      --i-kmers database/sidle-db-wonder-woman-100nt-kmers.qza \
      --i-rep-seq data/wonder-woman-100nt-rep-set.qza \
      --p-region WonderWoman \
-     --o-regional-alignment alignment/wonder-woman-align-map.qza \
-     --o-discarded-sequences alignment/wonder-woman-discarded-sequences.qza 
+     --o-regional-alignment alignment/wonder-woman-align-map.qza
 
 This will output an alignment file and any ASV sequences whcih wouldn't be aligned to the database, for your own record keeping.
 
@@ -56,15 +55,13 @@ Using the same parameters, you will need need to align the other two regions.
 	 --i-kmers database/sidle-db-batman-100nt-kmers.qza \
 	 --i-rep-seq data/batman-100nt-rep-set.qza \
 	 --p-region Batman \
-	 --o-regional-alignment alignment/batman-align-map.qza \
-	 --o-discarded-sequences alignment/batman-discarded-sequences.qza \
+	 --o-regional-alignment alignment/batman-align-map.qza
 
 	qiime sidle align-regional-kmers \
 	 --i-kmers alignment/region3-kmer-db.qza \
 	 --i-rep-seq table/region3-rep-seq.qza \
 	 --p-region Green-Lantern \
-	 --o-regional-alignment region3-align-map.qza \
-	 --o-discarded-sequences region3-discarded-sequences.qza
+	 --o-regional-alignment alignment/region3-align-map.qza
 
 Now, you have all three local alignments prepared, you’re ready to
 reconstruct your table.
@@ -74,52 +71,30 @@ Table Reconstruction
 
 The table is reconstucted in 3 parts. First, the regional fragments get re-assembled into complete database sequences. Then, the relative abundance of the pooled counts gets computed through an optimization process. Finally, the relative abundance is used to reconstruct table of counts.
 
-Manifest
-++++++++
-
-To do this, the function needs to bring together the regional pieces
-(database map, alignment, and table) to compute a pooled,
-region-normalized table. We map together regions using a manifest
-format, a tab-seperated (``\t``) file.
-
-Your manifest should contain five, case-sensitive columns:
-
--  **id** – a string naming the region **This must match the name given when you built the database and during kmer alignment**
--  **region-order** – a number that indicates the order in which the regions appear along the marker gene
--  **kmer-map** – the path to the mapping between original names in the database and the kmer sequences. This file is produced by the ``prepare-extracted-region`` command and should be semantic type ``FeatureData[KmerMap]``
--  **alignment-map** – the path to the mapping between the ASV name and database kmers. The file is produced by ``align-regional-kmers`` (we just produced 3!) and is of semantic type ``FeatureData[KmerAlignment]``
--  **frequency-table** – the path to the regional count table produced in denoising. This has a semantic type ``FeatureTable[Frequency]``
-
-The manifest is the only file that is absloutely required to perform
-reconstruction.
-
-**Note**
-
-   *The manifest format is specific to the current version. This will be
-   deepreicated shortly. However, a version that at least works is
-   probably better than a perfct implementation. So… stay tuned?*
-
-Let's look at an example::
-	
-	id			region-order kmer-map										alignment-map							frequency-table
-	WonderWoman		1		 database/sidle-db-wonder-woman-100nt-map.qza	alignment/wonder-woman-align-map.qza	data/wonder-woman-100nt-table.qza
-	GreenLantern	3		 database/sidle-db-green-lantern-100nt-map.qza	alignment/green-lantern-align-map.qza	data/green-lantern-100nt-table.qza
-	Batman			2		 database/sidle-db-batman-100nt-map.qza			alignment/batman-align-map.qza			data/batman-100nt-table.qza
-
-
 Parameters
 ++++++++++
 
-The ``max-mismatch`` and ``per-nucleotide-error`` are used to estimate the probability that a sequence that from the reference is actually a sequencing error or belongs to that sequence. The ``max-mismatch`` value used in reconstruction should match the alignment; by default this is 2 but you may choose to change it in alignmnent with your sequencing length. The authors of the method claim the error rate doesn’t matter; we refer interested reader to original paper’s supplemental material.
+**The ``max-mismatch`` and ``per-nucleotide-error`` are used to estimate the probability that a sequence that from the reference is actually a sequencing error or belongs to that sequence. The ``max-mismatch`` value used in reconstruction should match the alignment; by default this is 2 but you may choose to change it in alignmnent with your sequencing length. The authors of the method claim the error rate doesn’t matter; we refer interested reader to original paper’s supplemental material.
 
 The ``min-abundance`` determines the relative abundance of a database sequence to be excluded during optimization.
 
-Now, let’s reconstruct the table, using the default settings.
+Now, let’s reconstruct the table, using the default settings.**
 
 .. code-block:: shell
 	
     qiime sidle reconstruct-counts \
-     --m-manifest-file manifest.txt \
+     --p-region WonderWoman \
+      --i-kmer-map database/sidle-db-wonder-woman-100nt-map.qza \
+      --i-regional-alignment alignment/wonder-woman-align-map.qza \
+      --i-regional-table data/data/wonder-woman-100nt-table.qza \
+     --p-region Batman \
+      --i-kmer-map database/sidle-db-batman-100nt-map.qza \
+      --i-regional-alignment alignment/batman-align-map.qza \
+      --i-regional-table data/batman-100nt-table.qza \
+     --p-region Green-Lantern \
+      --i-kmer-map database/sidle-db-batman-100nt-map.qza \
+      --i-regional-alignment alignment/region3-align-map.qza \
+	  --i-regional-table data/green-lantern-100nt-table.qza \
      --o-reconstructed-table reconstruction/league_table.qza \
      --o-reconstruction-summary reconstruction/league_summary.qza \
      --o-reconstruction-map reconstruction/league_map.qza
@@ -221,10 +196,15 @@ So, our first step is to reconstruct the concensus fragments from sequences that
 .. code-block:: shell
 
     qiime sidle reconstruct-fragment-rep-seqs \
+    --p-region WonderWoman \
+      --i-regional-alignment alignment/wonder-woman-align-map.qza \
+     --p-region Batman \
+      --i-regional-alignment alignment/batman-align-map.qza \
+     --p-region Green-Lantern \
+      --i-regional-alignment alignment/region3-align-map.qza \
      --i-reconstruction-map reconstruction/league_map.qza \
      --i-reconstruction-summary reconstruction/league_summary.qza \
      --i-aligned-sequences database/sidle-db-aligned-sequences.qza \
-     --m-manifest-file manifest.txt \
      --o-representative-fragments reconstruction/league-rep-seq-fragments.qza
 
 We can then insert the sequences into the reference tree.

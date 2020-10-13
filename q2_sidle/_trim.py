@@ -7,9 +7,6 @@ import numpy as np
 import pandas as pd
 
 from q2_sidle._utils import (_setup_dask_client, 
-                             _convert_generator_to_seq_block,
-                             _convert_generator_to_delayed_seq_block, 
-                             _convert_seq_block_to_dna_fasta_format,
                              degen_reps,
                              )
 

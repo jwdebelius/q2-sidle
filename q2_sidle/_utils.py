@@ -99,7 +99,6 @@ def _setup_dask_client(debug=False, cluster_config=None, n_workers=1,
         client = Client(n_workers=n_workers, processes=True)
 
 
-
 def _convert_seq_block_to_dna_fasta_format(seqs):
     """
     Converts to a DNA fasta format
@@ -186,69 +185,6 @@ def _find_primer_start(seq_, primer, adj=1, prefix=''):
     else:
         return pd.Series({'%spos' % prefix: np.nan,
                           '%smis' % prefix: np.nan})
-
-
-def _check_manifest(manifest):
-    """
-    Makes sure that everything is in the manifest
-
-    Parameters
-    ---------
-    Manifest : qiime2.Metadata
-        A manifest file describing the relationship between regions and their
-        alignment mapping. The manifest must have at least three columns
-        (`kmer-map`, `alignment-map` and `frequency-table`) each of which
-        contains a unique filepath. 
-    """
-    manifest = manifest.to_dataframe()
-    cols = manifest.columns
-    if not (('kmer-map' in cols) & ('alignment-map' in cols) & 
-            ('frequency-table' in cols) & ('region-order' in cols)):
-        raise ValidationError('The manifest must contain the columns '
-                              'kmer-map, alignment-map and frequency-table.\n'
-                              'Please check the manifest and make sure all'
-                              ' column names are spelled correctly')
-    manifest = manifest[['kmer-map', 'alignment-map', 'frequency-table']]
-    if pd.isnull(manifest).any().any():
-        raise ValidationError('All regions must have a kmer-map, '
-                              'alignment-map and frequency-table. Please '
-                              'check and make sure that you have provided '
-                              'all the files you need')
-    if (len(manifest.values.flatten()) != 
-            len(np.unique(manifest.values.flatten()))):
-        raise ValidationError('All paths in the manifest must be unique.'
-                             ' Please check your filepaths')
-    if not np.all([os.path.exists(fp_) for fp_ in manifest.values.flatten()]):
-        raise ValidationError('All the paths in the manifest must exist.'
-                             ' Please check your filepaths')
-    if not np.all([os.path.isfile(fp_) for fp_ in manifest.values.flatten()]):
-        raise ValidationError('All the paths in the manifest must be files.'
-                             ' Please check your filepaths')
-
-
-def _read_manifest_files(manifest, dataset, semantic_type=None, view=None):
-    """
-    Extracts files from the manifest and turns them into a list of objects
-    for analysis
-    """
-    paths = manifest.get_column(dataset).to_series()
-    artifacts = [Artifact.load(path) for path in paths]
-    if semantic_type is not None:
-        type_check = np.array([str(a.type) == semantic_type 
-                               for a in artifacts])
-        if not np.all(type_check):
-            err_ = '\n'.join([
-                'Not all %s Artifacts are of the %s semantic type.' 
-                    % (dataset.replace('-', ' '),   semantic_type),
-                'Please review semantic types for these regions:',
-                '\n'.join(paths.index[type_check == False])
-                ])
-            raise TypeError(err_)
-    if view is not None:
-        return [a.view(view) for a in artifacts]
-    else:
-        return artifacts
-
 
 
 database_params = {

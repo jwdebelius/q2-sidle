@@ -13,20 +13,18 @@ import pandas as pd
 from qiime2 import Metadata, Artifact
 from qiime2.plugin import ValidationError
 from q2_sidle._utils import (_setup_dask_client, 
-                             _convert_generator_to_seq_block,
-                             _convert_generator_to_delayed_seq_block, 
-                             _convert_seq_block_to_dna_fasta_format,
-                             _check_manifest,
                              degen_reps,
-                             _read_manifest_files
                              )
 
 def reconstruct_counts(
-    manifest: Metadata,
+    region: str,
+    regional_alignment: pd.DataFrame,
+    kmer_map: pd.DataFrame,
+    regional_table: pd.DataFrame,
     count_degenerates: bool=True,
     per_nucleotide_error: float=0.005,
     min_abund: float=1e-5,
-    region_normalize: bool=True,
+    region_normalize: str='average',
     block_size : int=10000,
     min_counts: int=1000,
     debug: bool=False, 
@@ -56,6 +54,15 @@ def reconstruct_counts(
         reconstruction. The default from the original smurf algorithm is '
           '1e-10, the number here may depend on the total number of '
           'sequences in your sample.
+    region_normalize: str ('average', 'weighted', 'unweighted')
+        Controls the behavior of count normalization by region. When 
+        `region_normalize="average"`, the depth will be the average depth
+        over all regions. When "weight" is used, the depth will correspond to
+        all sequneces with a coverage normalization factor. So, there are 2 regions
+        with 1000 sequences each, "average" will give a total count of 1000 and 
+        "weight" will give a total count of 2000. "unweighted" will ignore
+        the regional normalization in the abundance calculation and is preferable
+        for meta analysis.
     debug: bool
         Whether the function should be run in debug mode (without a client)
         or not. `debug` superceeds all options
@@ -84,13 +91,7 @@ def reconstruct_counts(
     _setup_dask_client(debug=debug, cluster_config=None,  
                        n_workers=n_workers, address=client_address)
 
-    # Checks the manifest
-    _check_manifest(manifest)
-    
-    # Gets the order of the regions
-    region_order = \
-        manifest.get_column('region-order').to_series().astype(int)
-    region_order = region_order - region_order.min()
+    region_order = {region: i for i, region in enumerate(region)}
     region_names = {i: r for r, i in region_order.items()}
     num_regions = len(region_order)
 
@@ -98,9 +99,7 @@ def reconstruct_counts(
     align_map = pd.concat(
         axis=0, 
         sort=False, 
-        objs=_read_manifest_files(manifest, 'alignment-map', 
-                                  'FeatureData[KmerAlignment]', pd.DataFrame)
-        )
+        objs=regional_alignment)
     align_map.replace({'region': region_order}, inplace=True)
     kmers = _get_unique_kmers(align_map['kmer'])
 
@@ -113,8 +112,7 @@ def reconstruct_counts(
     # just gets memory intensive and slow
     kmer_map = pd.concat(
         axis=0,
-        objs=_read_manifest_files(manifest, 'kmer-map', 
-                                 'FeatureData[KmerMap]', pd.DataFrame)
+        objs=kmer_map,
     )
     kmer_map['region'] = kmer_map['region'].replace(region_order)    
     kmer_map = kmer_map.loc[kmers]
@@ -138,7 +136,7 @@ def reconstruct_counts(
     db_summary = _count_mapping(kmer_map.reset_index(), 
                                 count_degenerates, 
                                 kmer='seq-name')
-    if region_normalize == False:
+    if region_normalize == 'unweighted':
         db_summary['num-regions'] = 1
 
     print('Database map summarized')
@@ -150,18 +148,14 @@ def reconstruct_counts(
                                     nucleotide_error=per_nucleotide_error, 
                                     blocksize=block_size,
                                     )
-    if align_mat['norm'].isna().any():
-        raise ValueError('normalization cannot be found!')
     print('Alignment map constructed')
     
     ### Solves the relative abundance
     counts = pd.concat(
         axis=1, 
         sort=False, 
-        objs=_read_manifest_files(manifest, 'frequency-table', 
-                                 'FeatureTable[Frequency]', pd.DataFrame)).T
+        objs=regional_table).T
     counts.fillna(0, inplace=True)
-    
 
     # We have to account for the fact that some of hte ASVs may have been 
     # discarded because they didn't meet the match parameters we've set or 
@@ -210,6 +204,8 @@ def reconstruct_counts(
     count_table = _scale_relative_abundance(align_mat=align_mat,
                                             relative=rel_abund,
                                             counts=counts,
+                                            region_normalize=region_normalize,
+                                            num_regions=num_regions,
                                             seq_summary=db_summary)
     count_table = count_table.filter(lambda v, id_,  md: v.sum() > 0,  
                                      axis='observation')
@@ -519,7 +515,8 @@ def _get_unique_kmers(series):
 
 
 def _scale_relative_abundance(align_mat, relative, counts, seq_summary,
-    seq_name='clean_name', asv_name='asv'):
+    num_regions, region_normalize='average', seq_name='clean_name', 
+    asv_name='asv'):
     """
     Scales the relative abundance data to give sequence count data
     Parameters
@@ -617,11 +614,24 @@ def _scale_relative_abundance(align_mat, relative, counts, seq_summary,
     scaled_counts.add_metadata(
         seq_summary[['num-regions']].to_dict(orient='index'),
         axis='observation')
-    scaled_counts.transform(
-        lambda v, id_, md: np.round(v / md['num-regions'], 0),
-        axis='observation',
-        inplace=True
-        )
+    if region_normalize == 'average':
+        scaled_counts.transform(
+            lambda v, id_, md: np.round(v / md['num-regions'], 0),
+            axis='observation',
+            inplace=True
+            )
+    elif region_normalize == 'weighted':
+        scaled_counts.transform(
+            lambda v, id_, md: np.round(v * num_regions / md['num-regions'], 0),
+            axis='observation',
+            inplace=True
+            )
+    else:
+        scaled_counts.transform(
+            lambda v, id_, md: np.round(v, 0),
+            axis='observation',
+            inplace=True
+            )
 
     return scaled_counts
 

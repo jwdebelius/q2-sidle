@@ -8,18 +8,15 @@ from skbio.alignment import local_pairwise_align_ssw
 
 from qiime2 import Metadata
 from q2_feature_classifier._cutter import (_local_aln)
-from q2_sidle._utils import (_setup_dask_client, 
-                             _check_manifest,
-                             _read_manifest_files,
-                             degen_sub,
-                             )
+from q2_sidle._utils import (degen_sub)
 
 
 def reconstruct_fragment_rep_seqs(
+    region: str,
+    kmer_map: pd.DataFrame,
     reconstruction_map: pd.Series, 
     reconstruction_summary:pd.DataFrame,
     aligned_sequences:pd.Series,
-    manifest:Metadata,
     ) -> pd.Series:
     """
     Assembles fragments from assemblies that include multiple sequences
@@ -67,10 +64,10 @@ def reconstruct_fragment_rep_seqs(
         sequence alignment
 
     """
-    # Checks the  manifest
-    _check_manifest(manifest)
-    region_order = manifest.get_column('region-order').to_series().astype(int)
+    # Gets the regional order
+    region_order = {region: i for i, region in enumerate(region)}
     region_names = {i: r for r, i in region_order.items()}
+    num_regions = len(region_order)
 
     # Gets the total number of database sequences mapped in the summary
     reconstruction_summary['num_seqs_mapped'] = \
@@ -88,13 +85,12 @@ def reconstruct_fragment_rep_seqs(
     # Loads the mapping of the regional kmers, adds. the clean name
     # and tidies the information
     kmer_map = pd.concat(
-        axis=0, 
-        sort=False,
-        objs=_read_manifest_files(manifest, 'kmer-map', 
-                                 'FeatureData[KmerMap]', pd.DataFrame)
-        )
-    kmer_map = kmer_map.loc[reconstruction_map.index].copy()
+        axis=0,
+        objs=kmer_map,
+    )
     kmer_map['clean_name'] = reconstruction_map
+
+    kmer_map.dropna(subset=['clean_name'], axis=0, inplace=True)
     kmer_map.replace({'region': region_order}, inplace=True)
     kmer_map.reset_index(inplace=True)
     kmer_map['kmer-length'] = kmer_map['kmer-length'].astype(int)
@@ -149,8 +145,9 @@ def reconstruct_fragment_rep_seqs(
     # match go
     missing_start = concensus_map['start'].isna()
     concensus_map.loc[missing_start, 'start'] = \
-    concensus_map.loc[missing_start, ['sequence', 'fwd-primer']].apply(
-        _find_approx_forward, axis=1)
+        concensus_map.loc[missing_start, ['sequence', 'fwd-primer']].apply(
+        _find_approx_forward, axis=1
+    )
 
     # Adds the kmer offset
     concensus_map['start_off'] = \
@@ -158,6 +155,7 @@ def reconstruct_fragment_rep_seqs(
 
     # Finds the most extreme positions based on the overlapping positions at
     # each region
+
     concensus_map['fwd-pos'] = \
         concensus_map[['start', 'start_off']].min(axis=1)
     concensus_map['rev-pos'] = \

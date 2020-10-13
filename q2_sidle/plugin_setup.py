@@ -230,6 +230,9 @@ plugin.methods.register_function(
                  ' and reconstructs them into a single table with region-'
                  'normalized abundance counts.'),
     inputs={
+        'regional_alignment': List[FeatureData[KmerAlignment]],
+        'kmer_map': List[FeatureData[KmerMap]],
+        'regional_table': List[FeatureTable[Frequency]],
     },
     outputs=[
         ('reconstructed_table', FeatureTable[Frequency]),
@@ -237,16 +240,29 @@ plugin.methods.register_function(
         ('reconstruction_map', FeatureData[SidleReconstruction])
     ],
     parameters={
-        'manifest': Metadata,
+        'region': List[Str],
         'per_nucleotide_error': Float % Range(0, 1),
         'min_abund': Float % Range(0, 1),
         'count_degenerates': Bool,
-        'region_normalize': Bool,
+        'region_normalize': Str % Choices('average', 'weighted', 'unweighted'),
         'min_counts': Int % Range(0, None),
         'block_size': Int,
         'n_workers': Int % Range(0, None),
         'client_address': Str,
         'debug': Bool,
+    },
+    input_descriptions={
+        'regional_alignment': ('A mapping between the kmer names (in the kmer'
+                               ' map) and the features (found in the regional'
+                               ' table)'),
+        'kmer_map': ('A mapping relationship between the name of the '
+                     'sequence in the database and the kmer identifier used'
+                     ' in this region. The kmer map should correspond to the '
+                     'kmers used in regional alignmeent'),
+        'regional_table': ('A feature-table for each region, where  the '
+                           'features in the table correspond to the ASVs '
+                           'which were aligned in the regional alignment '
+                           'artifact')
     },
     output_descriptions={
         'reconstructed_table': ('The feature table with the reconstructed '
@@ -265,15 +281,9 @@ plugin.methods.register_function(
                                'reconstructing taxonomy and trees.'),
     },
     parameter_descriptions={
-        'manifest': ('A tab-seperaated text file which describes the location'
-                     ' of the regional kmer to database mapping, the kmer '
-                     'alignment map, and the regional ASV table. The file '
-                     'should start with an `id` column that contains the '
-                     'regional names, then there should be a `kmer-map` '
-                     'column with the kmer-database map, then '
-                     '`alignment-map`, whcih maps the ASVs to the regional '
-                     'kmers, and finally, `frequency-table`, which gives '
-                     'the regional ASV tables.'),
+        'region': ('The name of the sub region used in alignment. The region'
+                   ' names do not matter, however, the region order must '
+                   'match the order along the hypervariable region.'),
         'count_degenerates': ("Whether sequences which contain degenerate "
                               "nucleotides should be counted as unqiue kmers"
                               " or whether the number of original database "
@@ -430,6 +440,7 @@ plugin.methods.register_function(
                  'regions covered between the amplicons'
                  ),
     inputs={
+        'kmer_map': List[FeatureData[KmerMap]],
         'reconstruction_summary': FeatureData[ReconstructionSummary],
         'reconstruction_map': FeatureData[SidleReconstruction],
         'aligned_sequences': FeatureData[AlignedSequence]
@@ -438,9 +449,13 @@ plugin.methods.register_function(
         ('representative_fragments', FeatureData[Sequence]),
     ],
     parameters={
-        'manifest': Metadata,
+        'region': List[Str],
     },
     input_descriptions={
+        'kmer_map': ('A mapping relationship between the name of the '
+                     'sequence in the database and the kmer identifier used'
+                     ' in this region. The kmer map should correspond to the '
+                     'kmers used in regional alignment'),
         'reconstruction_summary': ('A summary of the statitics for the '
                                    'regional map describing the number of '
                                    'regions mapped to each reference sequence'
@@ -461,15 +476,10 @@ plugin.methods.register_function(
                                      'to be used for fragment insertion')
     },
     parameter_descriptions={
-        'manifest': ('A tab-seperaated text file which describes the location'
-                     ' of the regional kmer to database mapping, the kmer '
-                     'alignment map, and the regional ASV table. The file '
-                     'should start with an `id` column that contains the '
-                     'regional names, then there should be a `kmer-map` '
-                     'column with the kmer-database map, then '
-                     '`alignment-map`, whcih maps the ASVs to the regional '
-                     'kmers, and finally, `frequency-table`, which gives the'
-                     ' regional ASV tables.'),
+        'region': ('The name of the sub region used in alignment. The region'
+                   ' names do not matter, however, the region order must '
+                   'match the order along the hypervariable region.'),
+
     }
 )
 

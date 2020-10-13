@@ -14,9 +14,6 @@ from q2_sidle._formats import KmerAlignFormat
 from q2_feature_classifier._skl import _chunks
 
 from q2_sidle._utils import (_setup_dask_client, 
-                             _convert_generator_to_seq_block,
-                             _convert_generator_to_delayed_seq_block, 
-                             _convert_seq_block_to_dna_fasta_format,
                              degen_sub2
                              )
 

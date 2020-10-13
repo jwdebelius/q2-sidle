@@ -34,6 +34,10 @@ class TreeTest(TestCase):
             'seq04': DNA('------------------GGAGTTATGATGA--AGACCACCTCGTCCCAGTTCCGCGCTTCTGACGTGCAC'),
             'seq05': DNA('CATAGTCATCGTTTATGTATGCCCATGATGATGCGAGCACCTCGTATGGATGTAGAGCCACTGACGTGCGG'),
         })
+        kmer1 = Artifact.load(os.path.join(self.base_dir, 'frag_r1_db_map.qza'))
+        kmer2 = Artifact.load(os.path.join(self.base_dir, 'frag_r2_db_map.qza'))
+        self.kmer_map1 = kmer1.view(pd.DataFrame)
+        self.kmer_map2 = kmer2.view(pd.DataFrame)
         np.random.seed(5)
 
     def test_reconstruct_fragment_rep_seqs(self):
@@ -44,6 +48,7 @@ class TreeTest(TestCase):
                             name='db-seq'),
             name='clean_name'
             )
+
         recon_summary = pd.DataFrame(
             data=[[1, 2, 2, 0, 'asv01|asv02'],
                   [2, 3, 1.5, np.std([1, 2], ddof=1), 'asv03|asv04'],
@@ -54,27 +59,16 @@ class TreeTest(TestCase):
                      'mean-kmer-per-region', 'stdv-kmer-per-region', 
                      'mapped-asvs'],
             )
-        manifest = Metadata(pd.DataFrame(
-            data=[[os.path.join(self.base_dir, 'frag_r1_db_map.qza'),
-                   os.path.join(self.base_dir, 'region1_align.qza'),
-                   os.path.join(self.base_dir, 'region1_counts.qza'), 0],
-                  [os.path.join(self.base_dir, 'frag_r2_db_map.qza'),
-                   os.path.join(self.base_dir, 'region2_align.qza'),
-                   os.path.join(self.base_dir, 'region2_counts.qza'), 1]],
-            columns=['kmer-map', 'alignment-map', 'frequency-table', 
-                     'region-order'],
-            index=pd.Index(['Gotham', 'Bludhaven'], name='id')
-        ))
-
         known = pd.Series(
             data=['GCGAAGCGGCTCAGG',
                   'WTCCGCGTTGGAGTTATGATGATGAGACCACCTCGTCCCAGTTCCGCGCTTC'],
             index=pd.Index(['seq01|seq02', 'seq03|seq04'], name='clean_name'),
             )
         test = reconstruct_fragment_rep_seqs(
+            region=['Bludhaven', 'Gotham'],
+            kmer_map=[self.kmer_map1, self.kmer_map2],
             reconstruction_map=recon_map,
             reconstruction_summary=recon_summary,
-            manifest=manifest,
             aligned_sequences=self.aligned_seqs,
             )
         pdt.assert_series_equal(test.view(pd.Series).astype(str), known)
