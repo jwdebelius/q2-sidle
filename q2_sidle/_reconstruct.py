@@ -100,6 +100,7 @@ def reconstruct_counts(
         axis=0, 
         sort=False, 
         objs=regional_alignment)
+    align_map.drop_duplicates(['asv', 'kmer'], inplace=True)
     align_map.replace({'region': region_order}, inplace=True)
     kmers = _get_unique_kmers(align_map['kmer'])
 
