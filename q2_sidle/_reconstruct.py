@@ -91,7 +91,7 @@ def reconstruct_counts(
     _setup_dask_client(debug=debug, cluster_config=None,  
                        n_workers=n_workers, address=client_address)
 
-    region = region.unique()
+    region = np.unique(region)
     region_order = {region: i for i, region in enumerate(region)}
     region_names = {i: r for r, i in region_order.items()}
     num_regions = len(region_order)
