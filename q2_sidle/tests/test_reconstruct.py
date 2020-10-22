@@ -185,6 +185,7 @@ class ReconstructTest(TestCase):
                      'region-order'],
             index=pd.Index(['Bludhaven', 'Gotham'], name='id')
             ))
+
     def test_reconstruct_counts(self):
         known_map = pd.DataFrame(
             data=[['seq1', 'WANTCAT', 'CACCTCGTN', 15],
@@ -246,8 +247,8 @@ class ReconstructTest(TestCase):
                                   ts.region2_align.view(pd.DataFrame).copy()],
               kmer_map=[ts.region1_db_map.view(pd.DataFrame).copy(), 
                         ts.region2_db_map.view(pd.DataFrame).copy()],
-              regional_table=[ts.region1_counts.view(pd.DataFrame).copy(),
-                              ts.region2_counts.view(pd.DataFrame).copy()],
+              regional_table=[ts.region1_counts.view(biom.Table),
+                              ts.region2_counts.view(biom.Table)],
               debug=True, 
               min_counts=10,
               min_abund=1e-2)
@@ -327,8 +328,8 @@ class ReconstructTest(TestCase):
                                 ts.region2_align.view(pd.DataFrame).copy()],
             kmer_map=[ts.region1_db_map.view(pd.DataFrame).copy(), 
                       ts.region2_db_map.view(pd.DataFrame).copy()],
-            regional_table=[ts.region1_counts.view(pd.DataFrame).copy(),
-                            ts.region2_counts.view(pd.DataFrame).copy()],
+            regional_table=[ts.region1_counts.view(biom.Table).copy(),
+                            ts.region2_counts.view(biom.Table).copy()],
             debug=True, 
             min_counts=10,
             min_abund=1e-2, 
@@ -351,7 +352,7 @@ class ReconstructTest(TestCase):
         pdt.assert_frame_equal(known_map, mapping)
         pdt.assert_frame_equal(known_summary, summary.to_dataframe())
 
-    def test_reconstruct_align_drop_samples_error(self):
+    def test_reconstruct_counts_align_drop_samples_error(self):
         with self.assertRaises(ValueError) as err:
             count_table, summary, mapping = reconstruct_counts(
                 region=['Bludhaven', 'Gotham'],
@@ -359,8 +360,8 @@ class ReconstructTest(TestCase):
                                     ts.region2_align.view(pd.DataFrame).copy()],
                 kmer_map=[ts.region1_db_map.view(pd.DataFrame).copy(), 
                           ts.region2_db_map.view(pd.DataFrame).copy()],
-                regional_table=[ts.region1_counts.view(pd.DataFrame).copy(),
-                                ts.region2_counts.view(pd.DataFrame).copy()],
+                regional_table=[ts.region1_counts.view(biom.Table).copy(),
+                                ts.region2_counts.view(biom.Table).copy()],
                 debug=True, 
                 min_abund=1e-2
                 )
@@ -370,7 +371,7 @@ class ReconstructTest(TestCase):
             'sequences required for reconstruction.' 
             )
 
-    def test_reconstruct_align_drop_samples_warning(self):
+    def test_reconstruct_counts_align_drop_samples_warning(self):
         with warnings.catch_warnings(record=True) as w:
             count_table, summary, mapping = reconstruct_counts(
                 region=['Bludhaven', 'Gotham'],
@@ -378,15 +379,14 @@ class ReconstructTest(TestCase):
                                     ts.region2_align.view(pd.DataFrame).copy()],
                 kmer_map=[ts.region1_db_map.view(pd.DataFrame).copy(), 
                           ts.region2_db_map.view(pd.DataFrame).copy()],
-                regional_table=[ts.region1_counts.view(pd.DataFrame).copy(),
-                                ts.region2_counts.view(pd.DataFrame).copy()],
+                regional_table=[ts.region1_counts.view(biom.Table).copy(),
+                                ts.region2_counts.view(biom.Table).copy()],
                 debug=True, 
                 min_counts=590,
                 min_abund=1e-2
                 )
-        self.assertEqual(len(w), 1)  
-        self.assertTrue(issubclass(w[0].category, UserWarning))
-        self.assertEqual(str(w[0].message), 
+        self.assertTrue(issubclass(w[-1].category, UserWarning))
+        self.assertEqual(str(w[-1].message), 
                          'There are 2 samples with fewer than 590 '
                          'total reads. These samples will be discarded.')
 

@@ -20,7 +20,7 @@ def reconstruct_counts(
     region: str,
     regional_alignment: pd.DataFrame,
     kmer_map: pd.DataFrame,
-    regional_table: pd.DataFrame,
+    regional_table: biom.Table,
     count_degenerates: bool=True,
     per_nucleotide_error: float=0.005,
     min_abund: float=1e-5,
@@ -154,10 +154,16 @@ def reconstruct_counts(
     print('Alignment map constructed')
     
     ### Solves the relative abundance
-    counts = pd.concat(
-        axis=1, 
-        sort=False, 
-        objs=regional_table).T
+    counts = regional_table[0]
+    if len(regional_table) > 1:
+        for table_ in regional_table[1:]:
+            counts = counts.merge(table_)
+
+    counts = pd.DataFrame(
+        counts.matrix_data.toarray(),
+        index=counts.ids(axis='observation'),
+        columns=counts.ids(axis='sample'),
+    )
     counts.fillna(0, inplace=True)
 
     # We have to account for the fact that some of hte ASVs may have been 
