@@ -27,7 +27,7 @@ from q2_sidle import (KmerMap,
                       )
 import q2_sidle
 
-# citations = Citations.load('citations.bib', package='q2_sidle')
+citations = Citations.load('citations.bib', package='q2_sidle')
 
 plugin = Plugin(
     name='sidle',
@@ -37,7 +37,7 @@ plugin = Plugin(
     description=('This plugin reconstructs a full 16s sequence from short '
                  'reads over a marker gene region using the Short MUltiple '
                  'Read Framework (SMURF) algorithm'),
-    short_description='Plugin for taxonomic classification.',
+    short_description='Plugin for kmer-based marker gene reconstruction.',
 )
 
 plugin.methods.register_function(
@@ -155,7 +155,7 @@ plugin.methods.register_function(
                            'https://distributed.dask.org/en/latest/client.html'
                            ),
     },
-    # citations=[citations['Fuks2018']],
+    citations=[citations['Fuks2018']],
 
 )
 
@@ -194,8 +194,6 @@ plugin.methods.register_function(
     output_descriptions={
         'regional_alignment': ('A mapping between the database kmer name and'
                                ' the asv'),
-        # 'discarded_sequences': ('The sequences which could not be aligned to'
-        #                         ' the database at the matching threshhold.'),
     },
      parameter_descriptions={
         'region': ('A unique description of the hypervariable region being '
@@ -219,7 +217,7 @@ plugin.methods.register_function(
         'debug': ('Whether the function should be run in debug mode (without '
                   'a client) or not. `debug` superceeds all options'),
     },
-    # citations=[citations['Fuks2018']],
+    citations=[citations['Fuks2018']],
 )
 
 
@@ -319,7 +317,7 @@ plugin.methods.register_function(
         'debug': ('Whether the function should be run in debug mode (without '
                   'a client) or not. `debug` superceeds all options'),
     },
-    # citations=[citations['Fuks2018']],
+    citations=[citations['Fuks2018']],
 )
 
 
@@ -373,7 +371,7 @@ plugin.methods.register_function(
                                'should be treated as missing values '
                                '(`"missing`") or ignored (`"ignore"`)')
     },
-    # citations=[citations['Fuks2018']],
+    citations=[citations['Fuks2018']],
 )
 
 
