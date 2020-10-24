@@ -23,8 +23,9 @@ setup(name='q2-sidle',
       url=__url__,
       # packages=find_packages(),       
       packages=['q2_sidle', 'q2_sidle.tests'],
-      package_data={'q2_sidle': ['citations.bib'],
-                    }
+      package_data={
+            'q2_sidle': ['citations.bib'],
+       },
        entry_points={
         'qiime2.plugins':
         ['q2-sidle=q2_sidle.plugin_setup:plugin']
