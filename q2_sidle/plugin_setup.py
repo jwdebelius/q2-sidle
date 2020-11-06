@@ -27,7 +27,7 @@ from q2_sidle import (KmerMap,
                       )
 import q2_sidle
 
-# citations = Citations.load('citations.bib', package='q2_sidle')
+citations = Citations.load('citations.bib', package='q2_sidle')
 
 plugin = Plugin(
     name='sidle',
@@ -155,7 +155,7 @@ plugin.methods.register_function(
                            'https://distributed.dask.org/en/latest/client.html'
                            ),
     },
-    # citations=[citations['Fuks2018']],
+    citations=[citations['Fuks2018']],
 
 )
 
@@ -217,7 +217,7 @@ plugin.methods.register_function(
         'debug': ('Whether the function should be run in debug mode (without '
                   'a client) or not. `debug` superceeds all options'),
     },
-    # citations=[citations['Fuks2018']],
+    citations=[citations['Fuks2018']],
 )
 
 
@@ -317,7 +317,7 @@ plugin.methods.register_function(
         'debug': ('Whether the function should be run in debug mode (without '
                   'a client) or not. `debug` superceeds all options'),
     },
-    # citations=[citations['Fuks2018']],
+    citations=[citations['Fuks2018']],
 )
 
 
@@ -371,7 +371,7 @@ plugin.methods.register_function(
                                'should be treated as missing values '
                                '(`"missing`") or ignored (`"ignore"`)')
     },
-    # citations=[citations['Fuks2018']],
+    citations=[citations['Fuks2018']],
 )
 
 

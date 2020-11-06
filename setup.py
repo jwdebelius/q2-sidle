@@ -10,7 +10,7 @@ __license__ = "BSD-3-Clause"
 __version__ = "2020.8-dev"
 __maintainer__ = "Justine Debelius"
 __email__ = "j.debelius@gmail.com"
-
+__url__ = "https://q2-sidle.readthedocs.io/en/latest/index.html"
 
 setup(name='q2-sidle',
       version=__version__,
@@ -20,18 +20,16 @@ setup(name='q2-sidle',
       author_email=__email__,
       maintainer=__maintainer__,
       maintainer_email=__email__,
+      url=__url__,
       # packages=find_packages(),       
       packages=['q2_sidle', 'q2_sidle.tests'],
-      # modules=['py_smurf.cli'],
-      # url=,
+      package_data={
+            'q2_sidle': ['citations.bib'],
+       },
        entry_points={
         'qiime2.plugins':
         ['q2-sidle=q2_sidle.plugin_setup:plugin']
       },
-      # entry_points="""
-      #     [console_scripts]
-      #     sidle=sidle.cli:cli
-      # """,
       install_requires=['biom-format >= 2.1.6',
                         'pandas < 1.0',
                         'dask >= 2.0',

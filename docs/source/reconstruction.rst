@@ -74,7 +74,7 @@ The table is reconstucted in 3 parts. First, the regional fragments get re-assem
 Parameters
 ++++++++++
 
-**The ``max-mismatch`` and ``per-nucleotide-error`` are used to estimate the probability that a sequence that from the reference is actually a sequencing error or belongs to that sequence. The ``max-mismatch`` value used in reconstruction should match the alignment; by default this is 2 but you may choose to change it in alignmnent with your sequencing length. The authors of the method claim the error rate doesn’t matter; we refer interested reader to original paper’s supplemental material.
+The ``max-mismatch`` and ``per-nucleotide-error`` are used to estimate the probability that a sequence that from the reference is actually a sequencing error or belongs to that sequence. The ``max-mismatch`` value used in reconstruction should match the alignment; by default this is 2 but you may choose to change it in alignmnent with your sequencing length. The authors of the method claim the error rate doesn’t matter; we refer interested reader to original paper’s supplemental material.
 
 The ``min-abundance`` determines the relative abundance of a database sequence to be excluded during optimization.
 
