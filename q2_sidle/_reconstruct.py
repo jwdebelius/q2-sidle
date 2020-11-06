@@ -92,7 +92,7 @@ def reconstruct_counts(
                        n_workers=n_workers, address=client_address)
 
     region, region_idx = np.unique(region, return_index=True)
-    region_order = {region: i for i, region in zip*((region_idx, region))}
+    region_order = {region: i for (i, region) in zip(*(region_idx, region))}
     region_names = {i: r for r, i in region_order.items()}
     num_regions = len(region_order)
 
@@ -118,7 +118,9 @@ def reconstruct_counts(
     )
     kmer_map['region'] = kmer_map['region'].replace(region_order)    
     kmer_map = kmer_map.loc[kmers]
+    kmer_map.reset_index(inplace=True)
     kmer_map.drop_duplicates(inplace=True)
+    kmer_map.set_index('db-seq', inplace=True)
 
     print('Regional Kmers Loaded')
 
