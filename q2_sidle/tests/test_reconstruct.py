@@ -390,6 +390,75 @@ class ReconstructTest(TestCase):
                          'There are 2 samples with fewer than 590 '
                          'total reads. These samples will be discarded.')
 
+    def test_reconstruct_counts_same_twice(self):
+        known_map = pd.DataFrame(
+            data=[['seq1|seq2', 'WANTCAT', 'WANTCAT', 15],
+                  ['seq1|seq2', 'WANTCAT', 'WANTCAT', 15],
+                  ['seq3', 'WANTCAT', 'WANTCAT', 15],
+                  ['seq5', 'WANTCAT', 'WANTCAT', 15],
+                  ['seq6', 'WANTCAT', 'WANTCAT', 15]],
+            index=pd.Index(['seq1', 'seq2', 'seq3', 'seq5', 'seq6'], 
+                            name='db-seq'),
+            columns=['clean_name', 'first-fwd-primer', 'last-fwd-primer', 
+                     'last-kmer-length'],
+            )
+        known_summary = pd.DataFrame.from_dict(orient='index', data={
+            'seq1|seq2': {'num-regions': 1., 
+                          'total-kmers-mapped': 2., 
+                          'mean-kmer-per-region': 2.,
+                          'stdv-kmer-per-region': 0.,
+                          'mapped-asvs': 'asv01'
+                    },
+            'seq3': {'num-regions': 1, 
+                     'total-kmers-mapped': 2, 
+                     'mean-kmer-per-region': 2,
+                     'stdv-kmer-per-region': 0,
+                     'mapped-asvs': 'asv02|asv03'
+                    },
+            'seq5': {'num-regions': 1, 
+                     'total-kmers-mapped': 1, 
+                     'mean-kmer-per-region': 1,
+                     'stdv-kmer-per-region': 0,
+                     'mapped-asvs': 'asv04|asv05',
+                    },
+            'seq6': {'num-regions': 1, 
+                     'total-kmers-mapped': 1, 
+                     'mean-kmer-per-region': 1,
+                     'stdv-kmer-per-region': 0,
+                     'mapped-asvs': 'asv04|asv05',
+                    },
+            })
+        known_summary.index.set_names('feature-id', inplace=True)
+        count_table, summary, mapping =reconstruct_counts(
+            region=['Bludhaven', 'Bludhaven'],
+            regional_alignment=[ts.region1_align.view(pd.DataFrame).copy(), 
+                                ts.region1_align.view(pd.DataFrame).copy()],
+            kmer_map=[ts.region1_db_map.view(pd.DataFrame).copy(), 
+                      ts.region1_db_map.view(pd.DataFrame).copy()],
+            regional_table=[ts.region1_counts.view(biom.Table).copy()],
+            debug=True, 
+            min_counts=10,
+            min_abund=1e-2, 
+            region_normalize='unweighted'
+            )
+        npt.assert_array_equal(
+            np.array(list(count_table.ids(axis='sample'))),
+            np.array(['sample1', 'sample2', 'sample3'])
+        )
+        npt.assert_array_equal(
+            np.array(list(count_table.ids(axis='observation'))),
+            np.array(['seq1|seq2', 'seq3', 'seq5', 'seq6']),
+        )
+        npt.assert_array_equal(
+            count_table.matrix_data.todense(),
+            np.array([[150,   0,  50, 50],
+                      [125, 100,  25, 25],
+                      [100, 100,  50, 50]]).T * 1.,
+           )
+        pdt.assert_frame_equal(mapping, known_map)
+        pdt.assert_frame_equal(summary.to_dataframe(), 
+                               known_summary)
+
     def test_construct_align_mat(self):
         sequence_map = pd.Series({'seq1': 'seq1',
                                   'seq2': 'seq2',
