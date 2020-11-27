@@ -1,7 +1,7 @@
 Database Preparation
 ====================
 
-If you do not already have a database for reconstruction, you will need to prepare your own. (We recommend checking the Resources page to see if you can find one that suits your needs already.) Database preparation will only need to be done once for each database, primer pair and kmer length, since the reference files can  be reused.
+If you do not already have a database for reconstruction, you will need to prepare your own. (We recommend checking the Resources page to see if you can find one that suits your needs already.) Database preparation will only need to be done once for each database, primer pair and k-mer length, since the reference files can  be reused.
 
 
 You will need:
@@ -29,16 +29,16 @@ Let's start by checking the number of sequences in the original dataset. We can 
      --i-data sidle-db-full-sequences.qza \
      --o-visualization sidle-db-full-sequences.qzv
 
-You can view the artifact using `qiime2 view`_. You should find that there are 5647 squences when you check  the data.
+You can view the artifact using `qiime2 view`_. You should find that there are 5649 sequences when you check  the data.
 
 Filtering the Database
 ----------------------
 
 Database preparation can optionally begin by filtering the database to remove sequences with too many degenerate nucleotides or with taxonomic assignments that will not be used. 
 
-Degenerate filtering limits memory consumption throughout. The authors of SMURF [[1]_] recommend filtering the database to remove sequences with more than 3 degenerate nucleotides. This represents about X% of the greengenes 13_8 database at 99% [[2]_] specificity about Y% of the Silva 138 database [[3]_]. Increasing the number of allowed degenerates (the ``--p-max-degen`` parameter) will allow more sequences through the filter, and may mean more matches in downstream alignment. However, this comes at a substantial increase in the run time and memory needed, since degenerate sequences have to be expanded.
+Degenerate filtering limits memory consumption throughout. The authors of SMURF [1]_ recommend filtering the database to remove sequences with more than 3 degenerate nucleotides. This represents about 96% of the greengenes 13_8 database at 99% [[2]_ specificity. (The the RESCRIPt formatted Silva 138 database is filtered to exclude sequences with more than 5 degenerates [3]_, [4]_). Increasing the number of allowed degenerates (the ``--p-max-degen`` parameter) will allow more sequences through the filter, and may mean more matches in downstream alignment. However, this comes at a substantial increase in the run time and memory needed, since degenerate sequences have to be expanded, meaning more alignments are required.
 
-For this tutorial, we'll start by filtering to remove anything with more than 3 degenerate nucleotides, since this was the recommended threshhold in the original algorithm.
+For this tutorial, we'll start by filtering to remove anything with more than 3 degenerate nucleotides, since this was the recommended threshold in the original algorithm.
 
 .. code:: bash
 
@@ -48,7 +48,7 @@ For this tutorial, we'll start by filtering to remove anything with more than 3 
      --o-filtered-sequences sidle-db-full-degen-filtered-sequences.qza
 
 
-Try summarizing your database again. There should be about 4800 sequences remaining. How many do you have?
+Try summarizing your database again. There should be about 5400 sequences remaining. How many do you have?
 
 Some users may also want to filter out sequences which may not be relevant to their analysis, for example, mitochondria or chloroplasts or sequences which are undefined at a high taxonomic level. (Phylum or class, for example.) You can learn more about `filtering by taxonomy`_ in the QIIME2 tutorial, but as a brief example, we'll show filtering a greengenes database for features missing a phylum (**p__;**) or kingdom(**k__;**) designation.
 
@@ -75,9 +75,9 @@ Once you have finished pre-filtering, you are ready to start extracting regions.
 Prepare a regional database
 ---------------------------
 
-The next step is to extract a region of the database. Alignment with the SMURF algorithm relies on extracting the exact kmer to be aligned with your ASVs, so the primer pair and read length must match exactly. Unlike other techniques, there is, unfortunately, no "good enough" approach. To maximize memory efficiency, the database is also prepared by expanding degenerate nucleotides and collapsing duplicated kmers into a single sequence.
+The next step is to extract a region of the database. Alignment with the SMURF algorithm relies on extracting the exact k-mer to be aligned with your ASVs, so the primer pair and read length must match exactly. Unlike other techniques, there is, unfortunately, no "good enough" approach. To maximize memory efficiency, the database is also prepared by expanding degenerate nucleotides and collapsing duplicated k-mers into a single sequence.
 
-First, the region is extracted from the pre-filtered database using the ``extract-reads`` function from the q2-feature-classifier plugin. As an example, we’ll look at extracting a region between 316F and 484R using the second primer pair from the SMURF paper (5’-``TCCTACGGGAGGCAGCAG``-3’) and (5’-``TATTACCGCGGCTGCTGG``-3’).
+First, the region is extracted from the pre-filtered database using the ``extract-reads`` function from the `q2-feature-classifier`_ plugin. As an example, we’ll look at extracting a region between 316F and 484R using the second primer pair from the SMURF paper (5’-``TCCTACGGGAGGCAGCAG``-3’) and (5’-``TATTACCGCGGCTGCTGG``-3’).
 
 .. code:: bash
 
@@ -102,7 +102,7 @@ Once the reads have been extracted, then they need to be prepared to be used in 
      --o-collapsed-kmers sidle-db-wonder-woman-100nt-kmers.qza \
      --o-kmer-map sidle-db-wonder-woman-100nt-map.qza
 
-The command will output the sequences (``--o-collapsed-kmers``) with degenerate sequences expanded and duplicated sequences removed and a mapping between the original sequence name and the kmer name (``--o-kmer-map``). You can use qiime to visualize your kmer map, which gives you the relationship between  the original database sequence name (**db-seq**), an expanded name which accounts for degenerates (**seq-name**), the collapsed regional identifier (**kmer**), the primers (**fwd-primer** and **rev-primer**), the region identifier (**region**), and the  sequence length  (**trim-length**).
+The command will output the sequences (``--o-collapsed-kmers``) with degenerate sequences expanded and duplicated sequences removed and a mapping between the original sequence name and the k-mer name (``--o-kmer-map``). You can use qiime to visualize your k-mer map, which gives you the relationship between  the original database sequence name (**db-seq**), an expanded name which accounts for degenerates (**seq-name**), the collapsed regional identifier (**kmer**), the primers (**fwd-primer** and **rev-primer**), the region identifier (**region**), and the  sequence length  (**trim-length**).
 
 .. code:: bash
 
@@ -129,6 +129,8 @@ As an exercise, try using the 486-650 primers (3-``CAGCAGCCGCGGTAATAC``-5 forwar
 
 Now, you have a database that's ready to use for alignment and reconstruction.
 
+TL;DR: Database Preparation
+---------------------------
 
 Database Filtering
 ^^^^^^^^^^^^^^^^^^
@@ -233,9 +235,9 @@ Regional Database Preparation
      --p-region [region label] \
      --p-fwd-primer [forward primer for region] \
      --p-rev-primer [reverse primer for region] \
-     --p-trim-length [kmer length] \
-     --o-collapsed-kmers [kmer sequences].qza \
-     --o-kmer-map [kmer to database map].qza
+     --p-trim-length [k-mer length] \
+     --o-collapsed-kmers [k-mer sequences].qza \
+     --o-kmer-map [k-mer to database map].qza
 
 **Example**
 
@@ -252,7 +254,7 @@ For forward reads (trim from the left)
      --o-collapsed-kmers sidle-db-wonder-woman-100nt-kmers.qza \
      --o-kmer-map sidle-db-wonder-woman-100nt-map.qza
 
-For reverse reads (trim from the right and in this case, reverse complement). The primers should be flipped (we'll trim from the forward primer)
+For reverse reads (trim from the right and in this case, reverse complement). The primers should be flipped (we trim from the forward primer)
 
 .. code-block:: bash
     
@@ -281,3 +283,6 @@ Database References
 .. [1] Fuks, C; Elgart, M; Amir, A; et al (2018) "Combining 16S rRNA gene variable regions enables high-resolution microbial community profiling." *Microbiome*. **6**:17. doi: 10.1186/s40168-017-0396-x
 .. [2] McDonald, D; Price, NM; Goodrich, J, et al (2012). "An improved Greengenes taxonomy with explicit ranks for ecological and evolutionary analyses of bacteria and archaea." *ISME J*. **6**: 610. doi: 10.1038/ismej.2011.139
 .. [3] Quast, C.; Pruesse, E; Yilmaz, P; et al. (2013) "The SILVA ribosomal RNA gene database project: improved data processing and web-based tools." *Nucleic Acids Research*. **41**:D560. doi: 10.1093/nar/gks1219
+.. [4] Michael S Robeson II, Devon R O'Rourke, Benjamin D Kaehler, et al. "RESCRIPt: Reproducible sequence taxonomy reference database management for the masses."" bioRxiv 2020.10.05.326504; doi: 10.1101/2020.10.05.326504
+
+
