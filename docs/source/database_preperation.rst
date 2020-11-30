@@ -16,10 +16,12 @@ You can start the tutorial by downloading the database sequences and taxonomy. T
     
 .. code-block:: shell
 
-    mkdir -p sidle_tutorial
-    wget https://github.com/jwdebelius/q2-sidle/blob/main/docs/tutorial_data/database.tgz
-    tar -czf database.tgz
-    cd database
+    mkdir -p sidle_tutorial/database
+    cd sidle_tutorial/database
+    wget https://github.com/jwdebelius/q2-sidle/raw/documentation/docs/tutorial_data/database_ref/sidle-db-full-sequences.qza
+    wget https://github.com/jwdebelius/q2-sidle/blob/documentation/docs/tutorial_data/database_ref/sidle-db-taxonomy.qza
+
+After you run this command, you should find two files in your folder: ``sidle-db-full-sequences.qza``, which is the full length database sequences and ``sidle-db-taxonomy.qza``, the taxonomy for the sequences.
 
 Let's start by checking the number of sequences in the original dataset. We can do this using QIIME to summarize the sequences. 
 
