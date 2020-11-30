@@ -5,7 +5,7 @@ import os
 import dask
 import numpy as np
 import pandas as pd
-import pandas.util.testing as pdt
+import pandas.testing as pdt
 from skbio import DNA
 
 from qiime2.plugin.testing import TestPluginBase

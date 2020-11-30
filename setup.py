@@ -31,7 +31,7 @@ setup(name='q2-sidle',
         ['q2-sidle=q2_sidle.plugin_setup:plugin']
       },
       install_requires=['biom-format >= 2.1.6',
-                        'pandas < 1.0',
+                        'pandas > 1.0',
                         'dask >= 2.0',
                         'regex',
                         ],

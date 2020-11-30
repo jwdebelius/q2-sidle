@@ -8,7 +8,7 @@ import warnings
 import numpy as np
 import numpy.testing as npt
 import pandas as pd
-import pandas.util.testing as pdt
+import pandas.testing as pdt
 import skbio
 from skbio import DNA
 
@@ -162,7 +162,7 @@ class PluginSetupTest(TestCase):
                 data=np.array([[100.,  50,   0,  50,  50, 50],
                                [100.,  25, 100,  25,  25, 25],
                                [  0., 100, 100,   0,  50, 50]]),
-                index=pd.Index(['sample1', 'sample2', 'sample3'], 'sample-id'),
+                index=pd.Index(['sample1', 'sample2', 'sample3']),
                 columns=['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 'seq6']
             )
         )
