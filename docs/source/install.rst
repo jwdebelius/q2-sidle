@@ -7,7 +7,7 @@ Once inside the environment, sidle can be installed with the following commands.
 
 .. code-block:: bash
 	
-	conda install dask=2.2 regex
+	conda install dask regex
 	pip install git+https://github.com/jwdebelius/q2-sidle
 	qiime dev refresh-cache
 
