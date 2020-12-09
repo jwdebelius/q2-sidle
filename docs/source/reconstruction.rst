@@ -12,18 +12,18 @@ You can get the tutorial data by running
     cd sidle_tutorial
     pwd
     
-    wget https://github.com/jwdebelius/q2-sidle/raw/documentation/docs/tutorial_data/data.zip
+    wget https://github.com/jwdebelius/q2-sidle/raw/main/docs/tutorial_data/data.zip
     unzip data.zip
-    wget https://github.com/jwdebelius/q2-sidle/raw/documentation/docs/tutorial_data/alignment.zip
+    wget https://github.com/jwdebelius/q2-sidle/raw/main/docs/tutorial_data/alignment.zip
     unzip alignment.zip
-    wget https://github.com/jwdebelius/q2-sidle/raw/documentation/docs/tutorial_data/reconstruction.zip
+    wget https://github.com/jwdebelius/q2-sidle/raw/main/docs/tutorial_data/reconstruction.zip
     unzip reconstruction.zip
 
 If you have not run the database tutorial, you will also want to get the database data.
 
 .. code-block:: bash
 	
-	wget https://github.com/jwdebelius/q2-sidle/raw/documentation/docs/tutorial_data/database.zip
+	wget https://github.com/jwdebelius/q2-sidle/raw/main/docs/tutorial_data/database.zip
 	unzip database.zip
 
 Regional alignment

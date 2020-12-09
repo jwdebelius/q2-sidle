@@ -18,7 +18,7 @@ You can start the tutorial by downloading the database sequences and taxonomy. T
 
     mkdir -p sidle_tutorial
     cd sidle_tutorial
-    wget https://github.com/jwdebelius/q2-sidle/raw/documentation/docs/tutorial_data/database.zip
+    wget https://github.com/jwdebelius/q2-sidle/raw/main/docs/tutorial_data/database.zip
     unzip database.zip
     cd database
 
