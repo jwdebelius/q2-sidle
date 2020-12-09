@@ -16,12 +16,13 @@ You can start the tutorial by downloading the database sequences and taxonomy. T
     
 .. code-block:: shell
 
-    mkdir -p sidle_tutorial/database
-    cd sidle_tutorial/database
-    wget https://github.com/jwdebelius/q2-sidle/raw/documentation/docs/tutorial_data/database_ref/sidle-db-full-sequences.qza
-    wget https://github.com/jwdebelius/q2-sidle/blob/documentation/docs/tutorial_data/database_ref/sidle-db-taxonomy.qza
+    mkdir -p sidle_tutorial
+    cd sidle_tutorial
+    wget https://github.com/jwdebelius/q2-sidle/raw/documentation/docs/tutorial_data/database.zip
+    unzip database.zip
+    cd database
 
-After you run this command, you should find two files in your folder: ``sidle-db-full-sequences.qza``, which is the full length database sequences and ``sidle-db-taxonomy.qza``, the taxonomy for the sequences.
+After you run this command, you should find two input files in your folder: ``sidle-db-full-sequences.qza``, which is the full length database sequences and ``sidle-db-taxonomy.qza``, the taxonomy for the sequences.
 
 Let's start by checking the number of sequences in the original dataset. We can do this using QIIME to summarize the sequences. 
 
@@ -127,7 +128,7 @@ In some cases, the reference region and sequencing length may not be long enough
      --o-collapsed-kmers sidle-db-batman-100nt-kmers.qza \
      --o-kmer-map sidle-db-batman-100nt-map.qza
 
-As an exercise, try using the 486-650 primers (3-``CAGCAGCCGCGGTAATAC``-5 forward; 3-``CGCATTTCACCGCTACAC``-5 reverse) to extract a 100nt region called "GreenLantern". Use the same naming convention as the other two extracted regions.
+As an exercise, try using the 486-650 primers (3-``CAGCAGCCGCGGTAATAC``-5 forward; 3-``CGCATTTCACCGCTACAC``-5 reverse) to extract a 100nt region called "GreenLantern". Use the same naming convention as the other two extracted regions (``sidle-db-green-lantern-100nt-kmers.qza``).
 
 Now, you have a database that's ready to use for alignment and reconstruction.
 

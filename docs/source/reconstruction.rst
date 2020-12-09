@@ -3,31 +3,32 @@ Sequence Reconstruction
 
 The core of the SMURF algorithm is based on the kmer-based reconstruction of short regions into a full length framework. Within Sidle, there are two steps in database reconstruction. First, ASVs are aligned on a regional basis to generate the local kmer-based alignment. Then, the full collection of sequences is assembled into a reconstructed table of counts. For this example, we’ll work with a small, entirely artifical subset of samples that are designed to run quickly.
 
-You can get the tutorial data `here`_ or by running 
+You can get the tutorial data by running 
 
 .. code-block:: bash
 	
-    mkdir -p sidle_tutorial/alignment
+    mkdir -p sidle_tutorial
     cd sidle_tutorial
+    pwd
     
-    wget https://github.com/jwdebelius/q2-sidle/blob/main/docs/tutorial_data/data.tgz
-    tar -xzf data.tgz
+    wget https://github.com/jwdebelius/q2-sidle/raw/documentation/docs/tutorial_data/data.zip
+    unzip data.zip
+    wget https://github.com/jwdebelius/q2-sidle/raw/documentation/docs/tutorial_data/alignment.zip
+    unzip alignment.zip
+    wget https://github.com/jwdebelius/q2-sidle/raw/documentation/docs/tutorial_data/reconstruction.zip
+    unzip reconstruction.zip
 
-    wget https://github.com/jwdebelius/q2-sidle/blob/main/docs/tutorial_data/manifest.txt
-
-
-If you have not run the database tutorial, you will also want to get the
-database data.
+If you have not run the database tutorial, you will also want to get the database data.
 
 .. code-block:: bash
 	
-	wget https://github.com/jwdebelius/q2-sidle/blob/main/docs/tutorial_data/database.tgz
-	tar -xzf database.tgz
+	wget https://github.com/jwdebelius/q2-sidle/raw/documentation/docs/tutorial_data/database.zip
+	unzip database.zip
 
 Regional alignment
 ------------------
 
-The first step in reconstruction is to perform per-region alignment between the sequences and the database. We’ll do this with the ``align-regional-kmers`` command. We set the reference database that we extracted previously as the (``--kmer-db-fp``). The ASV represent sequences are passed as the ``--rep-seq-fp``. Finally, we supply a regional defination. This should be the same as the region name that you gave when you extracted the kmers. In this case, the region name was “WonderWoman”.
+The first step in reconstruction is to perform per-region alignment between the sequences and the database. We’ll do this with the ``align-regional-kmers`` command. We set the reference database that we extracted previously as the (``--kmer-db-fp``). The ASV represent sequences are passed as the ``--rep-seq-fp``. Finally, we supply a regional defination. This should be the same as the region name that you gave when you extracted the kmers. In this case, the region name was "WonderWoman".
 
 .. code-block:: bash
 	
@@ -43,9 +44,7 @@ This will output an alignment file and any ASV sequences whcih wouldn't be align
 
 	If you are unsure of the region name or read length for your database kmers, you can always check the provenance by visiting `view.qiime2.org`_
 
-Optionally, you can also modify parameters for the number of basepairs that differ between the reference and representative sequences (``--p-max-mismatch``); the original paper uses a mismatch of 2 with 130nt sequences.
-
-You may find that if you have longer kmers, you may want to increase this parameter accordingly. A lower (more stringent) value will increase the number of discarded sequences, a higher number may mean your matches are lower quality.
+Optionally, you can also modify parameters for the number of basepairs that differ between the reference and representative sequences (``--p-max-mismatch``); the original paper uses a mismatch of 2 with 130nt sequences. You may find that if you have longer kmers, you may want to increase this parameter accordingly. A lower (more stringent) value will increase the number of discarded sequences, a higher number may mean your matches are lower quality.
 
 Using the same parameters, you will need need to align the other two regions.
 
@@ -58,27 +57,23 @@ Using the same parameters, you will need need to align the other two regions.
 	 --o-regional-alignment alignment/batman-align-map.qza
 
 	qiime sidle align-regional-kmers \
-	 --i-kmers alignment/region3-kmer-db.qza \
-	 --i-rep-seq table/region3-rep-seq.qza \
-	 --p-region Green-Lantern \
-	 --o-regional-alignment alignment/region3-align-map.qza
+	 --i-kmers alignment/green-lantern-kmer-db.qza \
+	 --i-rep-seq table/green-lantern-rep-seq.qza \
+	 --p-region GreenLantern \
+	 --o-regional-alignment alignment/green-lantern-align-map.qza
 
-Now, you have all three local alignments prepared, you’re ready to
-reconstruct your table.
+Now, you have all three local alignments prepared, you’re ready to reconstruct your table.
 
 Table Reconstruction
 --------------------
 
-The table is reconstucted in 3 parts. First, the regional fragments get re-assembled into complete database sequences. Then, the relative abundance of the pooled counts gets computed through an optimization process. Finally, the relative abundance is used to reconstruct table of counts.
+The table is reconstucted in 3 parts. First, the regional fragments get re-assembled into complete database sequences. During this process, the algorithm will calculate how well a sequence can be reconstructed by determining the average number of kmers per region that could be mapped. This can be calculated using degenerate sequences in the reference as unique (``count-degenerates``) or treating all variations on the original database sequence as the same (``no-count-degenerates``).
 
-Parameters
-++++++++++
+Then, the relative abundance of the pooled counts gets computed through an optimization process. Optimizate builds on the per-nucleotide error rate (``per-nucleotide-error``) and the number of nucelotides difference between the reference sequence and mapped ASV (calculated during alignment). Fuks et al [1]_ reported the per-nucelotide error did not affect their reconstruction substantially, therefore we have used their value by default. Howeever, interested parties may wish to explore their supplmentary materials. The ``min-relative-abundance`` sets a threshhold below which we assume an assigned read is an error. This is somewhat dependent on the sequencing depth.
 
-The ``max-mismatch`` and ``per-nucleotide-error`` are used to estimate the probability that a sequence that from the reference is actually a sequencing error or belongs to that sequence. The ``max-mismatch`` value used in reconstruction should match the alignment; by default this is 2 but you may choose to change it in alignmnent with your sequencing length. The authors of the method claim the error rate doesn’t matter; we refer interested reader to original paper’s supplemental material.
+Finally, the relative abundance is used to reconstruct table of counts by assigning counts from reads to the table. While this is somwhat artifical due to the differences in regional depth and coverage, the ``region-normalize`` will determine the observed depth. The default, ``average`` will calculate the depth as the average of the sequencing counts from the original tables and the final table will have a depth close to the regional input tables. ``weighted`` will calculate the depth as the sum of the sequencing counts from the original table, so the final table will have more more counts than the original table.
 
-The ``min-abundance`` determines the relative abundance of a database sequence to be excluded during optimization.
-
-Now, let’s reconstruct the table, using the default settings.**
+We will perform reconstructing using the defaults.
 
 .. code-block:: shell
 	
@@ -91,9 +86,9 @@ Now, let’s reconstruct the table, using the default settings.**
       --i-kmer-map database/sidle-db-batman-100nt-map.qza \
       --i-regional-alignment alignment/batman-align-map.qza \
       --i-regional-table data/batman-100nt-table.qza \
-     --p-region Green-Lantern \
-      --i-kmer-map database/sidle-db-batman-100nt-map.qza \
-      --i-regional-alignment alignment/region3-align-map.qza \
+     --p-region GreenLantern \
+      --i-kmer-map database/sidle-db-green-lantern-100nt-map.qza \
+      --i-regional-alignment alignment/green-lantern-align-map.qza \
 	  --i-regional-table data/green-lantern-100nt-table.qza \
      --o-reconstructed-table reconstruction/league_table.qza \
      --o-reconstruction-summary reconstruction/league_summary.qza \
@@ -177,6 +172,7 @@ You can check the taxonomic reconstruction by tabulating the taxonomy.
 
 What’s the taxonomy assignment for ``1764594|195532|4471854``?
 
+
 Reconstructing the Phylogenetic Tree
 ------------------------------------
 
@@ -207,7 +203,15 @@ So, our first step is to reconstruct the concensus fragments from sequences that
      --i-aligned-sequences database/sidle-db-aligned-sequences.qza \
      --o-representative-fragments reconstruction/league-rep-seq-fragments.qza
 
-We can then insert the sequences into the reference tree.
+We can then insert the sequences into the reference tree. Let's first get the reference tree.
+
+.. code-block:: shell
+
+	wget \
+	 -O "sepp-refs-gg-13-8.qza" \
+	 "https://data.qiime2.org/2020.11/common/sepp-refs-gg-13-8.qza"
+
+Then, we'll do the fragment insertion. 
 
 .. code-block:: shell
 
@@ -222,7 +226,7 @@ Now, you're ready to analyze your data.
 Next Steps: Analysis!
 ---------------------
 
-You now have a reconstructed table, and associated taxonomy. Go forth and enjoy your analysis. The `QIIME 2 tutorials`_ offer some good options of downstream diversity and statistical analyses that can be done with this data.
+You now have a reconstructed table, and associated taxonomy. Go forth and enjoy your analysis. The `QIIME 2 tutorials`_ offer some good options of downstream diversity and statistical analyses, as does the `qiime2 library`_ The `qiime2R`_ package allows easy import of qiime2 Artifacts into R.
 
 TL;DR Reconstruction
 --------------------
@@ -257,31 +261,50 @@ Regional Alignment Commands
 Reconstructing the Table
 ++++++++++++++++++++++++
 
-* Make sure your :ref:`input manifest <Table Reconstruction>` conforms to the guidelines 
-* Your region names must  match between the alignment, kmer, and manifest
+* Make sure yourregion names match between the alignment artifact, the database kmer map, and the ``region`` parameter.
 * ``count-degenerates`` will control how the summary describes differences in the sequences
-* ``max-mismatch`` helps determine the probability sequences should be retained. This should match what was passed to the alignment.
-* **NOTE**: THIS WILL CHANGE IN THE NEAR FUTURE. DON'T LET PERFECT BE THE ENEMY OF GOOD ENOUGH
+* ``region-normalize`` will affect how many counts are assigned in the final table
 
 **Syntax**
+
+For *n* regions
 
 .. code-block:: bash
 
 	qiime sidle reconstruct-counts \
-	 --m-manifest-file [manifest file] \
-	 --o-reconstructed-table [reconstructed table] \
-	 --o-reconstruction-summary [reconstruction summary] \
-	 --o-reconstruction-map [reconstruction map]
+     --p-region [region 1 name] \
+      --i-kmer-map [region 1 kmer map] \
+      --i-regional-alignment [region 1 alignment] \
+      --i-regional-table [region 1 counts table] \
+      ... \
+   	  --p-region [region n name] \
+      --i-kmer-map [region n kmer map] \
+      --i-regional-alignment [region n alignment] \
+      --i-regional-table [region n counts table] \
+     --o-reconstructed-table [reconstructed table] \
+     --o-reconstruction-summary [reconstruction summary] \
+     --o-reconstruction-map [reconstructed database map]
 
 **Example**
 
 .. code-block:: bash
 
 	qiime sidle reconstruct-counts \
-	 --m-manifest-file region-manifest.tsv \
-	 --o-reconstructed-table league_table.qza \
-	 --o-reconstruction-summary league_summary.qza \
-	 --o-reconstruction-map league_map.qza
+     --p-region WonderWoman \
+      --i-kmer-map database/sidle-db-wonder-woman-100nt-map.qza \
+      --i-regional-alignment alignment/wonder-woman-align-map.qza \
+      --i-regional-table data/data/wonder-woman-100nt-table.qza \
+     --p-region Batman \
+      --i-kmer-map database/sidle-db-batman-100nt-map.qza \
+      --i-regional-alignment alignment/batman-align-map.qza \
+      --i-regional-table data/batman-100nt-table.qza \
+     --p-region GreenLantern \
+      --i-kmer-map database/sidle-db-green-lantern-100nt-map.qza \
+      --i-regional-alignment alignment/green-lantern-align-map.qza \
+	  --i-regional-table data/green-lantern-100nt-table.qza \
+     --o-reconstructed-table reconstruction/league_table.qza \
+     --o-reconstruction-summary reconstruction/league_summary.qza \
+     --o-reconstruction-map reconstruction/league_map.qza
 
 Reconstructing taxonomy
 +++++++++++++++++++++++
@@ -346,8 +369,8 @@ References
 
 .. _here: https://github.com/jwdebelius/q2-sidle/tree/main/docs/tutorial_data
 .. _view.qiime2.org: https://view.qiime2.org
-.. _absloute paths: https://www.linux.com/training-tutorials/absolute-path-vs-relative-path-linuxunix/
-.. _original manuscript: https://microbiomejournal.biomedcentral.com/articles/10.1186/s40168-017-0396-x
+.. _qiime2 library: https://library.qiime2.org/
+.. _qiime2R: https://forum.qiime2.org/t/tutorial-integrating-qiime2-and-r-for-data-visualization-and-analysis-using-qiime2r/4121
 .. _QIIME 2 tutorials: https://docs.qiime2.org/2020.6/tutorials/
 .. _q2-fragment-insertion: https://docs.qiime2.org/2020.8/plugins/available/fragment-insertion/
 

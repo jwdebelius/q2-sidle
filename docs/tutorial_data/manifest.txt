@@ -1,4 +1,0 @@
-id	region-order	kmer-map	alignment-map	frequency-table
-WonderWoman	1	database/sidle-db-wonder-woman-100nt-map.qza	alignment/wonder-woman-align-map.qza	data/wonder-woman-100nt-table.qza
-GreenLantern	3	database/sidle-db-green-lantern-100nt-map.qza	alignment/green-lantern-align-map.qza	data/green-lantern-100nt-table.qza
-Batman	2	database/sidle-db-batman-100nt-map.qza	alignment/batman-align-map.qza	data/batman-100nt-table.qza
