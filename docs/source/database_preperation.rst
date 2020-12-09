@@ -80,7 +80,7 @@ Prepare a regional database
 
 The next step is to extract a region of the database. Alignment with the SMURF algorithm relies on extracting the exact k-mer to be aligned with your ASVs, so the primer pair and read length must match exactly. Unlike other techniques, there is, unfortunately, no "good enough" approach. To maximize memory efficiency, the database is also prepared by expanding degenerate nucleotides and collapsing duplicated k-mers into a single sequence.
 
-First, the region is extracted from the pre-filtered database using the ``extract-reads`` function from the `q2-feature-classifier`_ plugin. As an example, we’ll look at extracting a region between 316F and 484R using the second primer pair from the SMURF paper (5’-``TCCTACGGGAGGCAGCAG``-3’) and (5’-``TATTACCGCGGCTGCTGG``-3’).
+First, the region is extracted from the pre-filtered database using the ``extract-reads`` function from the `feature classifier`_ plugin. As an example, we’ll look at extracting a region between 316F and 484R using the second primer pair from the SMURF paper (5’-``TCCTACGGGAGGCAGCAG``-3’) and (5’-``TATTACCGCGGCTGCTGG``-3’).
 
 .. code:: bash
 
@@ -204,7 +204,7 @@ Database Region Preparation
 Read Extraction
 """""""""""""""
 
-Please see the `qiime feature classifier`_ documentation for more information.
+Please see the `feature classifier`_ documentation for more information.
 
 **Syntax**
 
@@ -278,7 +278,7 @@ Database References
 ..  websites
 .. _filtering by taxonomy: https://docs.qiime2.org/2020.6/tutorials/filtering/#taxonomy-based-filtering-of-tables-and-sequences
 .. _qiime filtering tutorial: https://docs.qiime2.org/2020.6/tutorials/filtering/#taxonomy-based-filtering-of-tables-and-sequences
-.. _qiime feature classifier: https://docs.qiime2.org/2020.6/tutorials/feature-classifier/#extract-reference-reads
+.. _feature classifier: https://docs.qiime2.org/2020.6/tutorials/feature-classifier/#extract-reference-reads
 .. _qiime2 view : https://view.qiime2.org
 
 .. citations
@@ -287,5 +287,7 @@ Database References
 .. [2] McDonald, D; Price, NM; Goodrich, J, et al (2012). "An improved Greengenes taxonomy with explicit ranks for ecological and evolutionary analyses of bacteria and archaea." *ISME J*. **6**: 610. doi: 10.1038/ismej.2011.139
 .. [3] Quast, C.; Pruesse, E; Yilmaz, P; et al. (2013) "The SILVA ribosomal RNA gene database project: improved data processing and web-based tools." *Nucleic Acids Research*. **41**:D560. doi: 10.1093/nar/gks1219
 .. [4] Michael S Robeson II, Devon R O'Rourke, Benjamin D Kaehler, et al. "RESCRIPt: Reproducible sequence taxonomy reference database management for the masses."" bioRxiv 2020.10.05.326504; doi: 10.1101/2020.10.05.326504
+
+
 
 

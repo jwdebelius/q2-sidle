@@ -2,6 +2,7 @@
 Read Preparation
 ================
 
+
 Although the original SMURF paper relied on a quality filtering protocol, we have elected to recommend the use of existing denoising algorithms. In Sidle, we recommend using existing tools to perform pre-processing. Here, we provide example code for processing samples, however, this can be accomplished any number of ways.
 
 .. note::
@@ -12,7 +13,7 @@ As an initial example of read preparation, your pipeline may include the followi
 
 * I don't know. Someone handed me files and told me to analyze them!
 	* Contact your sequencing provider or the person the files came from if they were sequenced locally
-	* Check the repository where they came from. EBI and SRA typically provide files `demultiplexed by sample`_, although it may be work exploring the meteadata more; Qiita provides `deblured tables`_
+	* Check the repository where they came from. EBI and SRA typically provide files `demultiplexed by sample`_, although it may be work exploring the metadata more; Qiita provides `deblured tables`_
 * I have multiplexed sequences (multiple samples in the same fastq file)
 	* You need to `demultiplex by sample and region`_
 	* Then, you want to `denoise the sequences`_
@@ -40,6 +41,7 @@ The first step of sample processing is demultiplexing your sequences into sample
 Now, you're ready to `denoise the regions`_.
 
 .. _demultiplex by region:
+.. _demultiplexed by sample:
 
 Sequences barcoded by sample (mixed regions per sample) 
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -59,6 +61,7 @@ If your samples are demultiplexed to include a single set of files (probably for
 This will give you a table per region. Next, continue on to `denoise the regions`_.
 
 .. _trimming your primers:
+.. _demultiplex by sample and region:
 
 Sequences barcoded by sample and region
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -93,6 +96,7 @@ This will give you a table where each sample is named whatever you've linked to 
 
 
 .. _denoise the sequences:
+.. _denoise the regions:
 
 Denoise reads with your favorite algorithm
 ------------------------------------------
@@ -143,6 +147,7 @@ You can check the length by tabulating the sequences.
 You should find the sequences all trimmed to 100nt, and ready for alignment.
 
 .. _denoised with deblur:
+.. _deblured tables:
 
 Deblur
 ^^^^^^
@@ -161,7 +166,7 @@ If you need to, `trim all the ASVs in your table to a consistent length`_ or `re
 TL;DR: Read Preparation
 -----------------------
 
-This is a general guide for read perperation; the people who know best about demultiplexing are most often the people who generated your data. So, make sure you make friends with them.
+This is a general guide for read preparation; the people who know best about demultiplexing are most often the people who generated your data. So, make sure you make friends with them.
 
 
 Demultiplexing
@@ -218,7 +223,7 @@ Denoising and Table Preparation
 	 --o-trimmed-table table-dada2-100nt.qza \
 	 --o-trimmed-representative-sequences rep-seq-dada2-100nt.qza
 
-Read Preperation References
+Read Preparation References
 +++++++++++++++++++++++++++
 
 .. [1] Martin, M. (2011). "Cutadapt removes adapter sequences from high-throughput sequencing reads". *EMBnet.journal* **17**:10. doi: https://doi.org/10.14806/ej.17.1.200
@@ -228,14 +233,6 @@ Read Preperation References
 .. .. [4] Rognes T, Flouri T, Nichols B, Quince C, Mahé F. (2016) "VSEARCH: a versatile open source tool for metagenomics." *PeerJ* 4:e2584 doi: 10.7717/peerj.2584
 
 .. links
-.. _demultiplexed by sample: _demuxed_by_sample
-.. _deblured tables: _denoise_deblur
-.. _demultiplex by sample and region: demux_sample_and_region
-.. _denoise the sequences: _denoising
-.. _demultiplex by region: _demuxed_by_sample
-.. _demultiplexed correctly: _demuxed_by_sample_and_sample_region
-.. _denoised with dada2: _denoise_dada2
-.. _denoised with deblur: _denoise_deblur
 .. _demultiplexing EMP sequences: https://docs.qiime2.org/2020.11/tutorials/moving-pictures/#demultiplexing-sequences
 .. _EMP Demultiplexing: https://docs.qiime2.org/2020.11/tutorials/moving-pictures/#demultiplexing-sequences
 .. _demultiplexing with cutadapt: https://forum.qiime2.org/t/demultiplexing-and-trimming-adapters-from-reads-with-q2-cutadapt/2313
@@ -262,5 +259,6 @@ Read Preperation References
 .. _moving pictures option 2: https://docs.qiime2.org/2020.11/tutorials/moving-pictures/#option-2-deblur
 .. _Atacama Soils: https://docs.qiime2.org/2020.11/tutorials/atacama-soils/#paired-end-read-analysis-commands
 .. _alternative methods of read joining: https://docs.qiime2.org/2020.11/tutorials/read-joining/
+
 
 
