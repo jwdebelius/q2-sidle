@@ -1,7 +1,7 @@
 Sequence Reconstruction
 =======================
 
-The core of the SMURF algorithm is based on the kmer-based reconstruction of short regions into a full length framework. Within Sidle, there are two steps in database reconstruction. First, ASVs are aligned on a regional basis to generate the local kmer-based alignment. Then, the full collection of sequences is assembled into a reconstructed table of counts. For this example, we’ll work with a small, entirely artifical subset of samples that are designed to run quickly.
+The core of the SMURF algorithm is based on the kmer-based reconstruction of short regions into a full-length framework. Within Sidle, there are two steps in database reconstruction. First, ASVs are aligned on a regional basis to generate the local kmer-based alignment. Then, the full collection of sequences is assembled into a reconstructed table of counts. For this example, we’ll work with a small, entirely artifical subset of samples that are designed to run quickly.
 
 You can get the tutorial data `here`_ or by running 
 
@@ -27,7 +27,7 @@ database data.
 Regional alignment
 ------------------
 
-The first step in reconstruction is to perform per-region alignment between the sequences and the database. We’ll do this with the ``align-regional-kmers`` command. We set the reference database that we extracted previously as the (``--kmer-db-fp``). The ASV represent sequences are passed as the ``--rep-seq-fp``. Finally, we supply a regional defination. This should be the same as the region name that you gave when you extracted the kmers. In this case, the region name was “WonderWoman”.
+The first step in reconstruction is to perform per-region alignment between the sequences and the database. We’ll do this with the ``align-regional-kmers`` command. We set the reference database that we extracted previously as the ``--kmer-db-fp``. The ASV represent sequences and are passed as the ``--rep-seq-fp``. Finally, we supply a regional definition. This should be the same as the region name that you gave when you extracted the kmers. In this case, the region name was “WonderWoman”.
 
 .. code-block:: bash
 	
@@ -37,7 +37,7 @@ The first step in reconstruction is to perform per-region alignment between the 
      --p-region WonderWoman \
      --o-regional-alignment alignment/wonder-woman-align-map.qza
 
-This will output an alignment file and any ASV sequences whcih wouldn't be aligned to the database, for your own record keeping.
+This will output an alignment file and any ASV sequences which wouldn't be aligned to the database, for your own record keeping.
 
 .. Note::
 
@@ -45,7 +45,7 @@ This will output an alignment file and any ASV sequences whcih wouldn't be align
 
 Optionally, you can also modify parameters for the number of basepairs that differ between the reference and representative sequences (``--p-max-mismatch``); the original paper uses a mismatch of 2 with 130nt sequences.
 
-You may find that if you have longer kmers, you may want to increase this parameter accordingly. A lower (more stringent) value will increase the number of discarded sequences, a higher number may mean your matches are lower quality.
+You may find that if you have longer kmers, you might want to increase this parameter accordingly. A lower (more stringent) value will increase the number of discarded sequences, while a higher number may mean your matches are lower quality.
 
 Using the same parameters, you will need need to align the other two regions.
 
@@ -63,18 +63,18 @@ Using the same parameters, you will need need to align the other two regions.
 	 --p-region Green-Lantern \
 	 --o-regional-alignment alignment/green-lantern-align-map.qza
 
-Now, you have all three local alignments prepared, you’re ready to
+Now, you have all three local alignments prepared, you're ready to
 reconstruct your table.
 
 Table Reconstruction
 --------------------
 
-The table is reconstucted in 3 parts. First, the regional fragments get re-assembled into complete database sequences. Then, the relative abundance of the pooled counts gets computed through an optimization process. Finally, the relative abundance is used to reconstruct table of counts.
+The table is reconstucted in three steps. First, the regional fragments get re-assembled into complete database sequences. Then, the relative abundance of the pooled counts gets computed through an optimization process. Finally, the relative abundance is used to reconstruct a table of counts.
 
 Parameters
 ++++++++++
 
-The ``max-mismatch`` and ``per-nucleotide-error`` are used to estimate the probability that a sequence that from the reference is actually a sequencing error or belongs to that sequence. The ``max-mismatch`` value used in reconstruction should match the alignment; by default this is 2 but you may choose to change it in alignmnent with your sequencing length. The authors of the method claim the error rate doesn’t matter; we refer interested reader to original paper’s supplemental material.
+The ``max-mismatch`` and ``per-nucleotide-error`` are used to estimate the probability that a sequence that differs from the reference is actually a sequencing error or belongs to that sequence. The ``max-mismatch`` value used in reconstruction should match the alignment; by default this is 2 but you may choose to change it in alignmnent with your sequencing length. The authors of the method claim the error rate doesn’t matter; we refer interested reader to original paper’s supplemental material.
 
 The ``min-abundance`` determines the relative abundance of a database sequence to be excluded during optimization.
 
@@ -112,7 +112,7 @@ Let’s take a look at the count table.
 
 You’ll notice that some of the feature IDs contain a ``|`` character, for example, ``1764594|195532|4471854``. This means the two databases sequences could not be resolved during the reconstruction, and so we assign the sequence to both regions. The more regions that are used in the reconstruction, the more likely you are to be able to accurately reconstuct the database sequences.
 
-The second output is a summary. The summary can be used to evaluate the quality of the reconstruction; see the `original manuscript`_ [1]_ for more details. By default, the summary will consider degenerate kmers as unique sequences; you can change the behavior using the ``count-degenerates`` parameter; when False, kmers will only be counted if they belpng to unique reference sequences. You can view the summary by tabulating the metadata.
+The second output is a summary. The summary can be used to evaluate the quality of the reconstruction; see the `original manuscript`_ [1]_ for more details. By default, the summary will consider degenerate kmers as unique sequences; you can change the behavior using the ``count-degenerates`` parameter; when False, kmers will only be counted if they belong to unique reference sequences. You can view the summary by tabulating the metadata.
 
 .. code:: bash
 
@@ -121,14 +121,14 @@ The second output is a summary. The summary can be used to evaluate the quality 
      --o-visualization reconstruction/league_summary.qzv
 
 
-Let’s look at the information for the unresolve feature, ``1764594|195532|4471854``. How many regions is it found it?
+Let’s look at the information for the unresolved feature, ``1764594|195532|4471854``. How many regions has it found?
 
 Taxonomic Reconstruction
 ------------------------
 
 Now you have the table reconstructed, you’re ready to reconstruct the taxonomy to match. Specifcially, this process addresses cases where multiple database sequences cannot be untangled. The function takes the database map generated during reconstruction and the taxonomy associated with the database, and returns the reconstructed taxonomy.
 
-There are three possible general cases for a set of shared sequences. First, they can share the full taxonomic string, second they may differ at some point, or third, they may be same until one is missing an assignment. Let’s start with the simpliest case. If we have two database sequences::
+There are three possible general cases for a set of shared sequences. First, they can share the full taxonomic string; second, they may differ at some point: or third, they may be same until one is missing an assignment. Let’s start with the simplest case. If we have two database sequences::
 
    1234    k__Bacteria; p__Firmictues; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__Blautia; s__obeum
    1235    k__Bacteria; p__Firmictues; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__Blautia; s__obeum
@@ -146,7 +146,7 @@ In that case, the algorithm would keep the taxonomic assignment associated with 
 
    1236 | 1237 k__Bacteria; p__Firmictues; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__Blautia | g__Roseburia; g__Blautia | g__Rosburia
 
-If the ``--database`` parameter allows the user to select the type of database being used (``greengenes``, ``silva`` or ``none``). If the database is a defined datavase(``greengenes`` or ``silva``), some ad-hoc database cleaning will be performed automatically ✨. For example, if a defined string is::
+The ``--database`` parameter allows the user to select the type of database being used (``greengenes``, ``silva`` or ``none``). If the database is a defined database(``greengenes`` or ``silva``), some ad-hoc database cleaning will be performed automatically ✨, specifically with regard to the ``define-missing`` and ``ambiguity-handling`` parameters. For example, if a defined string is::
 
    k__Bacteria; p__Proteobacteria; c__Gammaproteobacteria; o__Entrobacteriales; f__Enterobacteriaceae; g__; s__
 
@@ -154,9 +154,7 @@ Then, the new, cleaned string will be::
 
     k__Bacteria; p__Proteobacteria; c__Gammaproteobacteria; o__Entrobacteriales; f__Enterobacteriaceae; g__unsp. f. Enterobacteriaceae; s__unsp. f. Enterobacteriaceae
 
-The ``--database`` parameter allows the user to select the type of database being used (``greengenes``, ``silva`` or ``none``). If the database is a defined datavase(``greengenes`` or ``silva``), some ad-hoc database cleaning will be performed and uncultured sequences will be handled, specifically with regard to the ``define-missing`` and ``ambiguity-handling`` parameters.
-
-Our database is a subset of the greengenes database, so let’s specify that we used the greengenes database and inheriet the missing strings.
+Our database is a subset of the greengenes database, so let’s specify that we used the greengenes database and inherit the missing strings.
 
 .. code-block:: shell
     
@@ -180,18 +178,18 @@ What’s the taxonomy assignment for ``1764594|195532|4471854``?
 Reconstructing the Phylogenetic Tree
 ------------------------------------
 
-The last step in reconstruction is to reconstruct fragments for the phylogenetic tree. Unfortunately, if the reference sequences cannot be resolved, the phylogenetic tree cannot simply be inherieted from the database. So, we need to reconstruct a new phylognetic tree. We handle sequences in two ways.
+The last step in reconstruction is to reconstruct fragments for the phylogenetic tree. Unfortunately, if the reference sequences cannot be resolved, the phylogenetic tree cannot simply be inherited from the database. So, we need to reconstruct a new phylognetic tree. We handle sequences in two ways.
 
 1. Any database sequence which could full resolved can keep it’s position in the reference tree
 2. Sequences which can’t be resolved need to handled somehow.
 
-We could randomly select a sequence to map the reconstructed region to. However, that might not work when there are several sequences that got combine. So, instead, if we can’t resolve the database sequence, we calculate a concensus sequence from the combined data, extract them over the regions we were able to map, and then those concensus sequences can be inserted into a phylogenetic reference backbone using SEPP or something similar.
+We could randomly select a sequence to map the reconstructed region to. However, that might not work when there are several sequences that got combined. So, instead, if we can’t resolve the database sequence, we calculate a concensus sequence from the combined data, extract them over the regions we were able to map, and then those consensus sequences can be inserted into a phylogenetic reference backbone using SEPP or something similar.
 
 .. Note::
 
-	Sucessful reconstruction requires that the ids in the database you used as your reference for reconstruction and the database you’re using for alignment are the same. Make sure that you are using the same database release version and the same level of sequence identity
+	Sucessful reconstruction requires that the ids in the database you used as your reference for reconstruction and the database you’re using for alignment are the same. Make sure that you are using the same database release version and the same level of sequence identity.
 
-So, our first step is to reconstruct the concensus fragments from sequences that could not be resolved.
+So, our first step is to reconstruct the consensus fragments from sequences that could not be resolved.
 
 .. code-block:: shell
 
@@ -260,7 +258,7 @@ Reconstructing the Table
 * Make sure your :ref:`input manifest <Table Reconstruction>` conforms to the guidelines 
 * Your region names must  match between the alignment, kmer, and manifest
 * ``count-degenerates`` will control how the summary describes differences in the sequences
-* ``max-mismatch`` helps determine the probability sequences should be retained. This should match what was passed to the alignment.
+* ``max-mismatch`` helps determine the probability that sequences should be retained. This should match what was passed to the alignment.
 * **NOTE**: THIS WILL CHANGE IN THE NEAR FUTURE. DON'T LET PERFECT BE THE ENEMY OF GOOD ENOUGH
 
 **Syntax**
@@ -312,8 +310,8 @@ Reconstructing taxonomy
 Reconstructing the Tree
 +++++++++++++++++++++++
 
-* A phylogenetic tree can be reconstructed by first, estimating the concensus fragments for the original sequences and then inserting them into a tree.
-* See the `q2-fragment-insertion`_ documentation for more inforation
+* A phylogenetic tree can be reconstructed by first estimating the consensus fragments for the original sequences and then inserting them into a tree.
+* See the `q2-fragment-insertion`_ documentation for more information
 
 **Fragment reconstruction syntax**
 
