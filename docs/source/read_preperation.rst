@@ -6,7 +6,7 @@ Although the original SMURF paper relied on a quality filtering protocol, we hav
 
 .. note::
 
-    The following steps represent a **suggested** pipeline for preparing reads to be used with sidle. Alternatively pipelines are possible and may be more useful for your specific circumstances.
+    The following steps represent a **suggested** pipeline for preparing reads to be used with sidle. Alternative pipelines are possible and may be more useful for your specific circumstances.
 
 As an initial example of read preparation, your pipeline may include the following steps. To make navigation easy, what stage are you at?
 
@@ -21,7 +21,7 @@ As an initial example of read preparation, your pipeline may include the followi
 	* Then, you want to `denoise the sequences`_
 * I have two fastq files per sample and per region
 	* Your sequences are already demultiplexed. Make you check you've `demultiplexed correctly`_
-	*  Then, you need to `denoise the sequences`_
+	* Then, you need to `denoise the sequences`_
 * I have an ASV table for each region and a corresponding representative sequence file
 	* It was `denoised with dada2`_
 	* It was `denoised with deblur`_
@@ -35,7 +35,7 @@ Fully Multiplexed sequences
 
 .. _demux_sample_and_region: 
 
-The first step of sample processing is demultiplexing your sequences into sample x region pairs. You may have fully multiplexed sequences, in which case, you will need to demultiplex into both reads and regions. If this is the case, you will likely have two or three fastq files, which likely represent forward, reverse, and index reads. Please refer to the QIIME 2 documentation for `demultiplexing EMP sequences`_ and `demultiplexing with cutadapt`_.
+The first step of sample processing is demultiplexing your sequences into sample x region pairs. You may have fully multiplexed sequences, in which case, you will need to demultiplex into both samples and regions. If this is the case, you will likely have two or three fastq files, which likely represent forward, reverse, and index reads. Please refer to the QIIME 2 documentation for `demultiplexing EMP sequences`_ and `demultiplexing with cutadapt`_.
 
 Now, you're ready to `denoise the regions`_.
 
@@ -69,7 +69,7 @@ You'll need that later. We suggest a file with at least three columns:  ``sample
 
 Depending on your region lengths and sequencing length, you may need to map the forward and reverse reads separately. So, you may need final sets of demultiplexed reads which represent the
 
-* paired end reads for regions which can be merged
+* paired-end reads for regions which can be merged
 * forward reads only for regions which cannot be merged
 * reverse reads only for regions which cannot be merged
 
@@ -203,7 +203,7 @@ Denoising and Table Preparation
 		* Single end reads: `Moving Pictures Option 2`_
 		* Paired end reads: `Alternative Methods of Read Joining`_ Tutorial
 
-* Make sure to trim your sequences to the same length that was used for your database. You can do this with  the command,
+* Make sure to trim your sequences to the same length that was used for your database. You can do this with  the command
 
 .. code-block:: bash
 
@@ -214,7 +214,7 @@ Denoising and Table Preparation
 	 --o-trimmed-table table-dada2-100nt.qza \
 	 --o-trimmed-representative-sequences rep-seq-dada2-100nt.qza
 
-Read Preperation References
+Read Preparation References
 +++++++++++++++++++++++++++
 
 .. [1] Martin, M. (2011). "Cutadapt removes adapter sequences from high-throughput sequencing reads". *EMBnet.journal* **17**:10. doi: https://doi.org/10.14806/ej.17.1.200
