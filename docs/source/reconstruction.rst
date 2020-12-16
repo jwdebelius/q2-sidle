@@ -58,10 +58,10 @@ Using the same parameters, you will need need to align the other two regions.
 	 --o-regional-alignment alignment/batman-align-map.qza
 
 	qiime sidle align-regional-kmers \
-	 --i-kmers alignment/region3-kmer-db.qza \
-	 --i-rep-seq table/region3-rep-seq.qza \
+	 --i-kmers alignment/green-lantern-kmer-db.qza \
+	 --i-rep-seq table/green-lantern-rep-seq.qza \
 	 --p-region Green-Lantern \
-	 --o-regional-alignment alignment/region3-align-map.qza
+	 --o-regional-alignment alignment/green-lantern-align-map.qza
 
 Now, you have all three local alignments prepared, you’re ready to
 reconstruct your table.
@@ -86,14 +86,14 @@ Now, let’s reconstruct the table, using the default settings.**
      --p-region WonderWoman \
       --i-kmer-map database/sidle-db-wonder-woman-100nt-map.qza \
       --i-regional-alignment alignment/wonder-woman-align-map.qza \
-      --i-regional-table data/data/wonder-woman-100nt-table.qza \
+      --i-regional-table data/wonder-woman-100nt-table.qza \
      --p-region Batman \
       --i-kmer-map database/sidle-db-batman-100nt-map.qza \
       --i-regional-alignment alignment/batman-align-map.qza \
       --i-regional-table data/batman-100nt-table.qza \
      --p-region Green-Lantern \
       --i-kmer-map database/sidle-db-batman-100nt-map.qza \
-      --i-regional-alignment alignment/region3-align-map.qza \
+      --i-regional-alignment alignment/green-lantern-align-map.qza \
 	  --i-regional-table data/green-lantern-100nt-table.qza \
      --o-reconstructed-table reconstruction/league_table.qza \
      --o-reconstruction-summary reconstruction/league_summary.qza \
@@ -201,7 +201,7 @@ So, our first step is to reconstruct the concensus fragments from sequences that
      --p-region Batman \
       --i-regional-alignment alignment/batman-align-map.qza \
      --p-region Green-Lantern \
-      --i-regional-alignment alignment/region3-align-map.qza \
+      --i-regional-alignment alignment/green-lantern-align-map.qza \
      --i-reconstruction-map reconstruction/league_map.qza \
      --i-reconstruction-summary reconstruction/league_summary.qza \
      --i-aligned-sequences database/sidle-db-aligned-sequences.qza \
