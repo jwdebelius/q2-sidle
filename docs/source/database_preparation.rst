@@ -38,7 +38,7 @@ Database preparation can optionally begin by filtering the database to remove se
 
 Degenerate filtering limits memory consumption throughout. The authors of SMURF [[1]_] recommend filtering the database to remove sequences with more than 3 degenerate nucleotides. This represents about X% of the greengenes 13_8 database at 99% [[2]_] specificity about Y% of the Silva 138 database [[3]_]. Increasing the number of allowed degenerates (the ``--p-max-degen`` parameter) will allow more sequences through the filter, and may mean more matches in downstream alignment. However, this comes at a substantial increase in the run time and memory needed, since degenerate sequences have to be expanded.
 
-For this tutorial, we'll start by filtering to remove anything with more than 3 degenerate nucleotides, since this was the recommended threshhold in the original algorithm.
+For this tutorial, we'll start by filtering to remove anything with more than 3 degenerate nucleotides, since this was the recommended threshold in the original algorithm.
 
 .. code:: bash
 
@@ -87,9 +87,9 @@ First, the region is extracted from the pre-filtered database using the ``extrac
      --p-r-primer TATTACCGCGGCTGCTGG \
      --o-reads sidle-db-filt-jl.qza
 
-For this example, we used the default settings, although these are slightly different from the original SMURF algorithm: In QIIME, the primers are extracted if they have at least an 80% match with the sequence by default; the Matlab implementation of SMURF used 2 nucleotides [1]_. If you wish to use a limit closer to the original algorithm, this can be changed using the ``--p-identity`` parameter, however, for the sake of this tutorial, we'll use the defaults.
+For this example, we used the default settings, although these are slightly different from the original SMURF algorithm: In QIIME, the primers are extracted if they have at least an 80% match with the sequence by default; the Matlab implementation of SMURF used a maximum difference of 2 nucleotides [1]_. If you wish to use a limit closer to the original algorithm, this can be changed using the ``--p-identity`` parameter; however, for the sake of this tutorial, we'll use the defaults.
 
-Once the reads have been extracted, then they need to be prepared to be used in alignment. This step will expand any degenerate reads that have been extracted, collapse duplicate reads, and trim them to a consistent length. For  the full pipeline to work correctly, the primers need to be specified in this step, so once again, you'll need  to pass your primers. You'll also need to specify a trim length; let's use 100nt. Finally, we need to specify a regional identifier in the database using the ``--region`` parameter. This should be the same regional parameter that you use during alignment. We'll call it "WonderWoman" because (a) Diana Prince is amazing and (b) the regional name doesn't matter. 
+Once the reads have been extracted, they need to be prepared to be used in alignment. This step will expand any degenerate reads that have been extracted, collapse duplicate reads, and trim them to a consistent length. For the full pipeline to work correctly, the primers need to be specified in this step, so once again, you'll need  to pass your primers. You'll also need to specify a trim length; let's use 100nt. Finally, we need to specify a regional identifier in the database using the ``--region`` parameter. This should be the same regional parameter that you use during alignment. We'll call it "WonderWoman" because (a) Diana Prince is amazing and (b) the regional name doesn't matter. 
 
 .. code:: bash
 
@@ -111,7 +111,7 @@ The command will output the sequences (``--o-collapsed-kmers``) with degenerate 
      --o-visualization sidle-db-wonder-woman-100nt-map.qzv
 
 
-In some cases, the reference region and sequencing length may not be long enough to cover the full amplicon. If that's the case, you can extract the read starting from the reverse primer by setting the trim length to a negative value. You can even reverse complement the resultant amplicon using the ``--reverse_complement_result`` flag. Let's do an example using the same primers as before, but call the region "Batman".
+In some cases, the reference region and sequencing length may not be long enough to cover the full amplicon. If that's the case, you can extract the read starting from the reverse primer by setting the trim length to a negative value. You can even reverse complement the resultant amplicons using the ``--reverse_complement_result`` flag. Let's do an example using the same primers as before, but call the region "Batman".
 
 .. code:: bash
 

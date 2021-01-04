@@ -25,7 +25,7 @@ Now, you're all ready to start using Sidle.
 .. 
 .. starting with the :ref:`quickstart tutorial <quickstart>` to start doing regional alignment on a pre-prepared database.
 
-.. _installation instructions: https://docs.qiime2.org/2020.2/install/
+.. _installation instructions: https://docs.qiime2.org/2020.11/install/
 .. .. _github: https://github.com/jwdebelius/sidle
 	
 
