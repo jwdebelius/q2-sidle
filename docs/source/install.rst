@@ -1,7 +1,7 @@
 Installation
 ============
 
-The current working version is a qiime2-based implementation. It requires that you have installed qiime2 according to the `installation instructions`_ and have activated the environment. 
+The current working version is a qiime2-based implementation. It requires that you have installed qiime2 according to the `installation instructions`_ and have activated the environment. Sidle has been tested against qiime2-2020.11 and later; it may not function with earlier versions of qiime2.
 
 Once inside the environment, sidle can be installed with the following commands.
 
