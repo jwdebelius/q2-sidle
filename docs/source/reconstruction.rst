@@ -3,17 +3,29 @@ Sequence Reconstruction
 
 The core of the SMURF algorithm is based on the kmer-based reconstruction of short regions into a full-length framework. Within Sidle, there are two steps in database reconstruction. First, ASVs are aligned on a regional basis to generate the local kmer-based alignment. Then, the full collection of sequences is assembled into a reconstructed table of counts. For this example, we’ll work with a small, entirely artifical subset of samples that are designed to run quickly.
 
-You can get the tutorial data `here`_ or by running 
+If you've already done the database tutorial, make sure that you're in the ``sidle_tutorial`` directory.
 
 .. code-block:: bash
 	
-    mkdir -p sidle_tutorial/alignment
-    cd sidle_tutorial
-    
-    wget https://github.com/jwdebelius/q2-sidle/blob/main/docs/tutorial_data/data.tgz
-    tar -xzf data.tgz
+	pwd
 
-    wget https://github.com/jwdebelius/q2-sidle/blob/main/docs/tutorial_data/manifest.txt
+If you're new to the tutorial, you can make a new tutorila directory by running 
+
+.. code-block:: bash
+
+	mkdir -p sidle_tutorial
+	cd sidle-tutorial
+
+Next, you will need to get the tutorial data. You will need to download three sets of files: the sequencing data, the alignments, and the reconstruction files.
+
+.. code-block::bash
+	
+	wget https://github.com/jwdebelius/q2-sidle/raw/main/docs/tutorial_data/data.zip
+	unzip data.zip
+	wget https://github.com/jwdebelius/q2-sidle/raw/main/docs/tutorial_data/alignment.zip
+	unzip alignment.zip
+	wget https://github.com/jwdebelius/q2-sidle/raw/main/docs/tutorial_data/reconstruction.zip
+	unzip reconstruction.zip
 
 
 If you have not run the database tutorial, you will also want to get the
@@ -45,9 +57,9 @@ This will output an alignment file and any ASV sequences which wouldn't be align
 
 Optionally, you can also modify parameters for the number of basepairs that differ between the reference and representative sequences (``--p-max-mismatch``); the original paper uses a mismatch of 2 with 130nt sequences.
 
-You may find that if you have longer kmers, you might want to increase this parameter accordingly. A lower (more stringent) value will increase the number of discarded sequences, while a higher number may mean your matches are lower quality.
+You may find that if you have longer kmers, you might want to increase this parameter accordingly. A lower (more stringent) value will increase the number of discarded sequences, while a higher number may mean your matches are lower quality. You may find that if you have longer kmers, you may want to increase this parameter accordingly. A lower (more stringent) value will increase the number of discarded sequences, a higher number may mean your matches are lower quality.
 
-Using the same parameters, you will need need to align the other two regions.
+Using the same parameters, you will need to align the other two regions.
 
 .. code-block:: bash
 	
@@ -60,7 +72,7 @@ Using the same parameters, you will need need to align the other two regions.
 	qiime sidle align-regional-kmers \
 	 --i-kmers alignment/green-lantern-kmer-db.qza \
 	 --i-rep-seq table/green-lantern-rep-seq.qza \
-	 --p-region Green-Lantern \
+	 --p-region GreenLantern \
 	 --o-regional-alignment alignment/green-lantern-align-map.qza
 
 Now, you have all three local alignments prepared, you're ready to
@@ -91,7 +103,7 @@ Now, let’s reconstruct the table, using the default settings.**
       --i-kmer-map database/sidle-db-batman-100nt-map.qza \
       --i-regional-alignment alignment/batman-align-map.qza \
       --i-regional-table data/batman-100nt-table.qza \
-     --p-region Green-Lantern \
+     --p-region GreenLantern \
       --i-kmer-map database/sidle-db-batman-100nt-map.qza \
       --i-regional-alignment alignment/green-lantern-align-map.qza \
 	  --i-regional-table data/green-lantern-100nt-table.qza \
@@ -198,22 +210,30 @@ So, our first step is to reconstruct the consensus fragments from sequences that
       --i-regional-alignment alignment/wonder-woman-align-map.qza \
      --p-region Batman \
       --i-regional-alignment alignment/batman-align-map.qza \
-     --p-region Green-Lantern \
+     --p-region GreenLantern \
       --i-regional-alignment alignment/green-lantern-align-map.qza \
      --i-reconstruction-map reconstruction/league_map.qza \
      --i-reconstruction-summary reconstruction/league_summary.qza \
      --i-aligned-sequences database/sidle-db-aligned-sequences.qza \
      --o-representative-fragments reconstruction/league-rep-seq-fragments.qza
 
-We can then insert the sequences into the reference tree.
+We can then insert the sequences into the reference tree. Let's first get the reference tree.
 
 .. code-block:: shell
 
-    qiime fragment-insertion sepp \
-     --i-representative-sequences reconstruction/league-rep-seq-fragments.qza \
-     --i-reference-database ../../../medda-bench/simulations/refs/greengenes/sepp-refs-gg-13-8.qza \
-     --o-tree reconstruction/league-tree.qza \
-     --o-placements reconstruction/league-placements.qza
+	wget \
+	 -O "sepp-refs-gg-13-8.qza" \
+	 "https://data.qiime2.org/2020.11/common/sepp-refs-gg-13-8.qza"
+
+Then, we'll do the fragment insertion. 
+
+.. code-block:: shell
+
+	qiime fragment-insertion sepp \
+	 --i-representative-sequences reconstruction/league-rep-seq-fragments.qza \
+	 --i-reference-database sepp-refs-gg-13-8.qza \
+	 --o-tree reconstruction/league-tree.qza \
+	 --o-placements reconstruction/league-placements.qza
 
 Now, you're ready to analyze your data.
 
@@ -255,31 +275,50 @@ Regional Alignment Commands
 Reconstructing the Table
 ++++++++++++++++++++++++
 
-* Make sure your :ref:`input manifest <Table Reconstruction>` conforms to the guidelines 
-* Your region names must  match between the alignment, kmer, and manifest
+* Make sure your region names match between the alignment artifact, the database kmer map, and the ``region`` parameter.
 * ``count-degenerates`` will control how the summary describes differences in the sequences
-* ``max-mismatch`` helps determine the probability that sequences should be retained. This should match what was passed to the alignment.
-* **NOTE**: THIS WILL CHANGE IN THE NEAR FUTURE. DON'T LET PERFECT BE THE ENEMY OF GOOD ENOUGH
+* ``region-normalize`` will affect how many counts are assigned in the final table
 
 **Syntax**
+
+For *n* regions
 
 .. code-block:: bash
 
 	qiime sidle reconstruct-counts \
-	 --m-manifest-file [manifest file] \
+	 --p-region [region 1 name] \
+	  --i-kmer-map [region 1 kmer map] \
+	  --i-regional-alignment [region 1 alignment] \
+	  --i-regional-table [region 1 counts table] \
+	  ... \
+	  --p-region [region n name] \
+	  --i-kmer-map [region n kmer map] \
+	  --i-regional-alignment [region n alignment] \
+	  --i-regional-table [region n counts table] \
 	 --o-reconstructed-table [reconstructed table] \
 	 --o-reconstruction-summary [reconstruction summary] \
-	 --o-reconstruction-map [reconstruction map]
+	 --o-reconstruction-map [reconstructed database map]
 
 **Example**
 
 .. code-block:: bash
 
 	qiime sidle reconstruct-counts \
-	 --m-manifest-file region-manifest.tsv \
-	 --o-reconstructed-table league_table.qza \
-	 --o-reconstruction-summary league_summary.qza \
-	 --o-reconstruction-map league_map.qza
+	 --p-region WonderWoman \
+	  --i-kmer-map database/sidle-db-wonder-woman-100nt-map.qza \
+	  --i-regional-alignment alignment/wonder-woman-align-map.qza \
+	  --i-regional-table data/data/wonder-woman-100nt-table.qza \
+	 --p-region Batman \
+	  --i-kmer-map database/sidle-db-batman-100nt-map.qza \
+	  --i-regional-alignment alignment/batman-align-map.qza \
+	  --i-regional-table data/batman-100nt-table.qza \
+	 --p-region GreenLantern \
+	  --i-kmer-map database/sidle-db-green-lantern-100nt-map.qza \
+	  --i-regional-alignment alignment/green-lantern-align-map.qza \
+	  --i-regional-table data/green-lantern-100nt-table.qza \
+	 --o-reconstructed-table reconstruction/league_table.qza \
+	 --o-reconstruction-summary reconstruction/league_summary.qza \
+	 --o-reconstruction-map reconstruction/league_map.qza
 
 Reconstructing taxonomy
 +++++++++++++++++++++++
