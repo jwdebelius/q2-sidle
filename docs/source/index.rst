@@ -14,8 +14,8 @@ Sidle is a python version of the Short MUliple Reads Framework (SMURF) algorithm
 	:caption: Contents:
 
 	install
-	database_preperation
-	read_preperation
+	database_preparation
+	read_preparation
 	reconstruction
 	parallel_processing
 

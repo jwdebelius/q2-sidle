@@ -60,7 +60,7 @@ If your samples are demultiplexed to include a single set of files (probably for
 This will give you a table per region. Next, continue on to `denoise the regions`_.
 
 .. _trimming your primers:
-.. _demultiplex by sample and region:
+.. _demultiplexed correctly:
 
 Sequences barcoded by sample and region
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -255,7 +255,6 @@ Read Preparation References
 .. _q2 cutadapt: https://docs.qiime2.org/2020.6/plugins/available/cutadapt/
 .. _cutadapt: https://cutadapt.readthedocs.io/en/stable/
 .. _filter your sequences: https://docs.qiime2.org/2020.2/plugins/available/demux/filter-samples/
-.. _denoise the regions: _denoising
 .. _Dada2: https://docs.qiime2.org/2020.6/plugins/available/dada2/
 .. _Deblur: https://docs.qiime2.org/2020.6/plugins/available/deblur/
 .. _Nearing et al: https://peerj.com/articles/5364/
@@ -269,5 +268,6 @@ Read Preparation References
 .. _moving pictures option 2: https://docs.qiime2.org/2020.6/tutorials/moving-pictures/#option-2-deblur
 .. _Atacama Soils: https://docs.qiime2.org/2020.6/tutorials/atacama-soils/#paired-end-read-analysis-commands
 .. _alternative methods of read joining: https://docs.qiime2.org/2020.6/tutorials/read-joining/
-
+.. _rename the sample ids: https://docs.qiime2.org/2020.11/plugins/available/feature-table/rename-ids/
+.. _rename your samples: https://docs.qiime2.org/2020.11/plugins/available/feature-table/rename-ids/
 

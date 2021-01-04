@@ -277,6 +277,7 @@ Database References
 .. _filtering by taxonomy: https://docs.qiime2.org/2020.6/tutorials/filtering/#taxonomy-based-filtering-of-tables-and-sequences
 .. _qiime filtering tutorial: https://docs.qiime2.org/2020.6/tutorials/filtering/#taxonomy-based-filtering-of-tables-and-sequences
 .. _qiime feature classifier: https://docs.qiime2.org/2020.6/tutorials/feature-classifier/#extract-reference-reads
+.. _feature classifier: https://docs.qiime2.org/2020.6/tutorials/feature-classifier/#extract-reference-reads
 .. _qiime2 view : https://view.qiime2.org
 
 .. citations
@@ -284,3 +285,4 @@ Database References
 .. [1] Fuks, C; Elgart, M; Amir, A; et al (2018) "Combining 16S rRNA gene variable regions enables high-resolution microbial community profiling." *Microbiome*. **6**:17. doi: 10.1186/s40168-017-0396-x
 .. [2] McDonald, D; Price, NM; Goodrich, J, et al (2012). "An improved Greengenes taxonomy with explicit ranks for ecological and evolutionary analyses of bacteria and archaea." *ISME J*. **6**: 610. doi: 10.1038/ismej.2011.139
 .. [3] Quast, C.; Pruesse, E; Yilmaz, P; et al. (2013) "The SILVA ribosomal RNA gene database project: improved data processing and web-based tools." *Nucleic Acids Research*. **41**:D560. doi: 10.1093/nar/gks1219
+.. [4] Michael S Robeson II, Devon R O'Rourke, Benjamin D Kaehler, et al. "RESCRIPt: Reproducible sequence taxonomy reference database management for the masses."" bioRxiv 2020.10.05.326504; doi: 10.1101/2020.10.05.326504
