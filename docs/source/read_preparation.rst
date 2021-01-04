@@ -245,14 +245,6 @@ Read Preparation References
 .. .. [4] Rognes T, Flouri T, Nichols B, Quince C, Mahé F. (2016) "VSEARCH: a versatile open source tool for metagenomics." *PeerJ* 4:e2584 doi: 10.7717/peerj.2584
 
 .. links
-.. _demultiplexed by sample: _demuxed_by_sample
-.. _deblured tables: _denoise_deblur
-.. _demultiplex by sample and region: demux_sample_and_region
-.. _denoise the sequences: _denoising
-.. _demultiplex by region: _demuxed_by_sample
-.. _demultiplexed correctly: _demuxed_by_sample_and_sample_region
-.. _denoised with dada2: _denoise_dada2
-.. _denoised with deblur: _denoise_deblur
 .. _demultiplexing EMP sequences: https://docs.qiime2.org/2020.6/tutorials/moving-pictures/#demultiplexing-sequences
 .. _EMP Demultiplexing: https://docs.qiime2.org/2020.6/tutorials/moving-pictures/#demultiplexing-sequences
 .. _demultiplexing with cutadapt: https://forum.qiime2.org/t/demultiplexing-and-trimming-adapters-from-reads-with-q2-cutadapt/2313
