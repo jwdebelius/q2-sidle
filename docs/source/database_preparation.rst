@@ -17,11 +17,12 @@ You can start the tutorial by downloading the database sequences and taxonomy. T
 .. code-block:: shell
 
     mkdir -p sidle_tutorial
-    wget https://github.com/jwdebelius/q2-sidle/blob/main/docs/tutorial_data/database.tgz
-    tar -czf database.tgz
+    cd sidle_tutorial
+    wget https://github.com/jwdebelius/q2-sidle/raw/main/docs/tutorial_data/database.zip
+    unzip database.zip
     cd database
 
-Let's start by checking the number of sequences in the original dataset. We can do this using QIIME to summarize the sequences. 
+After you run this command, you will find two input files in your folder: ``sidle-db-full-sequences.qza``, which is the full length database sequences and ``sidle-db-taxonomy.qza``, the taxonomy for the sequences.
 
 .. code:: bash
 
@@ -36,7 +37,7 @@ Filtering the Database
 
 Database preparation can optionally begin by filtering the database to remove sequences with too many degenerate nucleotides or with taxonomic assignments that will not be used. 
 
-Degenerate filtering limits memory consumption throughout. The authors of SMURF [[1]_] recommend filtering the database to remove sequences with more than 3 degenerate nucleotides. This represents about X% of the greengenes 13_8 database at 99% [[2]_] specificity about Y% of the Silva 138 database [[3]_]. Increasing the number of allowed degenerates (the ``--p-max-degen`` parameter) will allow more sequences through the filter, and may mean more matches in downstream alignment. However, this comes at a substantial increase in the run time and memory needed, since degenerate sequences have to be expanded.
+Degenerate filtering limits memory consumption throughout. The authors of SMURF [1]_ recommend filtering the database to remove sequences with more than 3 degenerate nucleotides. This represents about X% of the greengenes 13_8 database at 99% [2]_ specificity.  a(The the RESCRIPt formatted Silva 138 database is filtered to exclude sequences with more than 5 degenerates [3]_, [4]_). Increasing the number of allowed degenerates (the ``--p-max-degen`` parameter) will allow more sequences through the filter, and may mean more matches in downstream alignment. However, this comes at a substantial increase in the run time and memory needed, since degenerate sequences have to be expanded, meaning more alignments are required.
 
 For this tutorial, we'll start by filtering to remove anything with more than 3 degenerate nucleotides, since this was the recommended threshold in the original algorithm.
 
@@ -48,7 +49,7 @@ For this tutorial, we'll start by filtering to remove anything with more than 3 
      --o-filtered-sequences sidle-db-full-degen-filtered-sequences.qza
 
 
-Try summarizing your database again. There should be about 4800 sequences remaining. How many do you have?
+Try summarizing your database again. There should be about 5400 sequences remaining. How many do you have?
 
 Some users may also want to filter out sequences which may not be relevant to their analysis, for example, mitochondria or chloroplasts or sequences which are undefined at a high taxonomic level. (Phylum or class, for example.) You can learn more about `filtering by taxonomy`_ in the QIIME2 tutorial, but as a brief example, we'll show filtering a greengenes database for features missing a phylum (**p__;**) or kingdom(**k__;**) designation.
 
@@ -77,7 +78,7 @@ Prepare a regional database
 
 The next step is to extract a region of the database. Alignment with the SMURF algorithm relies on extracting the exact kmer to be aligned with your ASVs, so the primer pair and read length must match exactly. Unlike other techniques, there is, unfortunately, no "good enough" approach. To maximize memory efficiency, the database is also prepared by expanding degenerate nucleotides and collapsing duplicated kmers into a single sequence.
 
-First, the region is extracted from the pre-filtered database using the ``extract-reads`` function from the q2-feature-classifier plugin. As an example, we’ll look at extracting a region between 316F and 484R using the second primer pair from the SMURF paper (5’-``TCCTACGGGAGGCAGCAG``-3’) and (5’-``TATTACCGCGGCTGCTGG``-3’).
+First, the region is extracted from the pre-filtered database using the ``extract-reads`` function from the `feature classifier`_ plugin. As an example, we’ll look at extracting a region between 316F and 484R using the second primer pair from the SMURF paper (5’-``TCCTACGGGAGGCAGCAG``-3’) and (5’-``TATTACCGCGGCTGCTGG``-3’).
 
 .. code:: bash
 
@@ -125,10 +126,12 @@ In some cases, the reference region and sequencing length may not be long enough
      --o-collapsed-kmers sidle-db-batman-100nt-kmers.qza \
      --o-kmer-map sidle-db-batman-100nt-map.qza
 
-As an exercise, try using the 486-650 primers (3-``CAGCAGCCGCGGTAATAC``-5 forward; 3-``CGCATTTCACCGCTACAC``-5 reverse) to extract a 100nt region called "GreenLantern". Use the same naming convention as the other two extracted regions.
+As an exercise, try using the 486-650 primers (3-``CAGCAGCCGCGGTAATAC``-5 forward; 3-``CGCATTTCACCGCTACAC``-5 reverse) to extract a 100nt region called "GreenLantern". Use the same naming convention as the other two extracted regions (``sidle-db-green-lantern-100nt-kmers.qza``).
 
 Now, you have a database that's ready to use for alignment and reconstruction.
 
+TL;DR: Database Preparation
+---------------------------
 
 Database Filtering
 ^^^^^^^^^^^^^^^^^^
