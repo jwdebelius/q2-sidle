@@ -54,7 +54,7 @@ plugin.methods.register_function(
     parameters={
         'max_degen': (Int % Range(0, None)),
         'chunk_size':  (Int % Range(1, None)),
-        'n_workers': Int % Range(0, None),
+        'n_workers': Int % Range(1, None),
         'debug': Bool,
         'client_address': Str,
     },
@@ -107,7 +107,7 @@ plugin.methods.register_function(
         'reverse_complement_rev': Bool,
         'reverse_complement_result': Bool,
         'chunk_size':  (Int % Range(1, None)),
-        'n_workers': Int % Range(0, None),
+        'n_workers': Int % Range(1, None),
         'client_address': Str,
         'debug': Bool,
 
@@ -181,7 +181,7 @@ plugin.methods.register_function(
         'max_mismatch': Int % Range(0, None),
         'chunk_size':  (Int % Range(1, None)),
         'client_address': Str,
-        'n_workers': Int % Range(0, None),
+        'n_workers': Int % Range(1, None),
         'debug': Bool,
     },
     input_descriptions={
@@ -245,7 +245,7 @@ plugin.methods.register_function(
         'region_normalize': Str % Choices('average', 'weighted', 'unweighted'),
         'min_counts': Int % Range(0, None),
         'block_size': Int,
-        'n_workers': Int % Range(0, None),
+        'n_workers': Int % Range(1, None),
         'client_address': Str,
         'debug': Bool,
     },
