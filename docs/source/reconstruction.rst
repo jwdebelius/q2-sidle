@@ -41,12 +41,15 @@ Regional alignment
 
 The first step in reconstruction is to perform per-region alignment between the sequences and the database. We’ll do this with the ``align-regional-kmers`` command. We set the reference database that we extracted previously as the ``--kmer-db-fp``. The ASV represent sequences and are passed as the ``--rep-seq-fp``. Finally, we supply a regional definition. This should be the same as the region name that you gave when you extracted the kmers. In this case, the region name was “WonderWoman”.
 
+Alignment is a pleasantly parallelizable problem, meaning that we can get improved performance by distributing the jobs. You can set this in almost any ``sidle`` command using the ``--p-n-workers`` parameter. (And you can learn more about parallel processing doc:`here <parallel_processing>`). For this example, we'll use 2 cores; if you have more avaliable you can or should use them.
+
 .. code-block:: bash
 	
 	qiime sidle align-regional-kmers \
      --i-kmers database/sidle-db-wonder-woman-100nt-kmers.qza \
      --i-rep-seq data/wonder-woman-100nt-rep-set.qza \
      --p-region WonderWoman \
+     --p-n-workers 2 \
      --o-regional-alignment alignment/wonder-woman-align-map.qza
 
 This will output an alignment file and any ASV sequences which wouldn't be aligned to the database, for your own record keeping.
@@ -67,12 +70,14 @@ Using the same parameters, you will need to align the other two regions.
 	 --i-kmers database/sidle-db-batman-100nt-kmers.qza \
 	 --i-rep-seq data/batman-100nt-rep-set.qza \
 	 --p-region Batman \
+	 --p-n-workers 2 \
 	 --o-regional-alignment alignment/batman-align-map.qza
 
 	qiime sidle align-regional-kmers \
 	 --i-kmers alignment/green-lantern-kmer-db.qza \
 	 --i-rep-seq table/green-lantern-rep-seq.qza \
 	 --p-region GreenLantern \
+	 --p-n-workers 2 \
 	 --o-regional-alignment alignment/green-lantern-align-map.qza
 
 Now, you have all three local alignments prepared, you're ready to
@@ -88,9 +93,11 @@ Parameters
 
 The ``max-mismatch`` and ``per-nucleotide-error`` are used to estimate the probability that a sequence that differs from the reference is actually a sequencing error or belongs to that sequence. The ``max-mismatch`` value used in reconstruction should match the alignment; by default this is 2 but you may choose to change it in alignmnent with your sequencing length. The authors of the method claim the error rate doesn’t matter; we refer interested reader to original paper’s supplemental material.
 
-The ``min-abundance`` determines the relative abundance of a database sequence to be excluded during optimization.
+The ``min-abundance`` determines the relative abundance of a database sequence to be excluded during optimization. This is, to some degree, a function of the avaliable sequencing depth and the desired specificity of the fit.
 
-Now, let’s reconstruct the table, using the default settings.**
+Finally, let's plan on running the command in parallel, using the ``--p-n-workers`` flag; this is particularly useful in the per-sample reconstruction step. We'll use 2 workers in this tutorial, if you have more avaliable you may prefer that.
+
+Now, let’s reconstruct the table, using the default settings.
 
 .. code-block:: shell
 	
@@ -107,6 +114,7 @@ Now, let’s reconstruct the table, using the default settings.**
       --i-kmer-map database/sidle-db-batman-100nt-map.qza \
       --i-regional-alignment alignment/green-lantern-align-map.qza \
 	  --i-regional-table data/green-lantern-100nt-table.qza \
+	 --p-n-workers 2 \
      --o-reconstructed-table reconstruction/league_table.qza \
      --o-reconstruction-summary reconstruction/league_summary.qza \
      --o-reconstruction-map reconstruction/league_map.qza
