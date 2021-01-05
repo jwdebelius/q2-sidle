@@ -71,9 +71,7 @@ plugin.methods.register_function(
                       'sequence to be retained.'),
         'chunk_size': ('The number of sequences to be analyzed in parallel '
                        'blocks'),
-        'n_workers': ('The number of jobs to initiate. When `n_workers` is 0,'
-                      ' the cluster will be able to access all avaliable'
-                      ' resources.'),
+        'n_workers': ('The number of jobs to initiate.'),
         'client_address': ('The IP address for an existing cluster. '
                           'Please see the dask client documentation for more'
                           ' information: '
@@ -144,9 +142,7 @@ plugin.methods.register_function(
                                       ' the reverse sequence.'),
         'chunk_size': ('The number of sequences to be analyzed in parallel '
                        'blocks'),
-        'n_workers': ('The number of jobs to initiate. When `n_workers` is 0,'
-                      ' the cluster will be able to access all avaliable'
-                      ' resources.'),
+        'n_workers': ('The number of jobs to initiate.'),
         'debug': ('Whether the function should be run in debug mode (without '
                   'a client) or not. `debug` superceeds all options'),
         'client_address': ('The IP address for an existing cluster. '
@@ -206,9 +202,7 @@ plugin.methods.register_function(
                        'relatively small (>1000) in combination with parallel'
                        ' processing (`n_workers`>1) for the best performance'
                        ' and memory optimization.'),
-        'n_workers': ('The number of jobs to initiate. When `n_workers` is 0,'
-                      ' the cluster will be able to access all avaliable'
-                      ' resources.'),
+        'n_workers': ('The number of jobs to initiate.'),
         'client_address': ('The IP address for an existing cluster. '
                           'Please see the dask client documentation for more'
                           ' information: '
@@ -256,7 +250,7 @@ plugin.methods.register_function(
         'kmer_map': ('A mapping relationship between the name of the '
                      'sequence in the database and the kmer identifier used'
                      ' in this region. The kmer map should correspond to the '
-                     'kmers used in regional alignmeent'),
+                     'kmers used in regional alignment'),
         'regional_table': ('A feature-table for each region, where  the '
                            'features in the table correspond to the ASVs '
                            'which were aligned in the regional alignment '
@@ -306,9 +300,7 @@ plugin.methods.register_function(
                        'computation. The larger the block_size, the faster '
                        'processing can happen, but the more memory that will'
                        ' be required.'),
-        'n_workers': ('The number of jobs to initiate. When `n_workers` is 0,'
-                      ' the cluster will be able to access all avaliable'
-                      ' resources.'),
+        'n_workers': ('The number of jobs to initiate.'),
         'client_address': ('The IP address for an existing cluster. '
                           'Please see the dask client documentation for more'
                           ' information: '
