@@ -24,7 +24,7 @@ def align_regional_kmers(kmers: DNAFASTAFormat,
     max_mismatch: int=2, 
     chunk_size:int=100, 
     debug:bool=False, 
-    n_workers:int=0,
+    n_workers:int=1,
     client_address:str=None) -> KmerAlignFormat:
     """
     Performs regional alignment between database "kmers" and ASVs

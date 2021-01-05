@@ -22,7 +22,7 @@ def filter_degenerate_sequences(sequences: DNASequencesDirectoryFormat,
     max_degen:int=3,
     chunk_size:int=10000,
     debug:bool=False, 
-    n_workers:int=0,
+    n_workers:int=1,
     client_address: str=None,
     ) -> pd.Series:
     """
