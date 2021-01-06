@@ -6,7 +6,7 @@ The core of the SMURF algorithm is based on the kmer-based reconstruction of sho
 If you've already done the database tutorial, make sure that you're in the ``sidle_tutorial`` directory.
 
 .. code-block:: bash
-	
+
 	pwd
 
 If you're new to the tutorial, you can make a new tutorila directory by running 
@@ -19,7 +19,7 @@ If you're new to the tutorial, you can make a new tutorila directory by running
 Next, you will need to get the tutorial data. You will need to download three sets of files: the sequencing data, the alignments, and the reconstruction files.
 
 .. code-block::bash
-	
+
 	wget https://github.com/jwdebelius/q2-sidle/raw/main/docs/tutorial_data/data.zip
 	unzip data.zip
 	wget https://github.com/jwdebelius/q2-sidle/raw/main/docs/tutorial_data/alignment.zip
@@ -32,7 +32,7 @@ If you have not run the database tutorial, you will also want to get the
 database data.
 
 .. code-block:: bash
-	
+
 	wget https://github.com/jwdebelius/q2-sidle/blob/main/docs/tutorial_data/database.tgz
 	tar -xzf database.tgz
 
@@ -44,7 +44,7 @@ The first step in reconstruction is to perform per-region alignment between the 
 Alignment is a pleasantly parallelizable problem, meaning that we can get improved performance by distributing the jobs. You can set this in almost any ``sidle`` command using the ``--p-n-workers`` parameter. (And you can learn more about parallel processing doc:`here <parallel_processing>`). For this example, we'll use 2 cores; if you have more avaliable you can or should use them.
 
 .. code-block:: bash
-	
+
 	qiime sidle align-regional-kmers \
      --i-kmers database/sidle-db-wonder-woman-100nt-kmers.qza \
      --i-rep-seq data/wonder-woman-100nt-rep-set.qza \
@@ -65,7 +65,7 @@ You may find that if you have longer kmers, you might want to increase this para
 Using the same parameters, you will need to align the other two regions.
 
 .. code-block:: bash
-	
+
 	qiime sidle align-regional-kmers \
 	 --i-kmers database/sidle-db-batman-100nt-kmers.qza \
 	 --i-rep-seq data/batman-100nt-rep-set.qza \
@@ -88,10 +88,7 @@ Table Reconstruction
 
 The table is reconstucted in three steps. First, the regional fragments get re-assembled into complete database sequences. Then, the relative abundance of the pooled counts gets computed through an optimization process. Finally, the relative abundance is used to reconstruct a table of counts.
 
-Parameters
-++++++++++
-
-The ``max-mismatch`` and ``per-nucleotide-error`` are used to estimate the probability that a sequence that differs from the reference is actually a sequencing error or belongs to that sequence. The ``max-mismatch`` value used in reconstruction should match the alignment; by default this is 2 but you may choose to change it in alignmnent with your sequencing length. The authors of the method claim the error rate doesn’t matter; we refer interested reader to original paper’s supplemental material.
+The ``per-nucleotide-error`` is combined with the ``maximum-mismatch`` parameter from alignment to the probability that a sequence that differs from the reference. So, for instance, this algorithm allows a single ASV to be mapped to multiple sequences in the reference database. During reconstruction, the alignment mismatch, sequencing error, and relative abundance are combined to calculate the mapped abundance. 
 
 The ``min-abundance`` determines the relative abundance of a database sequence to be excluded during optimization. This is, to some degree, a function of the avaliable sequencing depth and the desired specificity of the fit.
 
@@ -100,7 +97,7 @@ Finally, let's plan on running the command in parallel, using the ``--p-n-worker
 Now, let’s reconstruct the table, using the default settings.
 
 .. code-block:: shell
-	
+
     qiime sidle reconstruct-counts \
      --p-region WonderWoman \
       --i-kmer-map database/sidle-db-wonder-woman-100nt-map.qza \
@@ -124,7 +121,7 @@ The command will produce a count table, a file containing details about the numb
 Let’s take a look at the count table.
 
 .. code-block:: shell
-	
+
     qiime feature-table summarize \
      --i-table reconstruction/league_table.qza \
      --o-visualization reconstruction/league_table.qzv
@@ -263,7 +260,7 @@ Regional Alignment Commands
 **Syntax**
 
 .. code-block:: bash
-	
+
 	qiime sidle align-regional-kmers \
 	 --i-kmers [kmer sequences from extracted database] \
 	 --i-rep-seq [ASV representative sequnces] \
@@ -273,7 +270,7 @@ Regional Alignment Commands
 **Example**
 
 .. code-block:: bash
-	
+
 	qiime sidle align-regional-kmers \
 	 --i-kmers wonderwoman-kmer-db.qza \
 	 --i-rep-seq wonderwoman-rep-seq.qza \
@@ -363,7 +360,7 @@ Reconstructing the Tree
 **Fragment reconstruction syntax**
 
 .. code-block:: shell
-	
+
 	qiime sidle reconstruct-fragment-rep-seqs \
 	 --i-reconstruction-map [reconstruction map] \
 	 --i-reconstruction-summary [reconstruction summary] \
@@ -374,7 +371,7 @@ Reconstructing the Tree
 **Example reconstruction syntax**
 
 .. code-block:: shell
-	
+
 	qiime sidle reconstruct-fragment-rep-seqs \
 	 --i-reconstruction-map reconstruction/league_map.qza \
 	 --i-reconstruction-summary reconstruction/league_summary.qza \
