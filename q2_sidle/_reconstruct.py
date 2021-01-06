@@ -28,7 +28,7 @@ def reconstruct_counts(
     block_size : int=10000,
     min_counts: int=1000,
     debug: bool=False, 
-    n_workers: int=0,
+    n_workers: int=1,
     client_address: str=None,
     ) -> (biom.Table, Metadata, pd.DataFrame):
     """

@@ -22,7 +22,7 @@ def filter_degenerate_sequences(sequences: DNASequencesDirectoryFormat,
     max_degen:int=3,
     chunk_size:int=10000,
     debug:bool=False, 
-    n_workers:int=0,
+    n_workers:int=1,
     client_address: str=None,
     ) -> pd.Series:
     """
@@ -54,8 +54,8 @@ def filter_degenerate_sequences(sequences: DNASequencesDirectoryFormat,
         The fitlered reads
     # """
     # # Sets up the client
-    _setup_dask_client(debug=debug, cluster_config=None,  
-                       n_workers=n_workers, address=client_address)
+    #_setup_dask_client(debug=debug, cluster_config=None,  
+    #                   n_workers=n_workers, address=client_address)
     
     # Reads in the sequences
     sequences = dd.from_pandas(

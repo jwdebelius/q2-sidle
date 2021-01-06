@@ -32,7 +32,7 @@ def prepare_extracted_region(sequences: DNAFASTAFormat,
     reverse_complement_result:bool=False,
     chunk_size:int=10000, 
     debug:bool=False, 
-    n_workers:int=0,
+    n_workers:int=1,
     client_address:str=None,
     ) -> (DNAFASTAFormat, pd.DataFrame):
     """
