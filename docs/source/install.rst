@@ -33,5 +33,5 @@ Now, you're all ready to start using Sidle.
 
 .. _installation instructions: https://docs.qiime2.org/2020.11/install/
 .. .. _github: https://github.com/jwdebelius/sidle
-	
+.. _RESCRIPt: https://github.com/bokulich-lab/RESCRIPt
 
