@@ -1,13 +1,19 @@
 Installation
 ============
 
-The current working version is a qiime2-based implementation. It requires that you have installed qiime2 according to the `installation instructions`_ and have activated the environment. Sidle has been tested against qiime2-2020.11 and later; it may not function with earlier versions of qiime2.
+The current working version is a qiime2-based implementation. It requires that you have installed qiime2 according to the `installation instructions`_ and have activated the environment. In addition to vanilla qiime2, you will also need to install `RESCRIPt`_; these installation instructions will guide you through that process.
 
-Once inside the environment, sidle can be installed with the following commands.
+..note::
+	Sidle has been tested against qiime2-2020.11 and later; it may not function with earlier versions of qiime2.
+
+
+One you have activated yoru qiime2 enviroment, sidle can be installed with the following commands.
 
 .. code-block:: bash
 	
-	conda install dask=2.2 regex
+	conda install dask regex
+	conda install -c conda-forge -c bioconda -c qiime2 -c defaults xmltodict
+	pip install git+https://github.com/bokulich-lab/RESCRIPt.git
 	pip install git+https://github.com/jwdebelius/q2-sidle
 	qiime dev refresh-cache
 
