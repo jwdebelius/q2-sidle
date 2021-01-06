@@ -30,16 +30,17 @@ As an initial example of read preparation, your pipeline may include the followi
 Demultiplex your reads
 ----------------------
 
+.. _demultiplex by sample and region: 
+
 Fully Multiplexed sequences
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-.. _demux_sample_and_region: 
 
 The first step of sample processing is demultiplexing your sequences into sample x region pairs. You may have fully multiplexed sequences, in which case, you will need to demultiplex into both samples and regions. If this is the case, you will likely have two or three fastq files, which likely represent forward, reverse, and index reads. Please refer to the QIIME 2 documentation for `demultiplexing EMP sequences`_ and `demultiplexing with cutadapt`_.
 
 Now, you're ready to `denoise the regions`_.
 
-.. _demuxed_by_sample:
+.. _demultiplex by region:
+.. _demultiplexed by sample:
 
 Sequences barcoded by sample (mixed regions per sample) 
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -58,7 +59,8 @@ If your samples are demultiplexed to include a single set of files (probably for
 
 This will give you a table per region. Next, continue on to `denoise the regions`_.
 
-.. _demuxed_by_sample_and_sample_region:
+.. _trimming your primers:
+.. _demultiplexed correctly:
 
 Sequences barcoded by sample and region
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -91,7 +93,8 @@ Next, make sure that you trim your primers. If you plan to denoise all the data 
 
 This will give you a table where each sample is named whatever you've linked to your barcode. From here, you can either `filter your sequences`_ before denoising, or proceed combining all regions, and then filter the table later. If you denoise with Dada2, you may find better performance if you leave the sequences together; this will not affect denoising with deblur.
 
-.. _denoising:
+.. _denoise the sequences:
+.. _denoise the regions:
 
 Denoise reads with your favorite algorithm
 ------------------------------------------
@@ -103,7 +106,8 @@ However, there are some limitations. Ion Torrent and 454 pyrosequencing results 
 Illumina data which has already been joined or quality filtered should be `denoised with deblur`_. It's a faster algorithm and highly parallelizable but it's also more conservative. 
 
 
-.. _denoise_dada2:
+.. _denoised with dada2:
+.. _trim all the ASVs in your table to a consistent length:
 
 DADA2
 ^^^^^
@@ -140,18 +144,22 @@ You can check the length by tabulating the sequences.
 
 You should find the sequences all trimmed to 100nt, and ready for alignment.
 
-.. _denoise_deblur:
+.. _denoised with deblur:
+.. _deblured tables:
 
 Deblur
 ^^^^^^
 
 If you have sequenced using Illumina, Deblur may be easier to use and is recommended by the authors/original developers of SMURF. You can find a tutorial for deblurring `single end reads`_  or `paired end reads`_ on the QIIME webpage. Simply set your Deblur trim length to the final kmer length you'll use and proceed. 
 
+Check your tables
+-----------------
 
-Next Step: Reconstruction!
---------------------------
+Before you proceed, make sure that you have what you need. For alignment and reconstruction to work correctly, you will need one feature table and one representative sequence set for each region you plan to align. The ASVs in a feature table should have a consistent length. All the samples in the table should have the same names.
 
-Now, you're ready to proceed to reconstruction!
+If you need to, `trim all the ASVs in your table to a consistent length`_ or `rename your samples`_. 
+
+
 
 TL;DR: Read Preparation
 -----------------------
@@ -168,7 +176,7 @@ Demultiplexing
 	* `Cutadapt Demultiplexing`_
 	* `Import already demultiplexed reads into QIIME 2`_
 
-* Samples with mixed regions can be extracted using cutadapt to trim primers and discard untrimmed reads
+* Samples with mixed regions can be extracted using cutadapt to trim primers and discard untrimmed reads.
 
 **Paired End Command**
 
@@ -203,7 +211,20 @@ Denoising and Table Preparation
 		* Single end reads: `Moving Pictures Option 2`_
 		* Paired end reads: `Alternative Methods of Read Joining`_ Tutorial
 
-* Make sure to trim your sequences to the same length that was used for your database. You can do this with  the command
+* Make sure to trim your sequences to the same length that was used for your database. You can do this with  the ``trim-dada2-posthoc`` command.
+
+**Syntax**
+
+.. code-block:: bash
+
+	qiime sidle trim-dada2-posthoc \
+	 --i-table [table filepath] \
+	 --i-representative-sequences [sequence filepath] \
+	 --p-trim-length [trim length] \
+	 --o-trimmed-table [trimmed table] \
+	 --o-trimmed-representative-sequences [trimmed sequences]
+
+**Example**
 
 .. code-block:: bash
 
@@ -224,14 +245,6 @@ Read Preparation References
 .. .. [4] Rognes T, Flouri T, Nichols B, Quince C, Mahé F. (2016) "VSEARCH: a versatile open source tool for metagenomics." *PeerJ* 4:e2584 doi: 10.7717/peerj.2584
 
 .. links
-.. _demultiplexed by sample: _demuxed_by_sample
-.. _deblured tables: _denoise_deblur
-.. _demultiplex by sample and region: demux_sample_and_region
-.. _denoise the sequences: _denoising
-.. _demultiplex by region: _demuxed_by_sample
-.. _demultiplexed correctly: _demuxed_by_sample_and_sample_region
-.. _denoised with dada2: _denoise_dada2
-.. _denoised with deblur: _denoise_deblur
 .. _demultiplexing EMP sequences: https://docs.qiime2.org/2020.6/tutorials/moving-pictures/#demultiplexing-sequences
 .. _EMP Demultiplexing: https://docs.qiime2.org/2020.6/tutorials/moving-pictures/#demultiplexing-sequences
 .. _demultiplexing with cutadapt: https://forum.qiime2.org/t/demultiplexing-and-trimming-adapters-from-reads-with-q2-cutadapt/2313
@@ -242,7 +255,6 @@ Read Preparation References
 .. _q2 cutadapt: https://docs.qiime2.org/2020.6/plugins/available/cutadapt/
 .. _cutadapt: https://cutadapt.readthedocs.io/en/stable/
 .. _filter your sequences: https://docs.qiime2.org/2020.2/plugins/available/demux/filter-samples/
-.. _denoise the regions: _denoising
 .. _Dada2: https://docs.qiime2.org/2020.6/plugins/available/dada2/
 .. _Deblur: https://docs.qiime2.org/2020.6/plugins/available/deblur/
 .. _Nearing et al: https://peerj.com/articles/5364/
@@ -256,5 +268,6 @@ Read Preparation References
 .. _moving pictures option 2: https://docs.qiime2.org/2020.6/tutorials/moving-pictures/#option-2-deblur
 .. _Atacama Soils: https://docs.qiime2.org/2020.6/tutorials/atacama-soils/#paired-end-read-analysis-commands
 .. _alternative methods of read joining: https://docs.qiime2.org/2020.6/tutorials/read-joining/
-
+.. _rename the sample ids: https://docs.qiime2.org/2020.11/plugins/available/feature-table/rename-ids/
+.. _rename your samples: https://docs.qiime2.org/2020.11/plugins/available/feature-table/rename-ids/
 

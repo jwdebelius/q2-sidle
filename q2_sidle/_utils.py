@@ -93,8 +93,6 @@ def _setup_dask_client(debug=False, cluster_config=None, n_workers=1,
         client = Client(**client_config.to_dict())
     elif address is not None:
         client = Client(address)
-    elif n_workers == 0:
-        client = Client()
     else:
         client = Client(n_workers=n_workers, processes=True)
 
