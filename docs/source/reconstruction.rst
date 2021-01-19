@@ -16,7 +16,7 @@ If you're new to the tutorial, you can make a new tutorila directory by running
 	mkdir -p sidle_tutorial
 	cd sidle-tutorial
 
-Next, you will need to get the tutorial data. You will need to download three sets of files: the sequencing data, the alignments, and the reconstruction files.
+Next, you will need to get the tutorial data. You will need to download three sets of files: `the sequencing data`_, `the alignments`_, and the `reconstruction files`_.
 
 .. code-block::bash
 
@@ -29,11 +29,11 @@ Next, you will need to get the tutorial data. You will need to download three se
 
 
 If you have not run the database tutorial, you will also want to get the
-database data.
+`prepared database`_.
 
 .. code-block:: bash
 
-	wget https://github.com/jwdebelius/q2-sidle/blob/main/docs/tutorial_data/database.tgz
+	wget  https://github.com/jwdebelius/q2-sidle/raw/main/docs/tutorial_data/database.zip
 	tar -xzf database.tgz
 
 Regional alignment
@@ -392,4 +392,7 @@ References
 .. _original manuscript: https://microbiomejournal.biomedcentral.com/articles/10.1186/s40168-017-0396-x
 .. _QIIME 2 tutorials: https://docs.qiime2.org/2020.6/tutorials/
 .. _q2-fragment-insertion: https://docs.qiime2.org/2020.8/plugins/available/fragment-insertion/
-
+.. _the sequencing data: https://github.com/jwdebelius/q2-sidle/raw/main/docs/tutorial_data/data.zip
+.. _the alignments: https://github.com/jwdebelius/q2-sidle/raw/main/docs/tutorial_data/alignment.zip
+.. _reconstruction files: https://github.com/jwdebelius/q2-sidle/raw/main/docs/tutorial_data/reconstruction.zip
+.. _prepared database:  https://github.com/jwdebelius/q2-sidle/raw/main/docs/tutorial_data/database.zip

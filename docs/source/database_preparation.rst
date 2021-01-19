@@ -12,7 +12,7 @@ You will need:
 * Patience to run the extraction
 
 
-You can start the tutorial by downloading the database sequences and taxonomy. These have already been imported into qiime2 and as Artifacts.
+You can start the tutorial by `downloading the database sequences and taxonomy`_. These have already been imported into qiime2 and as Artifacts.
     
 .. code-block:: shell
 
@@ -279,6 +279,7 @@ Database References
 .. _qiime feature classifier: https://docs.qiime2.org/2020.6/tutorials/feature-classifier/#extract-reference-reads
 .. _feature classifier: https://docs.qiime2.org/2020.6/tutorials/feature-classifier/#extract-reference-reads
 .. _qiime2 view : https://view.qiime2.org
+.. _downloading the database sequences and taxonomy: https://github.com/jwdebelius/q2-sidle/raw/main/docs/tutorial_data/database.zip
 
 .. citations
 
