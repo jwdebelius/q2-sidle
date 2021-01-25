@@ -36,12 +36,7 @@ def reconstruct_counts(
 
     Parameters
     ----------
-    manifest: Metadata
-         A manifest file describing the relationship between regions and their
-        alignment mapping. The manifest must have at least three columns
-        (`kmer-map`, `alignment-map` and `frequency-table`) each of which
-        contains a unique filepath. The regions should be sorted and the 
-        region labels must match between the kmer map and the alignment map.
+    # region: 
     count_degenerates: bool
         Whether degenerate sequences should be counted as unique kmers during
         reconstruction or only unique sequences should be counted.
@@ -103,7 +98,7 @@ def reconstruct_counts(
         objs=regional_alignment)
     align_map.drop_duplicates(['asv', 'kmer'], inplace=True)
     align_map.replace({'region': region_order}, inplace=True)
-    kmers = _get_unique_kmers(align_map['kmer'])
+    aligned_kmers = _get_unique_kmers(align_map['kmer'])
 
     print('Regional Alignments Loaded')
 
@@ -116,7 +111,10 @@ def reconstruct_counts(
         axis=0,
         objs=kmer_map,
     )
-    kmer_map['region'] = kmer_map['region'].replace(region_order)    
+    kmer_map['region'] = kmer_map['region'].replace(region_order) 
+
+    kmers =_get_unique_kmers(kmer_map.loc[aligned_kmers, 'kmer'])
+
     kmer_map = kmer_map.loc[kmers]
     kmer_map.reset_index(inplace=True)
     kmer_map.drop_duplicates(inplace=True)
@@ -129,7 +127,6 @@ def reconstruct_counts(
     db_map = _untangle_database_ids(
         kmer_map.reset_index(),
         num_regions=num_regions,
-        block_size=block_size / 10,
         )
     print('Database map assembled')
 
@@ -514,6 +511,11 @@ def _get_shared_seqs(df):
             lambda x: pd.Series(x.split("|"))).reset_index()
     long_ = wide.melt(id_vars=['db-seq', 'region']).dropna()
     long_['value'] = long_['value'].apply(lambda x: x.split("@")[0])
+    db_seqs = long_['db-seq'].unique()
+    matched = long_['value'].unique()
+    long_.replace({'value': {x: 'X' for x in matched if (x not in db_seqs)}},
+                  inplace=True)
+
     long_.drop_duplicates(['db-seq', 'region', 'value'], inplace=True)
     
     return long_.drop(columns=['variable'])
@@ -873,7 +875,7 @@ def _tidy_sequence_set(clean_kmers, clean_seqs):
     return clean_kmers, clean_seqs
 
 
-def _untangle_database_ids(region_db, num_regions, block_size=500):
+def _untangle_database_ids(region_db, num_regions):
     """
     Untangles regional sequence identifier to map sequences to each other
 
@@ -883,8 +885,6 @@ def _untangle_database_ids(region_db, num_regions, block_size=500):
         A sequence array as a dataframe containing the trimmed region
     kmers: list
         A list of kmers to keep for the analysis
-    block_size : int, optional
-        The number of sequence groups whcih should be combined for mapping
 
     Returns
     -------
@@ -898,6 +898,7 @@ def _untangle_database_ids(region_db, num_regions, block_size=500):
         number per region.
     """
     # Cleans up the kmers by pulling off shared labels
+    region_db.drop_duplicates(['db-seq', 'kmer'], inplace=True)
     shared = _get_shared_seqs(region_db)
     clean_kmers = _get_clean(shared)
     clean_kmers['tidy'] = False
@@ -907,16 +908,20 @@ def _untangle_database_ids(region_db, num_regions, block_size=500):
 
     # Sets up a while loop. Because somehow it makes sense here?
     untidy = True
-    clean_seqs = set([])
+    clean_seqs = set(['X'])
     last_tidy = len(clean_kmers)
 
-    for i  in np.arange(0, 2):
+    for i  in np.arange(0, 3):
         clean_kmers, clean_seqs = _tidy_sequence_set(clean_kmers, clean_seqs)
-        tidy_seqs = ~clean_kmers['tidy']
-        untidy = tidy_seqs.any()
-        if (last_tidy == tidy_seqs.sum()) | ~untidy:
+        untidy_seqs = ~clean_kmers['tidy']
+        untidy = untidy_seqs.any()
+        if (last_tidy == untidy_seqs.sum()) | ~untidy:
             break
-        last_tidy = tidy_seqs.sum()
+        last_tidy = untidy_seqs.sum()
+    clean_kmers['shared-set'] = clean_kmers.apply(_sort_untidy, 
+                                                  clean_seqs=clean_seqs,
+                                                  axis=1, 
+                                                  )
 
     # Maps the tidy kmers into a single kmer
     db_map1 = clean_kmers.loc[clean_kmers['tidy']
@@ -935,8 +940,8 @@ def _untangle_database_ids(region_db, num_regions, block_size=500):
                 lambda x: pd.Series(sorted(set.intersection(*x.values))),
                 ).reset_index()
         to_map.columns = ['db-seq', 'counter', 'clean_name']
-
         db_map2 = _detangle_names(to_map) 
+
     else:
         db_map2 = pd.Series([], 
                             index=pd.Index([], name='db-seq'),  
