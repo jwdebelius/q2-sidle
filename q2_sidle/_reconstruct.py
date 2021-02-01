@@ -912,6 +912,7 @@ def _untangle_database_ids(region_db, num_regions):
     last_tidy = len(clean_kmers)
 
     for i  in np.arange(0, 3):
+        print(f'cleaning kners round {i}')
         clean_kmers, clean_seqs = _tidy_sequence_set(clean_kmers, clean_seqs)
         untidy_seqs = ~clean_kmers['tidy']
         untidy = untidy_seqs.any()
@@ -940,6 +941,7 @@ def _untangle_database_ids(region_db, num_regions):
                 lambda x: pd.Series(sorted(set.intersection(*x.values))),
                 ).reset_index()
         to_map.columns = ['db-seq', 'counter', 'clean_name']
+        print('ready to detangle')
         db_map2 = _detangle_names(to_map) 
 
     else:
