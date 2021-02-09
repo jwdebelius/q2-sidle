@@ -885,6 +885,92 @@ class ReconstructTest(TestCase):
 
         pdt.assert_series_equal(known_seq, seq_.sort_index())
 
+def test_untangle_database_ids_linked():
+        matches = pd.DataFrame(
+            data=np.array([['seq00', 'seq00', 'seq00', '0'],
+                           ['seq01', 'seq01', 'seq01|seq02', '0'],
+                           ['seq02', 'seq02', 'seq01|seq02', '0'],
+                           ['seq03', 'seq03@001', 'seq03@001', '0'],
+                           ['seq03', 'seq03@002', 'seq03@002', '0'],
+                           ['seq04', 'seq04@001', 'seq04@001', '0'],
+                           ['seq04', 'seq04@002', 'seq04@002', '0'],
+                           ['seq05', 'seq05', 'seq05', '0'],
+                           ['seq06', 'seq06', 'seq06', '0'],
+                           ['seq07', 'seq07', 'seq07', '0'],
+                           ['seq08', 'seq08', 'seq08|seq09', '0'],
+                           ["seq09", 'seq09', 'seq08|seq09', '0'],
+                           ['seq10', 'seq10', 'seq10|seq11', '0'],
+                           ['seq11', 'seq11', 'seq10|seq11', '0'],
+                           ['seq12', 'seq12', 'seq12|seq13|seq14', '0'],
+                           ['seq13', 'seq13', 'seq12|seq13|seq14', '0'],
+                           ['seq14', 'seq14', 'seq12|seq13|seq14', '0'],
+                           ['seq16', 'seq16', 'seq16', '0'],
+                           ['seq17', 'seq17', 'seq17|seq18', '0'],
+                           ['seq18', 'seq18', 'seq17|seq18', '0'],
+                           ['seq19', 'seq19', 'seq19|seq20', '0'],
+                           ['seq20', 'seq20', 'seq19|seq20', '0'],
+                           ['seq21', 'seq21', 'seq21', '0'],
+                           ['seq00', 'seq00', 'seq00', '1'],
+                           ['seq01', 'seq01', 'seq01', '1'],
+                           ['seq02', 'seq02', 'seq02', '1'],
+                           ['seq03', 'seq03', 'seq03', '1'],
+                           ['seq04', 'seq04@001', 'seq04@001', '1'],
+                           ['seq04', 'seq04@002', 'seq04@002', '1'],
+                           ['seq04', 'seq04@003', 'seq04@003', '1'],
+                           ['seq05', 'seq05@001', 'seq05@001', '1'],
+                           ['seq05', 'seq05@002', 'seq05@002|seq06', '1'],
+                           ['seq06', 'seq06', 'seq05@002|seq06', '1'],
+                           ['seq09', 'seq09', 'seq09|problem_child', '1'],
+                           ['seq10', 'seq10', 'seq10|seq11', '1'],
+                           ['seq11', 'seq11', 'seq10|seq11', '1'],
+                           ['seq12', 'seq12@0001', 'seq12@0001', '1'],
+                           ['seq12', 'seq12@0002', 'seq12@0002|seq14|seq15', '1'],
+                           ['seq13', 'seq13@0001', 'seq13@0001|seq14|seq15', '1'],
+                           ['seq13', 'seq13@0002', 'seq13@002', '1'],
+                           ['seq14', 'seq14', 'seq12@0002|seq13@0001|seq14|seq15', '1'],
+                           ['seq15', 'seq15', 'seq12@0002|seq13@0001|seq14|seq15', '1'],
+                           ['seq16', 'seq16', 'seq16|seq17',  '1'],
+                           ['seq17', 'seq17', 'seq16|seq17', '1'],
+                           ['seq21', 'seq21', 'seq21|seq22|seq23', '1'],
+                           ['seq22', 'seq22', 'seq21|seq22|seq23', '1'],
+                           ['seq23', 'seq23', 'seq21|seq22|seq23', '1'],
+                           ['seq22', 'seq22', 'seq22', '2'],
+                           ], dtype=object),
+            columns=['db-seq', 'seq-name', 'kmer', 'region'],
+            )
+        matches['region'] =  matches['region'].astype(int)
+        known_seq = pd.Series({'seq00': 'seq00', 
+                                'seq01': 'seq01',
+                                'seq02': 'seq02',
+                                'seq03': 'seq03',
+                                'seq04': 'seq04',
+                                'seq05': 'seq05',
+                                'seq06': 'seq06',
+                                'seq07': 'seq07',
+                                'seq08': 'seq08',
+                                'seq09': 'seq09',
+                                'seq10': 'seq10|seq11',
+                                'seq11': 'seq10|seq11',
+                                'seq12': 'seq12',
+                                'seq13': 'seq13',
+                                'seq14': 'seq14',
+                                'seq15': 'seq15',
+                                'seq16': 'seq16',
+                                'seq17': 'seq17',
+                                'seq18': 'seq18',
+                                'seq19': 'seq19|seq20',
+                                'seq20': 'seq19|seq20',
+                                'seq21': 'seq21',
+                                'seq22': 'seq22',
+                                'seq23': 'seq23'
+                                }, name='clean_name')
+        known_seq.index.set_names('db-seq', inplace=True)
+        # Generates the renaming
+        seq_ = _untangle_database_ids(matches, 
+                                      num_regions=3)
+
+        pdt.assert_series_equal(known_seq, seq_.sort_index())
+
 
 if __name__ == '__main__':
     main()
