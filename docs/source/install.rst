@@ -7,7 +7,7 @@ The current working version is a qiime2-based implementation. It requires that y
 	Sidle has been tested against qiime2-2020.11 and later; it may not function with earlier versions of qiime2.
 
 
-One you have activated yoru qiime2 enviroment, sidle can be installed with the following commands.
+One you have activated your qiime2 enviroment, sidle can be installed with the following commands.
 
 .. code-block:: bash
 	
