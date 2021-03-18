@@ -17,7 +17,7 @@ install:
   - conda install -q -y pytest-cov regex dask
   - conda install -q -y -c conda-forge -c bioconda -c qiime2 -c defaults xmltodict
   - pip install -q flake8 coveralls
-  - pip install -q git+https://github.com/bokulich-lab/RESCRIPt.git
+  - pip install -q git+https://github.com/bokulich-lab/RESCRIPt.git@2021.2.0
   - pip install -q https://github.com/qiime2/q2lint/archive/master.zip
   - pip install . --no-deps
   - make install
