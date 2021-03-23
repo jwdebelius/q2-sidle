@@ -13,7 +13,7 @@ One you have activated your qiime2 enviroment, sidle can be installed with the f
 	
 	conda install dask regex
 	conda install -c conda-forge -c bioconda -c qiime2 -c defaults xmltodict
-	pip install git+https://github.com/bokulich-lab/RESCRIPt.git@2020.11
+	pip install git+https://github.com/bokulich-lab/RESCRIPt.git@2021.2.0
 	pip install git+https://github.com/jwdebelius/q2-sidle
 	qiime dev refresh-cache
 
@@ -31,7 +31,7 @@ Now, you're all ready to start using Sidle.
 .. 
 .. starting with the :ref:`quickstart tutorial <quickstart>` to start doing regional alignment on a pre-prepared database.
 
-.. _installation instructions: https://docs.qiime2.org/2020.11/install/
+.. _installation instructions: https://docs.qiime2.org/2021.2/install/
 .. .. _github: https://github.com/jwdebelius/sidle
 .. _RESCRIPt: https://github.com/bokulich-lab/RESCRIPt
 
