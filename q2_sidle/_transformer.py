@@ -8,7 +8,6 @@ from q2_sidle import (KmerMapFormat,
                       ReconSummaryFormat,
                       )
 from q2_types.feature_data import  AlignedDNAFASTAFormat, DNAFASTAFormat
-from q2_types.feature_data._transformer import _dnafastaformats_to_series
 from q2_sidle.plugin_setup import plugin
 
 @plugin.register_transformer
