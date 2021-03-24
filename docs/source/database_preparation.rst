@@ -74,7 +74,7 @@ Once you have finished pre-filtering, you are ready to start extracting regions.
 
 
 Prepare a regional database for each primer set
----------------------------
+-----------------------------------------------
 
 The next step is to extract a region of the database. Alignment with the SMURF algorithm relies on extracting the exact kmer to be aligned with your ASVs, so the primer pair and read length must match exactly. Unlike other techniques, there is, unfortunately, no "good enough" approach. To maximize memory efficiency, the database is also prepared by expanding degenerate nucleotides and collapsing duplicated kmers into a single sequence.
 
@@ -129,15 +129,18 @@ In some cases, the reference region and sequencing length may not be long enough
 As an exercise, try using the 486-650 primers (3-``CAGCAGCCGCGGTAATAC``-5 forward; 3-``CGCATTTCACCGCTACAC``-5 reverse) to extract and prepare a 100nt region called "GreenLantern" as we outlined above. Use the same naming convention as the other two extracted regions (``sidle-db-green-lantern-100nt-kmers.qza``).
 
 Recap
----------------------------
+-----
 We've essentially constructed three amplicon regional databases. *Again, Batman is simply a reverse-compliment extraction example of the same region we extracted for WonderWoman. This mimics the case in which we have paired-end reads that we could not merge, so we treat them as separate region data as mentioned above.*
 
-| Hero (Region Name) | Region |  Forward Primer | Reverse Primer |
-|--------------------|--------|-----------------|----------------|
-| WonderWoman | 316F-484R | TCCTACGGGAGGCAGCAG | TATTACCGCGGCTGCTGG |
-| Batman | 316F-484R (rev compliment) | TATTACCGCGGCTGCTGG | TCCTACGGGAGGCAGCAG |
-| GreenLantern | 486F-650R | CAGCAGCCGCGGTAATAC | CGCATTTCACCGCTACAC |
-
++--------------------+----------------------------+--------------------+--------------------+
+| Hero (Region Name) | Region                     |  Forward Primer    | Reverse Primer     |
++====================+============================+====================+====================+
+| WonderWoman        | 316F-484R                  | TCCTACGGGAGGCAGCAG | TATTACCGCGGCTGCTGG |
++--------------------+----------------------------+--------------------+--------------------+
+| Batman             | 316F-484R (rev compliment) | TATTACCGCGGCTGCTGG | TCCTACGGGAGGCAGCAG |
++--------------------+----------------------------+--------------------+--------------------+
+| GreenLantern       | 486F-650R                  | CAGCAGCCGCGGTAATAC | CGCATTTCACCGCTACAC |
++--------------------+----------------------------+--------------------+--------------------+
 
 Now, you have a database that's ready to use for alignment and reconstruction.
 
