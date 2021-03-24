@@ -20,6 +20,16 @@ Sidle is a python version of the Short MUliple Reads Framework (SMURF) algorithm
 	parallel_processing
 
 
+Citations
+=========
+
+If you use Sidle, please cite:
+
+1. Debelius, J.W.; Robeson, M.; Lhugerth, L.W.; Boulund, F.; Ye, W.; Engstrand, L. "A comparison of approaches to scaffolding multiple regions along the 16S rRNA gene for improved resolution." Preprint in BioRxiv. doi: 10.1101/2021.03.23.436606
+
+1. Fuks, G.; Elgart, M.; Amir, A.; Zeisel, A.; Turnbaugh, P.J., Soen, Y.; and Shental, N. (2018). "Combining 16S rRNA gene variable regions enables high-resolution microbial community profiling." *Microbiome*. **6**: 17. doi: 10.1186/s40168-017-0396-x
+
+
 Indices and tables
 ==================
 

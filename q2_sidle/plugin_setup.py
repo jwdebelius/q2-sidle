@@ -38,6 +38,7 @@ plugin = Plugin(
                  'reads over a marker gene region using the Short MUltiple '
                  'Read Framework (SMURF) algorithm'),
     short_description='Plugin for kmer-based marker gene reconstruction.',
+    citations=[citations['Debelius2021']],
 )
 
 plugin.methods.register_function(
