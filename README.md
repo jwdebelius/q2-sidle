@@ -7,7 +7,7 @@ Full documentation on [read the docs](https://q2-sidle.readthedocs.io/)
 
 ## Installation
 
-q2-sidle requires a QIIME 2 enviroment. [Install QIIME2](https://docs.qiime2.org/2021.2/install/) according to the method that works best for your system.
+q2-sidle requires a QIIME 2 enviroment. [Install QIIME2](https://docs.qiime2.org/2021.4/install/) according to the method that works best for your system.
 
 Sidle depends on two conda libraries, `dask` and `regex`, as well as the [RESCRIPt](https://github.com/bokulich-lab/RESCRIPt/) qiime2 plugin. To install the plugin, start with adding the addtional conda libraries:
 
@@ -19,7 +19,7 @@ conda install -c conda-forge -c bioconda -c qiime2 -c defaults xmltodict
 Next, you will need the RESCRIPt and sidle plugins.
 
 ```bash
-pip install git+https://github.com/bokulich-lab/RESCRIPt.git@2021.2.0
+pip install git+https://github.com/bokulich-lab/RESCRIPt.git
 pip install git+https://github.com/jwdebelius/q2-sidle
 ```
 
