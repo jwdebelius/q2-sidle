@@ -190,7 +190,7 @@ plugin.methods.register_function(
     },
     output_descriptions={
         'regional_alignment': ('A mapping between the database kmer name and'
-                               ' the asv'),
+                               ' the ASV'),
     },
      parameter_descriptions={
         'region': ('A unique description of the hypervariable region being '
@@ -200,7 +200,7 @@ plugin.methods.register_function(
                          'allowed in mapping between a sequence and kmer'),
         'chunk_size': ('The number of sequences to be analyzed in parallel '
                        'blocks. It is highly recommend this number stay '
-                       'relatively small (>1000) in combination with parallel'
+                       'relatively small (<1000) in combination with parallel'
                        ' processing (`n_workers`>1) for the best performance'
                        ' and memory optimization.'),
         'n_workers': ('The number of jobs to initiate.'),
