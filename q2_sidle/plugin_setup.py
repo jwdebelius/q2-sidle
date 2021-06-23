@@ -281,7 +281,7 @@ plugin.methods.register_function(
                               'nucleotides should be counted as unqiue kmers '
                               'or whether the number of original database '
                               'sequences before degenerate expansion should '
-                              'be used."),
+                              'be used.'),
         'per_nucleotide_error': ('The assumed per-nucelotide error rate '
                                  'throughout amplification and sequencing.'),
         'min_abund': ('The minimum frequency for a feature to be retained '
