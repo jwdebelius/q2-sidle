@@ -86,7 +86,7 @@ Next, make sure that you trim your primers. If you plan to denoise all the data 
 	qiime cutadapt trim-paired \
 	 --i-demultiplexed-sequences example_seqs.qza \
 	 --p-front-f TCCTACGGGAGGCAGCAG \
-	 --p-adapter-r TATTACCGCGGCTGCTGG \
+	 --p-front-r TATTACCGCGGCTGCTGG \
 	 --p-error-rate 0.1 \
 	 --p-indels \
 	 --o-trimmed-sequences example_seqs_trimmed1.qza
@@ -185,7 +185,7 @@ Demultiplexing
 	qiime cutadapt trim-paired \
 	 --i-demultiplexed-sequences example_seqs.qza \
 	 --p-front-f TCCTACGGGAGGCAGCAG \
-	 --p-adapter-r TATTACCGCGGCTGCTGG \
+	 --p-front-r TATTACCGCGGCTGCTGG \
 	 --p-error-rate 0.1 \
 	 --p-indels \
 	 --o-trimmed-sequences example_seqs_trimmed1.qza
