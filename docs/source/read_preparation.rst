@@ -51,7 +51,7 @@ If your samples are already demultiplexed, likely including a single set of file
 	qiime cutadapt trim-paired \
 	 --i-demultiplexed-sequences example_seqs.qza \
 	 --p-front-f TCCTACGGGAGGCAGCAG \
-	 --p-adapter-r TATTACCGCGGCTGCTGG \
+	 --p-front-r TATTACCGCGGCTGCTGG \
 	 --p-error-rate 0.1 \
 	 --p-indels \
 	 --p-discard-untrimmed \
@@ -185,7 +185,7 @@ Demultiplexing
 	qiime cutadapt trim-paired \
 	 --i-demultiplexed-sequences example_seqs.qza \
 	 --p-front-f TCCTACGGGAGGCAGCAG \
-	 --p-adapter-r TATTACCGCGGCTGCTGG \
+	 --p-front-r TATTACCGCGGCTGCTGG \
 	 --p-error-rate 0.1 \
 	 --p-indels \
 	 --o-trimmed-sequences example_seqs_trimmed1.qza
