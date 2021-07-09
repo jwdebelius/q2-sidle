@@ -108,7 +108,7 @@ Now, let’s reconstruct the table, using the default settings.
         --i-regional-alignment alignment/batman-align-map.qza \
         --i-regional-table data/batman-100nt-table.qza \
       --p-region GreenLantern \
-        --i-kmer-map database/sidle-db-batman-100nt-map.qza \
+        --i-kmer-map database/sidle-db-green-lantern-100nt-map.qza \
         --i-regional-alignment alignment/green-lantern-align-map.qza \
         --i-regional-table data/green-lantern-100nt-table.qza \
       --p-n-workers 2 \
@@ -212,11 +212,11 @@ So, our first step is to reconstruct the consensus fragments from sequences that
 
     qiime sidle reconstruct-fragment-rep-seqs \
     --p-region WonderWoman \
-      --i-regional-alignment alignment/wonder-woman-align-map.qza \
+      --i-kmer-map database/sidle-db-wonder-woman-100nt-map.qza
      --p-region Batman \
-      --i-regional-alignment alignment/batman-align-map.qza \
+      --i-kmer-map database/sidle-db-batman-100nt-map.qza \
      --p-region GreenLantern \
-      --i-regional-alignment alignment/green-lantern-align-map.qza \
+      --i-kmer-map database/sidle-db-green-lantern-100nt-map.qza \
      --i-reconstruction-map reconstruction/league_map.qza \
      --i-reconstruction-summary reconstruction/league_summary.qza \
      --i-aligned-sequences database/sidle-db-aligned-sequences.qza \
@@ -362,22 +362,31 @@ Reconstructing the Tree
 .. code-block:: shell
 
   qiime sidle reconstruct-fragment-rep-seqs \
-    --i-reconstruction-map [reconstruction map] \
-    --i-reconstruction-summary [reconstruction summary] \
-    --i-aligned-sequences [aligned sequences] \
-    --m-manifest-file [manifest] \
-    --o-representative-fragments [concensus fragments]
+    --p-region [region 1 name] \
+      --i-kmer-map [region 1 kmer alignment]
+     ... \
+     --p-region [region n name] \
+      --i-kmer-map [region n kmer alignment] \
+     --i-reconstruction-map [database map] \
+     --i-reconstruction-summary [database summary] \
+     --i-aligned-sequences [aligned database sequences] \
+     --o-representative-fragments [reconstructed fragments]
 
 **Example reconstruction syntax**
 
 .. code-block:: shell
 
   qiime sidle reconstruct-fragment-rep-seqs \
-    --i-reconstruction-map reconstruction/league_map.qza \
-    --i-reconstruction-summary reconstruction/league_summary.qza \
-    --i-aligned-sequences database/sidle-db-aligned-sequences.qza \
-    --m-manifest-file manifest.txt \
-    --o-representative-fragments reconstruction/league-rep-seq-fragments.qza
+    --p-region WonderWoman \
+      --i-kmer-map database/sidle-db-wonder-woman-100nt-map.qza
+     --p-region Batman \
+      --i-kmer-map database/sidle-db-batman-100nt-map.qza \
+     --p-region GreenLantern \
+      --i-kmer-map database/sidle-db-green-lantern-100nt-map.qza \
+     --i-reconstruction-map reconstruction/league_map.qza \
+     --i-reconstruction-summary reconstruction/league_summary.qza \
+     --i-aligned-sequences database/sidle-db-aligned-sequences.qza \
+     --o-representative-fragments reconstruction/league-rep-seq-fragments.qza
 
 References
 ++++++++++
