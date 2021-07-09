@@ -36,16 +36,9 @@ def _2(ff:KmerMapFormat) -> Metadata:
 
 @plugin.register_transformer
 def _3(ff:KmerMapFormat) -> Delayed:
-    df = _1(ff)
-    return dask.delayed(df)
+    df = dask.delayed(_1)(ff)
+    return df
 
-# @plugin.register_transformer
-# def _3(ff:KmerMapFormat) -> dd.DataFrame:
-#     df = dd.read_csv(str(ff), sep='\t', dtype=str)
-#     df = df[['db-seq', 'seq-name', 'kmer', 'region', 'fwd-primer', 
-#              'rev-primer', 'kmer-length']]
-#     df[['kmer-length']] = df[['kmer-length']].astype(int)
-#     return df.set_index('db-seq')
 
 @plugin.register_transformer
 def _4(obj: pd.DataFrame) -> KmerMapFormat:
@@ -74,11 +67,8 @@ def _6(ff:KmerAlignFormat) -> Metadata:
     return Metadata(df)
 
 @plugin.register_transformer
-def _7(ff:KmerAlignFormat) -> dd.DataFrame:
-    df = dd.read_csv(str(ff), sep='\t', dtype=str)
-    df = df[['kmer', 'asv', 'length', 'mismatch', 'max-mismatch', 'region']]
-    df[['mismatch', 'max-mismatch', 'length']] = \
-        df[['mismatch', 'max-mismatch', 'length']].astype(int)
+def _7(ff:KmerAlignFormat) -> Delayed:
+    df = dask.delayed(_5)(ff)
     return df
 
 @plugin.register_transformer
