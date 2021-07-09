@@ -15,6 +15,7 @@ from qiime2 import Metadata, Artifact
 from qiime2.plugin import ValidationError
 from q2_sidle._utils import (_setup_dask_client, 
                              degen_reps,
+                             _check_regions,
                              )                             
 
 def reconstruct_database(

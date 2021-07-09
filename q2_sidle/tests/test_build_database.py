@@ -21,7 +21,6 @@ from q2_sidle._build_database import (reconstruct_database,
                                       _build_region_db,
                                       _check_db_list,
                                       _check_intersection_delayed,
-                                      _check_regions,
                                       _clean_kmer_list,
                                       _count_mapping,
                                       _define_shared,
@@ -354,20 +353,6 @@ class DatabaseMapTest(TestCase):
         # print(test_check.compute())
         pdt.assert_frame_equal(known_kmers, test_kmers.compute())
         pdt.assert_frame_equal(known_check, test_check.compute())
-
-    def test_check_regions(self):
-        regions = ['Bludhaven', 'Gotham']
-        k_order = {'Bludhaven': 0, 'Gotham': 1}
-        k_names = {0: 'Bludhaven', 1: "Gotham"}
-
-        t_order, t_names, t_num = _check_regions(self.regions)
-        self.assertEqual(t_num, 2)
-        npt.assert_array_equal(list(k_order.keys()), list(t_order.keys()))
-        for k, v in k_order.items():
-            self.assertEqual(v, t_order[k])
-        npt.assert_array_equal(list(k_names.keys()), list(t_names.keys()))
-        for k, v in k_names.items():
-            self.assertEqual(v, t_names[k])
 
     def test_clean_kmer_list(self):
         test = _clean_kmer_list('robin@0001|robin@002|batman@001')

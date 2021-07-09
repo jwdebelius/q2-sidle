@@ -4,6 +4,7 @@ import os
 
 import dask
 import numpy as np
+import numpy.testing as npt
 import pandas as pd
 import pandas.testing as pdt
 import skbio
@@ -14,6 +15,7 @@ from qiime2.plugin import ValidationError
 from q2_sidle._utils import (_count_degenerates,
                              _find_primer_end,
                              _find_primer_start,
+                             _check_regions,
                              )
 import q2_sidle.tests.test_set as ts
 from q2_types.feature_data import DNAIterator, DNAFASTAFormat
@@ -67,6 +69,22 @@ class UtilTest(TestCase):
         known = pd.Series({'pos': np.nan, 'mis': np.nan})
         test = _find_primer_end('Iguanas are awesome', '(Cat){e<=1}')
         pdt.assert_series_equal(known, test)
+
+
+    def test_check_regions(self):
+        regions = ['Bludhaven', 'Gotham']
+        k_order = {'Bludhaven': 0, 'Gotham': 1}
+        k_names = {0: 'Bludhaven', 1: "Gotham"}
+
+        t_order, t_names, t_num = _check_regions(regions)
+        self.assertEqual(t_num, 2)
+        npt.assert_array_equal(list(k_order.keys()), list(t_order.keys()))
+        for k, v in k_order.items():
+            self.assertEqual(v, t_order[k])
+        npt.assert_array_equal(list(k_names.keys()), list(t_names.keys()))
+        for k, v in k_names.items():
+            self.assertEqual(v, t_names[k])
+
 
 
 if __name__ == '__main__':
