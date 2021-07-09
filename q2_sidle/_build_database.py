@@ -21,7 +21,7 @@ def reconstruct_database(
     region: str,
     regional_alignment: pd.DataFrame,
     kmer_map: Delayed,
-    blocksize: int=10000,
+    block_size: int=10000,
     debug: bool=False, 
     n_workers: int=1,
     client_address: str=None,
@@ -74,44 +74,44 @@ def reconstruct_database(
     db_seqs = [_pull_unique(df) for df in kmer_alignments]
     db_seqs = np.unique(np.hstack(dask.compute(*db_seqs)))
     print('database kmers identified')
-    kmer_map = dd.from_delayed(
+    mapped_kmer = dd.from_delayed(
         dfs=[dask.delayed(_build_region_db)(df, db_seqs) 
              for df in kmer_alignments],
         meta=[('db-seq', 'str'), ('region', 'str'), ('kmer', 'str')]
     )
     # Cleans up the kmer dataframe by resizing it, and indexing it by the databasae
     # sequence and region
-    npartitons = int(np.ceil(kmer_map.shape[0].compute() / blocksize))
-    kmer_map = kmer_map.repartition(npartitons)
-    kmer_map = kmer_map.replace({'region': region_order})
-    kmer_map['kmer'] = kmer_map['kmer'].apply(
+    npartitons = int(np.ceil(mapped_kmer.shape[0].compute() / block_size))
+    mapped_kmer = mapped_kmer.repartition(npartitons)
+    mapped_kmer = mapped_kmer.replace({'region': region_order})
+    mapped_kmer['kmer'] = mapped_kmer['kmer'].apply(
         _clean_kmer_list, 
         meta=('kmer', 'str')
     )
-    kmer_map['kmer'] = kmer_map['kmer'].apply(
+    mapped_kmer['kmer'] = mapped_kmer['kmer'].apply(
         _check_db_list, 
         meta=('kmer', 'str'), 
         ref_seqs=set(db_seqs)
     )
-    db_seqs = kmer_map['db-seq'].unique().compute()
+    db_seqs = mapped_kmer['db-seq'].unique().compute()
     print('kmer map built')
     
     ### Combines the sequences to build a single regional database
     # Creates a new label for grouping magic
-    kmer_map['composite'] = kmer_map.apply(
+    mapped_kmer['composite'] = mapped_kmer.apply(
         lambda x: '{}-{}'.format(x['db-seq'], x['region']), 
         axis=1,
         meta=(None, 'object')
     )
-    kmer_map['kmer'] = kmer_map['kmer'].apply(
+    mapped_kmer['kmer'] = mapped_kmer['kmer'].apply(
         _clean_kmer_list, meta=('kmer', 'str')
     )
-    kmer_map['kmer'] = kmer_map['kmer'].apply(
+    mapped_kmer['kmer'] = mapped_kmer['kmer'].apply(
         _check_db_list, meta=('kmer', 'str'), ref_seqs=set(db_seqs)
     )
 
 
-    region_db = kmer_map.groupby('composite')['kmer'].apply(
+    region_db = mapped_kmer.groupby('composite')['kmer'].apply(
         _get_regional_seqs,
         meta=('kmer', 'str')
     ).reset_index()
@@ -129,7 +129,7 @@ def reconstruct_database(
     # kmer matches
     print('tidying round 1')
     shared_kmers_no1, shared_check_no1 = \
-        _check_intersection(region_db, set('X'))
+        _check_intersection_delayed(region_db, set('X'))
     shared_check_no1 = shared_check_no1.compute()
     # Splits the data into tidy and untidy kmers
     tidy_kmers_no1 = \
@@ -150,7 +150,7 @@ def reconstruct_database(
     print('tidying round 2')
     region_db2 = region_db.loc[~region_db['db-seq'].isin(tidy_seqs_no1)].copy()
     shared_kmers_no2, shared_check_no2 = \
-        _check_intersection(region_db2, set('X') | set(tidy_seqs_no1))
+        _check_intersection_delayed(region_db2, set('X') | set(tidy_seqs_no1))
     shared_check_no2 = shared_check_no2.compute()
     tidy_kmer_no2 = shared_check_no2.loc[shared_check_no2['tidy'], 'kmer'].unique()
     tidy_seqs_no2 = \
@@ -169,17 +169,19 @@ def reconstruct_database(
     )
     unkempt = unkempt.compute()
     if len(unkempt) > 0:
-        to_map = unkempt.apply(lambda x: pd.Series(x.split("|"))).unstack().dropna()
+        to_map = unkempt.apply(
+            lambda x: pd.Series(x.split("|"))
+            ).unstack().dropna()
         to_map = to_map.reset_index()
         to_map.columns = ['counter', 'db-seq', 'clean_name']
         detangled = _detangle_names(to_map.copy())
         detangled = detangled.reset_index()
         detangled.rename(columns={'clean_name': 'kmer'}, inplace=True)
     else:
-        detangled = pd.Series([], 
+        detangled = pd.Series(np.array([], dtype=str), 
                              index=pd.Index([], name='db-seq'),  
                              name='kmer')
-        detangled.reset_index(inplace=True)
+        detangled = detangled.reset_index()
     print('round 3 tidied')
         
     # Combines the earlier maps
@@ -191,7 +193,22 @@ def reconstruct_database(
     combined.rename(columns={'kmer': 'clean_name'}, inplace=True)
     combined.set_index('db-seq', inplace=True)
 
-    return combined
+    tidy_db = dd.from_delayed(
+        [dask.delayed(_filter_to_defined)(kmer, combined.index)
+         for kmer in kmer_map],
+         meta=[('region', 'str'), ('fwd-primer', 'str'), ('kmer-length', int)]
+    )
+    tidy_db = tidy_db.compute()
+    tidy_db['region'] = tidy_db['region'].replace(region_order)
+    tidy_db.sort_values(['db-seq', 'region'], ascending=True, inplace=True)
+    first_fwd = tidy_db.groupby('db-seq', sort=False).first()
+    first_fwd = first_fwd[['fwd-primer']].add_prefix('first-')
+    last_fwd = tidy_db.groupby('db-seq', sort=False).last()
+    last_fwd = last_fwd[['fwd-primer', 'kmer-length']].add_prefix('last-')
+
+    reconstruction = pd.concat(axis=1, objs=[combined, first_fwd, last_fwd])
+
+    return reconstruction
 
 
 def _build_region_db(df, kmers):
@@ -352,6 +369,17 @@ def _filter_to_aligned(df, aligned_kmers):
     df =  df.loc[df.index.isin(aligned_kmers)].copy()
     return df.reset_index()[['db-seq', 'region', 'kmer']]
 
+
+def _filter_to_defined(df, defined):
+    """
+    Filters to defined sequences
+    """
+    df = df.loc[df.index.isin(defined)].copy()
+    df.reset_index('db-seq', inplace=True)
+    df.drop_duplicates(['db-seq', 'region'], inplace=True)
+    df.drop(columns=['seq-name', 'kmer', 'rev-primer'], inplace=True)
+
+    return df.set_index('db-seq')
 
 def _get_clean(df):
     clean_kmers = \

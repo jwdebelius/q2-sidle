@@ -17,3 +17,4 @@ from ._type import (KmerMap,
                     SidleReconstruction,
                     ReconstructionSummary,
                     )
+from ._build_database import reconstruct_database
