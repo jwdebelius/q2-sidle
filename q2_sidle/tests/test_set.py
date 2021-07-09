@@ -65,7 +65,7 @@ region1_align = \
                        ['seq6', 'asv04', 15, 1, 2, 'Bludhaven'],
                        ['seq6', 'asv05', 15, 0, 2, 'Bludhaven']],
                        dtype=object),
-        columns=['kmer', 'asv',  'length', 'mismatch', 'max-mismatch', 'region']
+        columns=['kmer', 'asv',  'length', 'mismatch', 'max-mismatch', 'region'],
     ))
 region2_align = \
     Artifact.import_data('FeatureData[KmerAlignment]', pd.DataFrame(
@@ -76,7 +76,7 @@ region2_align = \
                        ['seq5', 'asv10', 15, 0, 2, 'Gotham'],
                        ['seq6', 'asv11', 15, 0, 2, 'Gotham']],
                        dtype=object),
-        columns=['kmer', 'asv', 'length', 'mismatch', 'max-mismatch', 'region']
+        columns=['kmer', 'asv',  'length', 'mismatch', 'max-mismatch', 'region'],
     ))
 region1_counts = Artifact.import_data('FeatureTable[Frequency]', biom.Table(
     np.array([[150,   0,   0,  50, 50],

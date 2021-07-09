@@ -224,8 +224,11 @@ plugin.methods.register_function(
     inputs={'regional_alignment': List[FeatureData[KmerAlignment]],
             'kmer_map': List[FeatureData[KmerMap]],
             },
-    outputs=[('reconstruction_map', FeatureData[SidleReconstruction])],
+    outputs=[('reconstruction_map', FeatureData[SidleReconstruction]),
+             ('reconstruction_summary', FeatureData[ReconstructionSummary]),
+             ],
     parameters={'region': List[Str],
+                'count_degenerates': Bool,
                 'block_size': Int,
                 'n_workers': Int % Range(1, None),
                 'client_address': Str,
@@ -244,11 +247,24 @@ plugin.methods.register_function(
         'reconstruction_map': ('A map between the final kmer name and the '
                                'original database sequence. Useful for '
                                'reconstructing taxonomy and trees.'),
+        'reconstruction_summary': ('A summary of the statitics for the '
+                                   'regional map describing the number of '
+                                   'regions mapped to each reference sequence'
+                                   ' and the number of kmers. The kmer '
+                                   'mapping estimate can account for '
+                                   'degeneracy when the `--count-degenerates`'
+                                   ' flag is used or can ignore degenrate '
+                                   'sequences in mapping'),
         },
     parameter_descriptions={
         'region': ('The name of the sub region used in alignment. The region'
                    ' names do not matter, however, the region order must '
                    'match the order along the hypervariable region.'),
+        'count_degenerates': ("Whether sequences which contain degenerate "
+                              "nucleotides should be counted as unqiue kmers"
+                              " or whether the number of original database "
+                              "sequences before degenerate expansion should "
+                              "be used."),
         'block_size': ('The number of sequences to use in parallel '
                        'computation. The larger the block_size, the faster '
                        'processing can happen, but the more memory that will'

@@ -21,11 +21,12 @@ def reconstruct_database(
     region: str,
     regional_alignment: pd.DataFrame,
     kmer_map: Delayed,
+    count_degenerates: bool=True,
     block_size: int=10000,
     debug: bool=False, 
     n_workers: int=1,
     client_address: str=None,
-    ) -> (pd.DataFrame):
+    ) -> (pd.DataFrame, Metadata):
     """
     Reconstructs a kmer database based on the aligned regions
 
@@ -37,6 +38,11 @@ def reconstruct_database(
         ...
     kmer_map
         ...
+    count_degenerates: bool
+        Whether degenerate sequences should be counted as unique kmers during
+        reconstruction or only unique sequences should be counted.
+    block_size: int
+        The number of rows to include in analysis database
     debug: bool
         Whether the function should be run in debug mode (without a client)
         or not. `debug` superceeds all options
@@ -64,7 +70,8 @@ def reconstruct_database(
     print('aligment map loaded')
     
     ### Sets up the kmer database
-    # Pulls out the kmers that are of interest based on their aligned sequences
+    # Pulls out the kmers that are of interest based on their aligned 
+    # sequences
     kmer_alignments = [
         dask.delayed(_filter_to_aligned)(kmer, aligned_kmers) 
         for kmer in kmer_map
@@ -79,8 +86,8 @@ def reconstruct_database(
              for df in kmer_alignments],
         meta=[('db-seq', 'str'), ('region', 'str'), ('kmer', 'str')]
     )
-    # Cleans up the kmer dataframe by resizing it, and indexing it by the databasae
-    # sequence and region
+    # Cleans up the kmer dataframe by resizing it, and indexing it by the 
+    # databasae sequence and region
     npartitons = int(np.ceil(mapped_kmer.shape[0].compute() / block_size))
     mapped_kmer = mapped_kmer.repartition(npartitons)
     mapped_kmer = mapped_kmer.replace({'region': region_order})
@@ -125,8 +132,8 @@ def reconstruct_database(
     print('regions grouped')
     
     ### Starts untangling the database
-    # Pulls out the intersetion of the existing sequences and finds the current
-    # kmer matches
+    # Pulls out the intersetion of the existing sequences and finds the
+    # current kmer matches
     print('tidying round 1')
     shared_kmers_no1, shared_check_no1 = \
         _check_intersection_delayed(region_db, set('X'))
@@ -137,26 +144,32 @@ def reconstruct_database(
     untidy_kmers_no1 = \
         shared_check_no1.loc[~shared_check_no1['tidy'], 'kmer'].unique()
     # Gets tidy and untidy sequences
-    tidy_kmer_no1 = shared_check_no1.loc[shared_check_no1['tidy'], 'kmer'].unique()
+    tidy_kmer_no1 = \
+        shared_check_no1.loc[shared_check_no1['tidy'], 'kmer'].unique()
     tidy_seqs_no1 = \
         shared_kmers_no1.loc[shared_kmers_no1['kmer'].isin(tidy_kmer_no1)]
     tidy_seqs_no1 = tidy_seqs_no1['db-seq'].compute()
     # Starts building the list of tidied database maps
-    tidy_maps = [shared_kmers_no1.loc[shared_kmers_no1['db-seq'].isin(tidy_seqs_no1)]]
+    tidy_maps = \
+        [shared_kmers_no1.loc[shared_kmers_no1['db-seq'].isin(tidy_seqs_no1)]]
     print('round 1 tidied')
     
     # Pulls out the second round of umatched kmers and filers againt the
     # already assigned sequences
     print('tidying round 2')
-    region_db2 = region_db.loc[~region_db['db-seq'].isin(tidy_seqs_no1)].copy()
+    region_db2 = \
+        region_db.loc[~region_db['db-seq'].isin(tidy_seqs_no1)].copy()
     shared_kmers_no2, shared_check_no2 = \
         _check_intersection_delayed(region_db2, set('X') | set(tidy_seqs_no1))
     shared_check_no2 = shared_check_no2.compute()
-    tidy_kmer_no2 = shared_check_no2.loc[shared_check_no2['tidy'], 'kmer'].unique()
+    tidy_kmer_no2 = \
+        shared_check_no2.loc[shared_check_no2['tidy'], 'kmer'].unique()
     tidy_seqs_no2 = \
         shared_kmers_no2.loc[shared_kmers_no2['kmer'].isin(tidy_kmer_no1)]
     tidy_seqs_no2 = tidy_seqs_no2['db-seq'].compute()
-    tidy_maps.append(shared_kmers_no2.loc[shared_kmers_no2['db-seq'].isin(tidy_seqs_no2)])
+    tidy_maps.append(
+        shared_kmers_no2.loc[shared_kmers_no2['db-seq'].isin(tidy_seqs_no2)]
+        )
     print('round 2 tidied')
     
     # Pulls out the remaining sequences and preps them to be filtered
@@ -196,19 +209,37 @@ def reconstruct_database(
     tidy_db = dd.from_delayed(
         [dask.delayed(_filter_to_defined)(kmer, combined.index)
          for kmer in kmer_map],
-         meta=[('region', 'str'), ('fwd-primer', 'str'), ('kmer-length', int)]
+         meta=[('seq-name', 'str'), ('region', 'str'), 
+               ('fwd-primer', 'str'), ('kmer-length', int)]
     )
     tidy_db = tidy_db.compute()
+    tidy_db['clean_name'] = combined
     tidy_db['region'] = tidy_db['region'].replace(region_order)
     tidy_db.sort_values(['db-seq', 'region'], ascending=True, inplace=True)
-    first_fwd = tidy_db.groupby('db-seq', sort=False).first()
-    first_fwd = first_fwd[['fwd-primer']].add_prefix('first-')
+    first_= tidy_db.groupby('db-seq', sort=False).first()
+    first_fwd = first_[['fwd-primer']].add_prefix('first-')
     last_fwd = tidy_db.groupby('db-seq', sort=False).last()
     last_fwd = last_fwd[['fwd-primer', 'kmer-length']].add_prefix('last-')
 
-    reconstruction = pd.concat(axis=1, objs=[combined, first_fwd, last_fwd])
+    reconstruction = pd.concat(axis=1, objs=[
+        first_['clean_name'], first_fwd, last_fwd
+        ])
+    print('Database map complete')
 
-    return reconstruction
+    db_summary = _count_mapping(tidy_db.reset_index(), 
+                                count_degenerates, 
+                                kmer='seq-name')
+    
+    aligned_seqs = _map_aligned_asvs(align_map, combined)
+    db_summary['mapped-asvs'] = aligned_seqs.groupby('clean_name').apply(
+        lambda x: '|'.join(x)
+        )
+    db_summary.index.set_names('feature-id', inplace=True)
+
+    summary = Metadata(db_summary)
+    print('Database summarized')
+
+    return reconstruction, summary
 
 
 def _build_region_db(df, kmers):
@@ -268,6 +299,42 @@ def _clean_kmer_list(x):
     """
     kmer = '|'.join(np.unique([y.split('@')[0] for y in x.split("|")]))
     return kmer
+
+
+def _count_mapping(long_, count_degen, kmer='kmer', region='region', 
+    clean_name='clean_name', db_seq='db-seq'):
+    """
+    Counts the number of sequences which have been mapped 
+    """
+    # If we're counting degenerates, we'll keep the kmers whcih contain
+    # degeneracies. Otherwise, we work with the db_seqs which don't.
+    if count_degen:
+        long_.drop_duplicates([kmer, region, clean_name], 
+                              inplace=True)
+    else:
+        long_.drop_duplicates([db_seq, region, clean_name], 
+                              inplace=True)
+
+    # Gets the regional counts
+    regional_seqs = \
+        long_.groupby([clean_name, region]).count()[[kmer]]
+    regional_seqs.reset_index(inplace=True)
+
+    # Then, we count the data.
+    counts = pd.DataFrame(
+        data=[regional_seqs.groupby('clean_name')[region].count(),
+              regional_seqs.groupby('clean_name')[kmer].sum(),
+              regional_seqs.groupby('clean_name')[kmer].mean(),
+              regional_seqs.groupby('clean_name')[kmer].std().fillna(0),
+              # regional_seqs.groupby('clean_name')['']
+              ],
+        index=['num-regions', 
+               'total-kmers-mapped', 
+               'mean-kmer-per-region',
+               'stdv-kmer-per-region'
+               ],
+        ).T
+    return counts
 
 
 def _define_shared(g, matched):
@@ -376,10 +443,10 @@ def _filter_to_defined(df, defined):
     """
     df = df.loc[df.index.isin(defined)].copy()
     df.reset_index('db-seq', inplace=True)
-    df.drop_duplicates(['db-seq', 'region'], inplace=True)
-    df.drop(columns=['seq-name', 'kmer', 'rev-primer'], inplace=True)
+    df.drop(columns=['kmer', 'rev-primer'], inplace=True)
 
     return df.set_index('db-seq')
+
 
 def _get_clean(df):
     clean_kmers = \
@@ -404,6 +471,23 @@ def _get_unique_kmers(series):
                        for kmer in series])
     return np.sort(np.unique(kmers))
 
+
+def _map_aligned_asvs(align_map, seq_map):
+    align_map.sort_values(['asv', 'region'], inplace=True, ascending=True)
+    aligned_asvs = align_map.set_index(['asv', 'region'])['kmer'].apply(
+        _clean_kmer_list)
+    aligned_asvs = aligned_asvs.apply(lambda x: pd.Series(x.split("|")))
+    aligned_asvs.reset_index(inplace=True)
+    aligned_asvs = aligned_asvs.melt(id_vars=['asv', 'region'],
+                                       var_name='counter', 
+                                       value_name='db-seq')
+    aligned_asvs.dropna(inplace=True)
+    aligned_asvs.set_index('db-seq', inplace=True)
+    aligned_asvs['clean_name'] = seq_map.loc[aligned_asvs.index]
+    aligned_asvs.sort_values(['clean_name', 'region', 'asv'], inplace=True)
+    aligned_asvs.drop_duplicates(['clean_name', 'asv'], inplace=True)
+
+    return aligned_asvs.set_index('clean_name')['asv']
 
 @dask.delayed
 def _pull_unique(df):
