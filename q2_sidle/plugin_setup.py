@@ -42,49 +42,6 @@ plugin = Plugin(
 )
 
 plugin.methods.register_function(
-    function=q2_sidle.filter_degenerate_sequences,
-    name='Filter degenerate sequences',
-    description=('Prefiltering a sequence database to remove sequences with '
-                 'too many degenerate nucleotides'),
-    inputs={
-        'sequences': FeatureData[Sequence]
-    },
-    outputs=[
-        ('filtered_sequences', FeatureData[Sequence]),
-    ],
-    parameters={
-        'max_degen': (Int % Range(0, None)),
-        'chunk_size':  (Int % Range(1, None)),
-        'n_workers': Int % Range(1, None),
-        'debug': Bool,
-        'client_address': Str,
-    },
-    input_descriptions={
-        'sequences': 'The sequences to be filtered.'
-    },
-    output_descriptions={
-        'filtered_sequences': ('The sequences filtered to remove full length'
-                               ' sequences with excess degenerate '
-                               'nucleotides')
-    },
-    parameter_descriptions={
-        'max_degen': ('the maximum number of degenerate sequences for a '
-                      'sequence to be retained.'),
-        'chunk_size': ('The number of sequences to be analyzed in parallel '
-                       'blocks'),
-        'n_workers': ('The number of jobs to initiate.'),
-        'client_address': ('The IP address for an existing cluster. '
-                          'Please see the dask client documentation for more'
-                          ' information: '
-                          'https://distributed.dask.org/en/latest/client.html'
-                          ),
-        'debug': ('Whether the function should be run in debug mode (without '
-                  'a client) or not. `debug` superceeds all options'),
-    },
-)
-
-
-plugin.methods.register_function(
     function=q2_sidle.prepare_extracted_region,
     name='Prepares an already extracted region to be a kmer database',
     description=('This function takes an amplified region of the database, '
@@ -153,8 +110,8 @@ plugin.methods.register_function(
                            ),
     },
     citations=[citations['Fuks2018']],
-
 )
+
 
 plugin.methods.register_function(
     function=q2_sidle.align_regional_kmers,
@@ -224,8 +181,8 @@ plugin.methods.register_function(
     inputs={'regional_alignment': List[FeatureData[KmerAlignment]],
             'kmer_map': List[FeatureData[KmerMap]],
             },
-    outputs=[('reconstruction_map', FeatureData[SidleReconstruction]),
-             ('reconstruction_summary', FeatureData[ReconstructionSummary]),
+    outputs=[('database_map', FeatureData[SidleReconstruction]),
+             ('database_summary', FeatureData[ReconstructionSummary]),
              ],
     parameters={'region': List[Str],
                 'count_degenerates': Bool,
@@ -244,10 +201,10 @@ plugin.methods.register_function(
                      'kmers used in regional alignment'),
         },
     output_descriptions={
-        'reconstruction_map': ('A map between the final kmer name and the '
+        'database_map': ('A map between the final kmer name and the '
                                'original database sequence. Useful for '
                                'reconstructing taxonomy and trees.'),
-        'reconstruction_summary': ('A summary of the statitics for the '
+        'database_summary': ('A summary of the statitics for the '
                                    'regional map describing the number of '
                                    'regions mapped to each reference sequence'
                                    ' and the number of kmers. The kmer '
@@ -280,102 +237,92 @@ plugin.methods.register_function(
         },
 )
 
-# plugin.methods.register_function(
-#     function=q2_sidle.reconstruct_counts,
-#     name='Reconstructs multiple aligned regions into a count table',
-#     description=('This takes multiple regional alignments and regional counts'
-#                  ' and reconstructs them into a single table with region-'
-#                  'normalized abundance counts.'),
-#     inputs={
-#         'regional_alignment': List[FeatureData[KmerAlignment]],
-#         'kmer_map': List[FeatureData[KmerMap]],
-#         'regional_table': List[FeatureTable[Frequency]],
-#     },
-#     outputs=[
-#         ('reconstructed_table', FeatureTable[Frequency]),
-#         ('reconstruction_summary', FeatureData[ReconstructionSummary]),
-#         ('reconstruction_map', FeatureData[SidleReconstruction])
-#     ],
-#     parameters={
-#         'region': List[Str],
-#         'per_nucleotide_error': Float % Range(0, 1),
-#         'min_abund': Float % Range(0, 1),
-#         'count_degenerates': Bool,
-#         'region_normalize': Str % Choices('average', 'weighted', 'unweighted'),
-#         'min_counts': Int % Range(0, None),
-#         'block_size': Int,
-#         'n_workers': Int % Range(1, None),
-#         'client_address': Str,
-#         'debug': Bool,
-#     },
-#     input_descriptions={
-#         'regional_alignment': ('A mapping between the kmer names (in the kmer'
-#                                ' map) and the features (found in the regional'
-#                                ' table)'),
-#         'kmer_map': ('A mapping relationship between the name of the '
-#                      'sequence in the database and the kmer identifier used'
-#                      ' in this region. The kmer map should correspond to the '
-#                      'kmers used in regional alignment'),
-#         'regional_table': ('A feature-table for each region, where  the '
-#                            'features in the table correspond to the ASVs '
-#                            'which were aligned in the regional alignment '
-#                            'artifact')
-#     },
-#     output_descriptions={
-#         'reconstructed_table': ('The feature table with the reconstructed '
-#                                 'abundance using ASVs from all regions mapped'
-#                                 ' to database sequences.'),
-#         'reconstruction_summary': ('A summary of the statitics for the '
-#                                    'regional map describing the number of '
-#                                    'regions mapped to each reference sequence'
-#                                    ' and the number of kmers. The kmer '
-#                                    'mapping estimate can account for '
-#                                    'degeneracy when the `--count-degenerates`'
-#                                    ' flag is used or can ignore degenrate '
-#                                    'sequences in mapping'),
-#         'reconstruction_map': ('A map between the final kmer name and the '
-#                                'original database sequence. Useful for '
-#                                'reconstructing taxonomy and trees.'),
-#     },
-#     parameter_descriptions={
-#         'region': ('The name of the sub region used in alignment. The region'
-#                    ' names do not matter, however, the region order must '
-#                    'match the order along the hypervariable region.'),
-#         'count_degenerates': ("Whether sequences which contain degenerate "
-#                               "nucleotides should be counted as unqiue kmers"
-#                               " or whether the number of original database "
-#                               "sequences before degenerate expansion should "
-#                               "be used."),
-#         'per_nucleotide_error': ('The assumed per-nucelotide error rate '
-#                                  'through out amplification and sequencing'),
-#         'min_abund': ('The minimum frequency for a feature to be retained '
-#                       'during reconstruction. The default from the original '
-#                       'smurf algorithm is 1e-10, the number here may depend'
-#                       ' on the total number of sequences in your sample'),
-#         'min_counts': ('The mininum depth across all regions after alignment '
-#                        'for a sample to be included in a reconstruction'),
-#         'region_normalize': ('Whether the relative abundance should be '
-#                              'normalized by region during reconstruction. '
-#                              'When using kmer-based alignment to '
-#                              'reeconstruct multiple regions within a single '
-#                              'sample, this is most appropriate. In meta-'
-#                              'analysis, region normalization may increase'
-#                              ' count retention.'),
-#         'block_size': ('The number of sequences to use in parallel '
-#                        'computation. The larger the block_size, the faster '
-#                        'processing can happen, but the more memory that will'
-#                        ' be required.'),
-#         'n_workers': ('The number of jobs to initiate.'),
-#         'client_address': ('The IP address for an existing cluster. '
-#                           'Please see the dask client documentation for more'
-#                           ' information: '
-#                           'https://distributed.dask.org/en/latest/client.html'
-#                           ),
-#         'debug': ('Whether the function should be run in debug mode (without '
-#                   'a client) or not. `debug` superceeds all options'),
-#     },
-#     citations=[citations['Fuks2018']],
-# )
+
+plugin.methods.register_function(
+    function=q2_sidle.reconstruct_counts,
+    name='Reconstructs multiple aligned regions into a count table',
+    description=('This takes multiple regional alignments and regional counts'
+                 ' and reconstructs them into a single table with region-'
+                 'normalized abundance counts.'),
+    inputs={
+        'regional_alignment': List[FeatureData[KmerAlignment]],
+        'regional_table': List[FeatureTable[Frequency]],
+        'database_map': FeatureData[SidleReconstruction],
+        'database_summary': FeatureData[ReconstructionSummary],
+    },
+    outputs=[
+        ('reconstructed_table', FeatureTable[Frequency]),
+    ],
+    parameters={
+        'region': List[Str],
+        'per_nucleotide_error': Float % Range(0, 1),
+        'min_abund': Float % Range(0, 1),
+        'region_normalize': Str % Choices('average', 'weighted', 'unweighted'),
+        'min_counts': Int % Range(0, None),
+        'block_size': Int,
+        'n_workers': Int % Range(1, None),
+        'client_address': Str,
+        'debug': Bool,
+    },
+    input_descriptions={
+        'regional_alignment': ('A mapping between the kmer names (in the kmer'
+                               ' map) and the features (found in the regional'
+                               ' table)'),
+        'regional_table': ('A feature-table for each region, where  the '
+                           'features in the table correspond to the ASVs '
+                           'which were aligned in the regional alignment '
+                           'artifact'),
+        'database_map': ('A map between the final kmer name and the '
+                               'original database sequence. Useful for '
+                               'reconstructing taxonomy and trees.'),
+         'database_summary': ('A summary of the statitics for the '
+                              'regional map describing the number of '
+                              'regions mapped to each reference sequence'
+                              ' and the number of kmers. The kmer '
+                              'mapping estimate can account for '
+                              'degeneracy when the `--count-degenerates`'
+                              ' flag is used or can ignore degenrate '
+                              'sequences in mapping'),
+    },
+    output_descriptions={
+        'reconstructed_table': ('The feature table with the reconstructed '
+                                'abundance using ASVs from all regions mapped'
+                                ' to database sequences.'),
+    },
+    parameter_descriptions={
+        'region': ('The name of the sub region used in alignment. The region'
+                   ' names do not matter, however, the region order must '
+                   'match the order along the hypervariable region.'),
+        'per_nucleotide_error': ('The assumed per-nucelotide error rate '
+                                 'through out amplification and sequencing'),
+        'min_abund': ('The minimum frequency for a feature to be retained '
+                      'during reconstruction. The default from the original '
+                      'smurf algorithm is 1e-10, the number here may depend'
+                      ' on the total number of sequences in your sample'),
+        'min_counts': ('The mininum depth across all regions after alignment '
+                       'for a sample to be included in a reconstruction'),
+        'region_normalize': ('Whether the relative abundance should be '
+                             'normalized by region during reconstruction. '
+                             'When using kmer-based alignment to '
+                             'reeconstruct multiple regions within a single '
+                             'sample, this is most appropriate. In meta-'
+                             'analysis, region normalization may increase'
+                             ' count retention.'),
+        'block_size': ('The number of sequences to use in parallel '
+                       'computation. The larger the block_size, the faster '
+                       'processing can happen, but the more memory that will'
+                       ' be required.'),
+        'n_workers': ('The number of jobs to initiate.'),
+        'client_address': ('The IP address for an existing cluster. '
+                          'Please see the dask client documentation for more'
+                          ' information: '
+                          'https://distributed.dask.org/en/latest/client.html'
+                          ),
+        'debug': ('Whether the function should be run in debug mode (without '
+                  'a client) or not. `debug` superceeds all options'),
+    },
+    citations=[citations['Fuks2018']],
+)
 
 
 plugin.methods.register_function(
@@ -495,7 +442,6 @@ plugin.methods.register_function(
                  'regions covered between the amplicons'
                  ),
     inputs={
-        'kmer_map': List[FeatureData[KmerMap]],
         'reconstruction_summary': FeatureData[ReconstructionSummary],
         'reconstruction_map': FeatureData[SidleReconstruction],
         'aligned_sequences': FeatureData[AlignedSequence]
@@ -504,13 +450,8 @@ plugin.methods.register_function(
         ('representative_fragments', FeatureData[Sequence]),
     ],
     parameters={
-        'region': List[Str],
     },
     input_descriptions={
-        'kmer_map': ('A mapping relationship between the name of the '
-                     'sequence in the database and the kmer identifier used'
-                     ' in this region. The kmer map should correspond to the '
-                     'kmers used in regional alignment'),
         'reconstruction_summary': ('A summary of the statitics for the '
                                    'regional map describing the number of '
                                    'regions mapped to each reference sequence'
@@ -531,12 +472,103 @@ plugin.methods.register_function(
                                      'to be used for fragment insertion')
     },
     parameter_descriptions={
-        'region': ('The name of the sub region used in alignment. The region'
-                   ' names do not matter, however, the region order must '
-                   'match the order along the hypervariable region.'),
-
     }
 )
+
+
+# plugin.pipelines.register_function(
+#     function=q2_sidle.sidle_reconstruction,
+#     name="Sidle Reconstruction Pipeline",
+#     description=("A pipeline to reconstruct a database, count table, and "
+#                  "taxonomy"),
+#     inputs={'kmer_map': List[FeatureData[KmerMap]],
+#             'regional_alignment': List[FeatureData[KmerAlignment]],
+#             'regional_table': List[FeatureTable[Frequency]],
+#             'reference_taxonomy': FeatureData[Taxonomy],
+#             },
+#     outputs=[('database_map', FeatureData[SidleReconstruction]),
+#              ('database_summary', FeatureData[ReconstructionSummary]),
+#              ('reconstructed_table', FeatureTable[Frequency]),
+#              ('reconstructed_taxonomy', FeatureData[Taxonomy]),
+#              ],
+#     parameters={'region': List[Str],
+#                 'min_counts': Int % Range(0, None),
+#                 'database': Str % Choices('none', 'greengenes', 'silva'),
+#                 'define_missing': Str % Choices('merge', 'inherit', 'ignore'),
+#                 'block_size': Int,
+#                 'n_workers': Int % Range(1, None),
+#                 'client_address': Str,
+#                 'debug': Bool,
+#                 },
+#     input_descriptions={
+#         'kmer_map': ('A mapping relationship between the name of the '
+#                      'sequence in the database and the kmer identifier used'
+#                      ' in this region. The kmer map should correspond to the '
+#                      'kmers used in regional alignment'),
+#         'regional_alignment': ('A mapping between the kmer names (in the kmer'
+#                                ' map) and the features (found in the regional'
+#                                ' table)'),
+#         'regional_table': ('A feature-table for each region, where  the '
+#                            'features in the table correspond to the ASVs '
+#                            'which were aligned in the regional alignment '
+#                            'artifact'),
+#         'reference_taxonomy': ('The taxonomic strings from the database'),
+#         },
+#     output_descriptions={
+#         'database_map': ('A map between the final kmer name and the '
+#                                'original database sequence. Useful for '
+#                                'reconstructing taxonomy and trees.'),
+#         'database_summary': ('A summary of the statitics for the '
+#                                    'regional map describing the number of '
+#                                    'regions mapped to each reference sequence'
+#                                    ' and the number of kmers. The kmer '
+#                                    'mapping estimate can account for '
+#                                    'degeneracy when the `--count-degenerates`'
+#                                    ' flag is used or can ignore degenrate '
+#                                    'sequences in mapping'),
+#         'reconstructed_table': ('The feature table with the reconstructed '
+#                                 'abundance using ASVs from all regions mapped'
+#                                 ' to database sequences.'),
+#         'reconstructed_taxonomy': ('Taxonomy which addresses the ambiguity'
+#                                    ' in assignment associated with mapping '
+#                                    'to multiple sequences in reconstruction.')
+#         },
+#     parameter_descriptions={
+#         'region': ('The name of the sub region used in alignment. The region'
+#                    ' names do not matter, however, the region order must '
+#                    'match the order along the hypervariable region.'),
+#         'min_counts': ('The mininum depth across all regions after alignment '
+#                        'for a sample to be included in a reconstruction'),
+#         'database': ('The taxonomic database being used. Currently, the only'
+#                     ' two supported databases are Greengenes and Silva. '
+#                     'The database choice influences the handling of missing '
+#                     'and ambigious taxa.'),
+#         'define_missing':  ('Taxonomic strings may be missing information '
+#                              '(for example  `g__` in greengenes  or '
+#                              '`D_5__uncultured bacteria` in Silva). These '
+#                              'can be ignored  (`"ignore"`) and treated like'
+#                              ' any other taxonomic designation; they can be'
+#                              ' first inherited in merged sequences '
+#                              '(`"merge`"), where, when there are two strings'
+#                              ' being merged and one has a missing level, '
+#                              'the missing level is taken form the defined'
+#                              ' one, or they can be inherited from the '
+#                              'previous level (`"inherit"`) first, and then '
+#                              'merged.'),
+#         'block_size': ('The number of sequences to use in parallel '
+#                        'computation. The larger the block_size, the faster '
+#                        'processing can happen, but the more memory that will'
+#                        ' be required.'),
+#         'n_workers': ('The number of jobs to initiate.'),
+#         'client_address': ('The IP address for an existing cluster. '
+#                           'Please see the dask client documentation for more'
+#                           ' information: '
+#                           'https://distributed.dask.org/en/latest/client.html'
+#                           ),
+#         'debug': ('Whether the function should be run in debug mode (without '
+#                   'a client) or not. `debug` superceeds all options'),
+#         },
+# )
 
 
 plugin.register_formats(KmerMapFormat, 
