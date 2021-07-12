@@ -296,7 +296,7 @@ Database References
 .. _qiime feature classifier: https://docs.qiime2.org/2021.2/tutorials/feature-classifier/#extract-reference-reads
 .. _feature classifier: https://docs.qiime2.org/2021.2/tutorials/feature-classifier/#extract-reference-reads
 .. _qiime2 view : https://view.qiime2.org
-.. _downloading the database sequences and taxonomy: https://github.com/jwdebelius/q2-sidle/raw/main/docs/tutorial_data/database.zip
+.. _downloading the tutorial database sequences and taxonomy: https://github.com/jwdebelius/q2-sidle/raw/main/docs/tutorial_data/database.zip
 .. _RESCRIPt : https://github.com/bokulich-lab/RESCRIPt
 
 .. citations
