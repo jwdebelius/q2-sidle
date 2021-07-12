@@ -218,12 +218,14 @@ def reconstruct_database(
     tidy_db['region'] = tidy_db['region'].replace(region_order)
     tidy_db.sort_values(['db-seq', 'region'], ascending=True, inplace=True)
     first_= tidy_db.groupby('db-seq', sort=False).first()
-    first_fwd = first_[['fwd-primer']].add_prefix('first-')
+    first_fwd = first_[['region', 'fwd-primer']]
     last_fwd = tidy_db.groupby('db-seq', sort=False).last()
-    last_fwd = last_fwd[['fwd-primer', 'kmer-length']].add_prefix('last-')
+    last_fwd = last_fwd[['region', 'fwd-primer', 'kmer-length']]
 
     reconstruction = pd.concat(axis=1, objs=[
-        first_['clean_name'], first_fwd, last_fwd
+        first_['clean_name'],
+        first_fwd.add_prefix('first-'),
+        last_fwd.add_prefix('last-')
         ])
     print('Database map complete')
 
@@ -281,18 +283,6 @@ def _check_intersection_delayed(df, matched=set('X')):
     
     return shared_kmers, shared_check
     
-    
-def _check_regions(region):
-    """
-    Converts the region to a numeric assignment
-    """
-    region, region_idx = np.unique(region, return_index=True)
-    region_order = {region: i for (i, region) in zip(*(region_idx, region))}
-    region_names = {i: r for r, i in region_order.items()}
-    num_regions = len(region_order)
-    
-    return region_order, region_names, num_regions
-
 
 def _clean_kmer_list(x):
     """

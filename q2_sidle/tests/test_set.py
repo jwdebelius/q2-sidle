@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from skbio import DNA
 
-from qiime2 import Artifact
+from qiime2 import Artifact, Metadata
 
 region1_db_seqs = Artifact.import_data('FeatureData[Sequence]', pd.Series({
     'seq1|seq2': DNA('GCGAAGCGGCTCAGG', metadata={'id': 'seq1|seq2'}),
@@ -114,15 +114,56 @@ taxonomy_gg = pd.Series(
 taxonomy =  Artifact.import_data('FeatureData[Taxonomy]', taxonomy_gg)
 
 seq_map = pd.DataFrame(
-            data=np.array([['seq1', 'WANTCAT', 'CACCTCGTN', 15],
-                           ['seq2', 'WANTCAT', 'CACCTCGTN', 15],
-                           ['seq3', 'WANTCAT', 'CACCTCGTN', 15],
-                           ['seq4', 'CACCTCGTN', 'CACCTCGTN', 15],
-                           ['seq5', 'WANTCAT', 'CACCTCGTN', 15],
-                           ['seq6', 'WANTCAT', 'CACCTCGTN', 15],
+            data=np.array([['seq1', 0, 'WANTCAT', 1, 'CACCTCGTN', 15],
+                           ['seq2', 0, 'WANTCAT', 1, 'CACCTCGTN', 15],
+                           ['seq3', 0, 'WANTCAT', 1, 'CACCTCGTN', 15],
+                           ['seq4', 1, 'CACCTCGTN', 1, 'CACCTCGTN', 15],
+                           ['seq5', 0, 'WANTCAT', 1, 'CACCTCGTN', 15],
+                           ['seq6', 0, 'WANTCAT', 1, 'CACCTCGTN', 15],
                            ]),
             index=pd.Index(['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 'seq6'], name='db-seq'),
-            columns=['clean_name', 'first-fwd-primer', 'last-fwd-primer', 'last-kmer-length']
+            columns=['clean_name', 'first-region', 'first-fwd-primer', 
+                     'last-region', 'last-fwd-primer', 'last-kmer-length']
             )
 seq_map = Artifact.import_data('FeatureData[SidleReconstruction]', seq_map)
     
+db_summary = pd.DataFrame.from_dict(orient='index', data={
+    'seq1': {'num-regions': 2, 
+             'total-kmers-mapped': 2, 
+             'mean-kmer-per-region': 1.,
+             'stdv-kmer-per-region': 0.,
+             'mapped-asvs': 'asv01|asv06'
+            },
+    'seq2': {'num-regions': 2, 
+             'total-kmers-mapped': 2, 
+             'mean-kmer-per-region': 1,
+             'stdv-kmer-per-region': 0,
+             'mapped-asvs': 'asv01|asv07',
+            },
+    'seq3': {'num-regions': 2, 
+             'total-kmers-mapped': 3, 
+             'mean-kmer-per-region': 1.5,
+             'stdv-kmer-per-region': np.std([1, 2], ddof=1),
+             'mapped-asvs': 'asv02|asv03|asv08'
+            },
+    'seq4': {'num-regions': 1, 
+             'total-kmers-mapped': 1, 
+             'mean-kmer-per-region': 1,
+             'stdv-kmer-per-region': 0,
+             'mapped-asvs': 'asv09'
+            },
+    'seq5': {'num-regions': 2, 
+             'total-kmers-mapped': 2, 
+             'mean-kmer-per-region': 1,
+             'stdv-kmer-per-region': 0,
+             'mapped-asvs': 'asv04|asv05|asv10',
+            },
+    'seq6': {'num-regions': 2, 
+             'total-kmers-mapped': 2, 
+             'mean-kmer-per-region': 1,
+             'stdv-kmer-per-region': 0,
+             'mapped-asvs': 'asv04|asv05|asv11',
+            },
+    })
+db_summary.index.set_names('feature-id', inplace=True)   
+db_summary = Artifact.import_data('FeatureData[ReconstructionSummary]', Metadata(db_summary))
