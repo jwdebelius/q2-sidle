@@ -2,7 +2,6 @@ from ._accounting import (track_aligned_counts)
 from ._align import align_regional_kmers
 from ._extract import (prepare_extracted_region,
 					   )
-from ._filter_seqs import (filter_degenerate_sequences)
 from ._formats import (KmerMapFormat, KmerMapDirFmt,
                        KmerAlignFormat, KmerAlignDirFmt,
                        ReconSummaryFormat, ReconSummaryDirFormat,

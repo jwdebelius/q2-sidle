@@ -1,10 +1,13 @@
 Database Preparation
 ====================
 
-If you do not already have a database for reconstruction, you will need to prepare your own. (We recommend checking the Resources page to see if you can find one that suits your needs already.) Database preparation will only need to be done once for each database, primer pair and kmer length, since the reference files can  be reused.
+If you do not already have a database for reconstruction, you will need to prepare your own. Database preparation will only need to be done once for each database, primer pair and kmer length, since the reference files can  be reused.
 
+.. note::
 
-You will need:
+    Database selection should be considered carefully if you plan to reconstruct a phylogenetic tree. Currently, only greengenes 13_8 and Silva 128 are compatible with tree building. Other versions may fail or the tree may not be constructed correctly.
+
+To construct the database, you will need:
 
 * A working sidle :doc:`installation <install>`
 * A list of the forward and reverse files used to amplify each region of interest
@@ -12,7 +15,7 @@ You will need:
 * Patience to run the extraction
 
 
-You can start the tutorial by `downloading the database sequences and taxonomy`_. These have already been imported into qiime2 and as Artifacts.
+You can start the tutorial by `downloading the tutorial database sequences and taxonomy`_. They are intended as a reasonably sized dataset for the tutorial and should not be re-used for your data. These have already been imported into qiime2 and as Artifacts.
 
 .. code-block:: shell
 
@@ -37,16 +40,16 @@ Filtering the Database
 
 Database preparation can optionally begin by filtering the database to remove sequences with too many degenerate nucleotides or with taxonomic assignments that will not be used.
 
-Degenerate filtering limits memory consumption throughout. The authors of SMURF [1]_ recommend filtering the database to remove sequences with more than 3 degenerate nucleotides. This represents about X% of the greengenes 13_8 database at 99% [2]_ specificity.  a(The the RESCRIPt formatted Silva 138 database is filtered to exclude sequences with more than 5 degenerates [3]_, [4]_). Increasing the number of allowed degenerates (the ``--p-max-degen`` parameter) will allow more sequences through the filter, and may mean more matches in downstream alignment. However, this comes at a substantial increase in the run time and memory needed, since degenerate sequences have to be expanded, meaning more alignments are required.
+Degenerate filtering limits memory consumption throughout. The authors of SMURF [1]_ recommend filtering the database to remove sequences with more than 3 degenerate nucleotides. This represents about X% of the greengenes 13_8 database at 99% [2]_ specificity.  (The the RESCRIPt formatted Silva 128 database is filtered to exclude sequences with more than 5 degenerates [3]_, [4]_). Increasing the number of allowed degenerates (the ``--p-max-degen`` parameter) will allow more sequences through the filter, and may mean more matches in downstream alignment. However, this comes at a substantial increase in the run time and memory needed, since degenerate sequences have to be expanded, meaning more alignments are required.
 
-For this tutorial, we'll start by filtering to remove anything with more than 3 degenerate nucleotides, since this was the recommended threshold in the original algorithm.
+For this tutorial, we'll start by filtering to remove anything with more than 3 degenerate nucleotides, since this was the recommended threshold in the original algorithm. This is done using the RESCRIPt_ [4]_ plugin.
 
 .. code:: bash
 
-    qiime sidle filter-degenerate-sequences \
+    qiime rescript cull-seqs \
      --i-sequences sidle-db-full-sequences.qza \
-     --p-max-degen 3 \
-     --o-filtered-sequences sidle-db-full-degen-filtered-sequences.qza
+     --p-num-degenerates 3 \
+     --o-clean-sequences sidle-db-full-degen-filtered-sequences.qza
 
 
 Try summarizing your database again. There should be 5440 sequences remaining. How many do you have?
@@ -162,10 +165,10 @@ Degenerate Filtering
 
 .. code-block:: bash
 
-    qiime sidle filter-degenerate-sequences \
+    qiime rescript cull-seqs \
      --i-sequences [unfiltered sequences].qza \
-     --p-max-degen [degenerate threshold] \
-     --o-filtered-sequences [filtered sequences].qza
+     --p-num-degenerates [number of degenerate nucleotides] \
+     --o-clean-sequences [filtered sequences].qza
 
 **Example**
 
@@ -294,6 +297,7 @@ Database References
 .. _feature classifier: https://docs.qiime2.org/2021.2/tutorials/feature-classifier/#extract-reference-reads
 .. _qiime2 view : https://view.qiime2.org
 .. _downloading the database sequences and taxonomy: https://github.com/jwdebelius/q2-sidle/raw/main/docs/tutorial_data/database.zip
+.. _RESCRIPt : https://github.com/bokulich-lab/RESCRIPt
 
 .. citations
 
