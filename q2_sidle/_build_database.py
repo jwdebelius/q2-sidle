@@ -79,7 +79,7 @@ def reconstruct_database(
     ]
     # Gets the full list of sequences to be aligned and subsets the kmer map 
     # to retain only these sequences
-    db_seqs = [_pull_unique(df) for df in kmer_alignments]
+    db_seqs = dask.compute(*[_pull_unique(df) for df in kmer_alignments])
     db_seqs = np.unique(np.hstack(dask.compute(*db_seqs)))
     print('database kmers identified')
     mapped_kmer = dd.from_delayed(

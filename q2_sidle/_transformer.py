@@ -36,8 +36,8 @@ def _2(ff:KmerMapFormat) -> Metadata:
 
 @plugin.register_transformer
 def _3(ff:KmerMapFormat) -> Delayed:
-    df = dask.delayed(_1)(ff)
-    return df
+    df = _1(ff)
+    return dask.delayed(df)
 
 
 @plugin.register_transformer
@@ -68,8 +68,8 @@ def _6(ff:KmerAlignFormat) -> Metadata:
 
 @plugin.register_transformer
 def _7(ff:KmerAlignFormat) -> Delayed:
-    df = dask.delayed(_5)(ff)
-    return df
+    df = _5(ff)
+    return dask.delayed(df)
 
 @plugin.register_transformer
 def _8(obj: pd.DataFrame) -> KmerAlignFormat:
