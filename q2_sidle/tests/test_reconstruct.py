@@ -369,114 +369,114 @@ class ReconstructTest(TestCase):
         pdt.assert_frame_equal(known, test)
 
 
-    # def test_scale_relative_abundance_average(self):
-    #     known = biom.Table(
-    #         data=np.array([[10., 10., 10., 10., 10., 10.]]).T,
-    #         sample_ids=['sample.1'],
-    #         observation_ids=['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 'seq6'],
-    #         )
-    #     counts = pd.DataFrame(
-    #         data=np.array([[20, 10, 10, 10, 10, 10, 10, 10, 10, 10]]),
-    #         index=['sample.1'],
-    #         columns=['asv01', 'asv02', 'asv04', 'asv05', 'asv06', 
-    #                  'asv07', 'asv08', 'asv09', 'asv10', 'asv11']
-    #         ).T
-    #     test = _scale_relative_abundance(
-    #         pd.concat([self.align1, self.align2]),
-    #         relative=self.freq,
-    #         counts=counts,
-    #         num_regions=2,
-    #         region_normalize='average',
-    #         seq_summary=self.seq_summary,
-    #         )
-    #     npt.assert_array_equal(test.ids(axis='observation'),
-    #                            known.ids(axis='observation'))
-    #     npt.assert_array_equal(test.ids(axis='sample'),
-    #                            known.ids(axis='sample'))
-    #     npt.assert_array_equal(known.matrix_data.todense(),
-    #                            test.matrix_data.todense())
+    def test_scale_relative_abundance_average(self):
+        known = biom.Table(
+            data=np.array([[10., 10., 10., 10., 10., 10.]]).T,
+            sample_ids=['sample.1'],
+            observation_ids=['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 'seq6'],
+            )
+        counts = pd.DataFrame(
+            data=np.array([[20, 10, 10, 10, 10, 10, 10, 10, 10, 10]]),
+            index=['sample.1'],
+            columns=['asv01', 'asv02', 'asv04', 'asv05', 'asv06', 
+                     'asv07', 'asv08', 'asv09', 'asv10', 'asv11']
+            ).T
+        test = _scale_relative_abundance(
+            pd.concat([self.align1, self.align2]),
+            relative=self.freq,
+            counts=counts,
+            num_regions=2,
+            region_normalize='average',
+            seq_summary=self.seq_summary,
+            )
+        npt.assert_array_equal(test.ids(axis='observation'),
+                               known.ids(axis='observation'))
+        npt.assert_array_equal(test.ids(axis='sample'),
+                               known.ids(axis='sample'))
+        npt.assert_array_equal(known.matrix_data.todense(),
+                               test.matrix_data.todense())
 
-    # def test_scale_relative_abundance_weighted(self):
-    #     known = biom.Table(
-    #         data=np.array([[20., 20., 20., 20., 20., 20.]]).T,
-    #         sample_ids=['sample.1'],
-    #         observation_ids=['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 'seq6'],
-    #         )
-    #     counts = pd.DataFrame(
-    #         data=np.array([[20, 10, 10, 10, 10, 10, 10, 10, 10, 10]]),
-    #         index=['sample.1'],
-    #         columns=['asv01', 'asv02', 'asv04', 'asv05', 'asv06', 
-    #                  'asv07', 'asv08', 'asv09', 'asv10', 'asv11']
-    #         ).T
-    #     test = _scale_relative_abundance(
-    #         pd.concat([self.align1, self.align2]),
-    #         relative=self.freq,
-    #         counts=counts,
-    #         num_regions=2,
-    #         region_normalize='weighted',
-    #         seq_summary=self.seq_summary,
-    #         )
-    #     npt.assert_array_equal(test.ids(axis='observation'),
-    #                            known.ids(axis='observation'))
-    #     npt.assert_array_equal(test.ids(axis='sample'),
-    #                            known.ids(axis='sample'))
-    #     npt.assert_array_equal(known.matrix_data.todense(),
-    #                            test.matrix_data.todense())
+    def test_scale_relative_abundance_weighted(self):
+        known = biom.Table(
+            data=np.array([[20., 20., 20., 20., 20., 20.]]).T,
+            sample_ids=['sample.1'],
+            observation_ids=['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 'seq6'],
+            )
+        counts = pd.DataFrame(
+            data=np.array([[20, 10, 10, 10, 10, 10, 10, 10, 10, 10]]),
+            index=['sample.1'],
+            columns=['asv01', 'asv02', 'asv04', 'asv05', 'asv06', 
+                     'asv07', 'asv08', 'asv09', 'asv10', 'asv11']
+            ).T
+        test = _scale_relative_abundance(
+            pd.concat([self.align1, self.align2]),
+            relative=self.freq,
+            counts=counts,
+            num_regions=2,
+            region_normalize='weighted',
+            seq_summary=self.seq_summary,
+            )
+        npt.assert_array_equal(test.ids(axis='observation'),
+                               known.ids(axis='observation'))
+        npt.assert_array_equal(test.ids(axis='sample'),
+                               known.ids(axis='sample'))
+        npt.assert_array_equal(known.matrix_data.todense(),
+                               test.matrix_data.todense())
 
-    # def test_solve_iterative_noisy(self):
-    #     known = pd.DataFrame(
-    #         data=np.array([[1] * 6]) / 6,
-    #         index=['s.1'],
-    #         columns=pd.Index(['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 'seq6'], 
-    #                          name='clean_name'),
-    #     ).T
-    #     test = _solve_iterative_noisy(
-    #         align_mat=pd.concat([self.align1, self.align2]),
-    #         table=self.table / self.table.sum(),
-    #         seq_summary=self.seq_summary,
-    #         )
-    #     npt.assert_array_equal(['s.1'], list(test.ids(axis='sample')))
-    #     npt.assert_array_equal(np.array(['seq1', 'seq2', 'seq3', 
-    #                                      'seq4', 'seq5', 'seq6']),
-    #                            list(test.ids(axis='observation')))
-    #     npt.assert_almost_equal(
-    #         np.array([[1] * 6]) / 6,
-    #         test.matrix_data.todense().T
-    #     )
+    def test_solve_iterative_noisy(self):
+        known = pd.DataFrame(
+            data=np.array([[1] * 6]) / 6,
+            index=['s.1'],
+            columns=pd.Index(['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 'seq6'], 
+                             name='clean_name'),
+        ).T
+        test = _solve_iterative_noisy(
+            align_mat=pd.concat([self.align1, self.align2]),
+            table=self.table / self.table.sum(),
+            seq_summary=self.seq_summary,
+            )
+        npt.assert_array_equal(['s.1'], list(test.ids(axis='sample')))
+        npt.assert_array_equal(np.array(['seq1', 'seq2', 'seq3', 
+                                         'seq4', 'seq5', 'seq6']),
+                               list(test.ids(axis='observation')))
+        npt.assert_almost_equal(
+            np.array([[1] * 6]) / 6,
+            test.matrix_data.todense().T
+        )
 
-    # def test_solve_ml_em_iterative_1_sample(self):
-    #     abund = np.array([0.18181818, 0.09090909, 0.09090909,
-    #                       0.09090909,  0.09090909, 0.09090909, 
-    #                       0.09090909, 0.09090909,  0.09090909, 
-    #                       0.09090909])
-    #     align = np.array([
-    #         [0.4638, 0.4638, 0,      0,      0,      0     ],
-    #         [0,      0,      0.4638, 0,      0,      0     ],
-    #         [0,      0,      0,      0,      0.4638, 0.0008],
-    #         [0,      0,      0,      0,      0.0008, 0.4638],
-    #         [0.4638, 0,      0 ,     0,      0,      0     ],
-    #         [0,      0.4638, 0,      0,      0,      0     ],
-    #         [0,      0,      0.4638, 0,      0,      0     ],
-    #         [0,      0,      0,      0.9276, 0,      0     ],
-    #         [0,      0,      0,      0,      0.4638, 0     ],
-    #         [0,      0,      0,      0,      0,      0.4638]])
+    def test_solve_ml_em_iterative_1_sample(self):
+        abund = np.array([0.18181818, 0.09090909, 0.09090909,
+                          0.09090909,  0.09090909, 0.09090909, 
+                          0.09090909, 0.09090909,  0.09090909, 
+                          0.09090909])
+        align = np.array([
+            [0.4638, 0.4638, 0,      0,      0,      0     ],
+            [0,      0,      0.4638, 0,      0,      0     ],
+            [0,      0,      0,      0,      0.4638, 0.0008],
+            [0,      0,      0,      0,      0.0008, 0.4638],
+            [0.4638, 0,      0 ,     0,      0,      0     ],
+            [0,      0.4638, 0,      0,      0,      0     ],
+            [0,      0,      0.4638, 0,      0,      0     ],
+            [0,      0,      0,      0.9276, 0,      0     ],
+            [0,      0,      0,      0,      0.4638, 0     ],
+            [0,      0,      0,      0,      0,      0.4638]])
 
-    #     t_freq = _solve_ml_em_iterative_1_sample(
-    #         align=align, 
-    #         abund=abund,
-    #         align_kmers=pd.Index(['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 
-    #                               'seq6'], 
-    #                              name='clean_name').values,
-    #         sample='sample.1'
-    #         )
-    #     npt.assert_array_equal(['sample.1'], list(t_freq.ids(axis='sample')))
-    #     npt.assert_array_equal(np.array(['seq1', 'seq2', 'seq3', 
-    #                                      'seq4', 'seq5', 'seq6']),
-    #                            list(t_freq.ids(axis='observation')))
-    #     npt.assert_array_equal(
-    #         np.array([[0.1818, 0.1818, 0.1818, 0.0909, 0.1818, 0.1818]]).T,
-    #         t_freq.matrix_data.todense().round(4)
-    #     )
+        t_freq = _solve_ml_em_iterative_1_sample(
+            align=align, 
+            abund=abund,
+            align_kmers=pd.Index(['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 
+                                  'seq6'], 
+                                 name='clean_name').values,
+            sample='sample.1'
+            )
+        npt.assert_array_equal(['sample.1'], list(t_freq.ids(axis='sample')))
+        npt.assert_array_equal(np.array(['seq1', 'seq2', 'seq3', 
+                                         'seq4', 'seq5', 'seq6']),
+                               list(t_freq.ids(axis='observation')))
+        npt.assert_array_equal(
+            np.array([[0.1818, 0.1818, 0.1818, 0.0909, 0.1818, 0.1818]]).T,
+            t_freq.matrix_data.todense().round(4)
+        )
 
 if __name__ == '__main__':
     main()
