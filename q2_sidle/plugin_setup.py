@@ -475,9 +475,10 @@ plugin.methods.register_function(
     }
 )
 
+
 # plugin.pipelines.register_function(
 #     function=q2_sidle.sidle_reconstruction,
-#     name="Sidle Reconstruction Pipeline",
+#     name="A pipeline to reconstruct the database, count table, and taxonomy",
 #     description=("A pipeline to reconstruct a database, count table, and "
 #                  "taxonomy"),
 #     inputs={'kmer_map': List[FeatureData[KmerMap]],
@@ -487,7 +488,6 @@ plugin.methods.register_function(
 #             },
 #     outputs=[('database_map', FeatureData[SidleReconstruction]),
 #              ('database_summary', FeatureData[ReconstructionSummary]),
-#              ('reconstructed_table', FeatureTable[Frequency]),
 #              ('reconstructed_taxonomy', FeatureData[Taxonomy]),
 #              ],
 #     parameters={'region': List[Str],

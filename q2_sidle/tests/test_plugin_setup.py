@@ -90,7 +90,6 @@ class PluginSetupTest(TestCase):
                                        max_mismatch=2,
                                        debug=True,
                                        ).regional_alignment
-        # self.assertEqual(len(test_discard.view(pd.Series)), 0)
         pdt.assert_frame_equal(
             self.align1.view(pd.DataFrame),
             test_align.view(pd.DataFrame).sort_values(['kmer', 'asv'])
