@@ -1,6 +1,4 @@
 q2_sidle/tests/files/integration/test
-#temporary file
-q2_sidle/_pipeline.py
 
 
 # Byte-compiled / optimized / DLL files
@@ -65,7 +63,7 @@ coverage.xml
 
 # Dask stuff:
 q2_sidle/tests/dask-worker-space/*
-q2_sidle/dask-worker-space/*
+*/dask-worker-space/*
 dask-worker-space/*
 playground/*
 
