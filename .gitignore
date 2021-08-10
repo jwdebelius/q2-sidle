@@ -64,7 +64,7 @@ coverage.xml
 # Dask stuff:
 q2_sidle/tests/dask-worker-space/*
 q2_sidle/dask-worker-space/*
-q2_sidle/docs/tutorial_data/ddask-worker-space/*
+q2_sidle/docs/tutorial_data/dask-worker-space/*
 dask-worker-space/*
 playground/*
 
