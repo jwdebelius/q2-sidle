@@ -115,7 +115,7 @@ The command will output the sequences (``--o-collapsed-kmers``) with degenerate 
      --o-visualization sidle-db-wonder-woman-100nt-map.qzv
 
 
-In some cases, the reference region and sequencing length may not be long enough to cover the full amplicon. If that's the case, you can extract the read starting from the reverse primer by setting the trim length to a negative value. You can even reverse complement the resultant amplicons using the ``--reverse_complement_result`` flag. Let's do an example using the same primer-pair region as before, but call the region "Batman". *Note we've swapped the forward and reverse primer sequences.*
+In some cases, the reference region and sequence length may not be long enough to cover the full amplicon. If that's the case, you can extract the read starting from the reverse primer by setting the trim length to a negative value. You can even reverse complement the resultant amplicons using the ``--reverse_complement_result`` flag. Let's do an example using the same primer-pair region as before, but call the region "Batman". *Note we've swapped the forward and reverse primer sequences.*
 
 .. code:: bash
 
