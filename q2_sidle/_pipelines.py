@@ -21,6 +21,7 @@ def sidle_reconstruction(ctx,
     reconstruct_fragment = \
         ctx.get_action('sidle', 'reconstruct_fragment_rep_seqs')
 
+    print("Reconstructing database")
     db_map, db_summary = reconstruct_database(
         region=region,
         kmer_map=kmer_map,
@@ -32,6 +33,7 @@ def sidle_reconstruction(ctx,
         debug=debug,
         )
 
+    print("Reconstructing counts")
     counts, = reconstruct_counts(
         region=region,
         regional_alignment=regional_alignment,
@@ -46,6 +48,7 @@ def sidle_reconstruction(ctx,
         debug=debug,
         )
 
+    print("Reconstructing Taxonomy")
     taxonomy, = reconstruct_taxonomy(
         reconstruction_map=db_map,
         taxonomy=reference_taxonomy,
@@ -58,3 +61,30 @@ def sidle_reconstruction(ctx,
     return tuple(results)
 
 
+def reconstruct_tree(ctx,
+                     reconstruction_summary,
+                     reconstruction_map,
+                     aligned_sequences,
+                     sepp_reference_database,
+                     n_threads=1,
+                     ):
+    """A pipeline for tree building, because why not?
+    """
+    reconstruct_fragments = \
+        ctx.get_action('sidle', 'reconstruct_fragment_rep_seqs')
+    insert_fragments = ctx.get_action('fragment_insertion', 'sepp')
+    prune_tree = ctx.get_action('phylogeny', 'filter_tree')
+    
+    rep_fragments, = reconstruct_fragments(
+        reconstruction_summary=reconstruction_summary,
+        reconstruction_map=reconstruction_map,
+        aligned_sequences=aligned_sequences,
+        )
+
+    tree, placements = insert_fragments(
+        representative_sequences=rep_fragments,
+        referencce_database=sepp_reference_database,
+        n_threads=n_threads,
+        )
+
+    return (rep_fragments, tree, placements)

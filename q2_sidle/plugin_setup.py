@@ -8,10 +8,15 @@ from q2_types.feature_data import (FeatureData,
                                    Taxonomy,
                                    AlignedSequence,
                                    ) 
-from q2_types.feature_table import (
-                      FeatureTable, 
-                      Frequency, 
-                      )
+from q2_types.feature_table import (FeatureTable, 
+                                    Frequency, 
+                                    )
+from q2_types.tree import (Phylogeny, 
+                           Rooted
+                           )
+from q2_fragment_insertion._type import (SeppReferenceDatabase, 
+                                         Placements
+                                         )
 from q2_sidle import (KmerMap, 
                       KmerMapFormat, 
                       KmerMapDirFmt, 
@@ -449,8 +454,7 @@ plugin.methods.register_function(
     outputs=[
         ('representative_fragments', FeatureData[Sequence]),
     ],
-    parameters={
-    },
+    parameters={},
     input_descriptions={
         'reconstruction_summary': ('A summary of the statitics for the '
                                    'regional map describing the number of '
@@ -471,8 +475,7 @@ plugin.methods.register_function(
         'representative_fragments': ('The consensus sequence fragments '
                                      'to be used for fragment insertion.')
     },
-    parameter_descriptions={
-    }
+    parameter_descriptions={},
 )
 
 
@@ -570,7 +573,59 @@ plugin.pipelines.register_function(
         },
 )
 
-
+plugin.pipelines.register_function(
+    function=q2_sidle.reconstruct_tree,
+    name=("A pipeline to build a phylogenetic tree based on reconstructed "
+          "sequences"),
+    description=("A pipeline to reconstruct a database, count table, and "
+                 "taxonomy\nThis pipeline is somewhat experimental.\n"
+                 "Representative sequences for non-unique sequences are "
+                 "assigned based on the concensus sequence for the "
+                 "amplicons"),
+    inputs={
+        'reconstruction_summary': FeatureData[ReconstructionSummary],
+        'reconstruction_map': FeatureData[SidleReconstruction],
+        'aligned_sequences': FeatureData[AlignedSequence],
+        'sepp_reference_database': SeppReferenceDatabase,
+    },
+    outputs=[('representative_fragments', FeatureData[Sequence]),
+             ('tree', Phylogeny[Rooted]),
+             ('placements', Placements)
+             ],
+    parameters={'n_threads': Int % Range(1, None)},
+    input_descriptions={
+        'reconstruction_summary': ('A summary of the statitics for the '
+                                   'regional map describing the number of '
+                                   'regions mapped to each reference sequence '
+                                   'and the number of kmers. The kmer '
+                                   'mapping estimate can account for '
+                                   'degeneracy when the `--count-degenerates` '
+                                   'flag is used or can ignore degenrate '
+                                   'sequences in mapping.'),
+        'reconstruction_map': ('A map between the final kmer name and the '
+                               'original database sequence. Useful for '
+                               'reconstructing taxonomy and trees.'),
+        'aligned_sequences': ('The aligned representative sequences '
+                              'corresponding to the database used in '
+                              'reconstruction.'),
+        'sepp_reference_database': ('A SEPP reference database object '
+                                    'corresponding to the database you used '
+                                    'for reconstruction.\n'
+                                    'IMPORTANT: The database versions must '
+                                    'match for the table construction and '
+                                    'tree.'),
+    },
+    output_descriptions={
+        'representative_fragments': ('The consensus sequence fragments '
+                                     'to be used for fragment insertion.'),
+        'tree': 'The tree with all the reconstructed features',
+        'placements': ('The location of the representative fragments '
+                       'in the phylogenetic tree')
+    },
+    parameter_descriptions={
+        'n_threads': 'the number of threads to use during fragment insertion',
+    },
+)
 
 plugin.register_formats(KmerMapFormat, 
                         KmerMapDirFmt, 

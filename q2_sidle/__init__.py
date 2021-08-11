@@ -8,7 +8,9 @@ from ._formats import (KmerMapFormat, KmerMapDirFmt,
                        ReconSummaryFormat, ReconSummaryDirFormat,
                        SidleReconFormat, SidleReconDirFormat,
                        )
-from ._pipelines import (sidle_reconstruction)
+from ._pipelines import (sidle_reconstruction,
+                         reconstruct_tree,
+                         )
 from ._reconstruct import reconstruct_counts
 from ._taxonomy import reconstruct_taxonomy
 from ._tree import reconstruct_fragment_rep_seqs
