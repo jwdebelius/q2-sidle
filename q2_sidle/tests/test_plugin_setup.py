@@ -139,32 +139,34 @@ class PluginSetupTest(TestCase):
         pdt.assert_series_equal(self.taxonomy.view(pd.Series),
                                 test.view(pd.Series))
 
-    # def test_sidle_reconstruction(self):
-    #     mapping, summary, counts, taxonomy = sidle.sidle_reconstruction(
-    #         region=['Bludhaven', 'Gotham'],
-    #         kmer_map=[self.kmer_map1, self.kmer_map2],
-    #         regional_alignment=[self.align1, self.align2],
-    #         regional_table=[self.table1, self.table2],
-    #         reference_taxonomy=self.taxonomy,
-    #         min_counts=10,
-    #         debug=True
-    #         )
-    #     pdt.assert_frame_equal(mapping.view(pd.DataFrame), 
-    #                            self.seq_map.view(pd.DataFrame))
-    #     pdt.assert_frame_equal(summary.view(pd.DataFrame),
-    #                            self.database_summary.view(pd.DataFrame))
-    #     pdt.assert_frame_equal(
-    #         count_table.view(pd.DataFrame),
-    #         pd.DataFrame( 
-    #             data=np.array([[100.,  50,   0,  50,  50, 50],
-    #                            [100.,  25, 100,  25,  25, 25],
-    #                            [  0., 100, 100,   0,  50, 50]]),
-    #             index=pd.Index(['sample1', 'sample2', 'sample3']),
-    #             columns=['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 'seq6']
-    #         )
-    #     )
-    #     pdt.assert_series_equal(self.taxonomy.view(pd.Series),
-    #                             taxonomy.view(pd.Series))
+    def test_sidle_reconstruction(self):
+        mapping, summary, counts, taxonomy  = sidle.sidle_reconstruction(
+            region=['Bludhaven', 'Gotham'],
+            kmer_map=[self.kmer_map1, self.kmer_map2],
+            regional_alignment=[self.align1, self.align2],
+            regional_table=[self.table1, self.table2],
+            reference_taxonomy=self.taxonomy,
+            database='greengenes',
+            define_missing='ignore',
+            min_counts=10,
+            debug=True
+            )
+        pdt.assert_frame_equal(mapping.view(pd.DataFrame), 
+                               self.seq_map.view(pd.DataFrame))
+        pdt.assert_frame_equal(summary.view(pd.DataFrame),
+                               self.database_summary.view(pd.DataFrame))
+        pdt.assert_frame_equal(
+            counts.view(pd.DataFrame),
+            pd.DataFrame( 
+                data=np.array([[100.,  50,   0,  50,  50, 50],
+                               [100.,  25, 100,  25,  25, 25],
+                               [  0., 100, 100,   0,  50, 50]]),
+                index=pd.Index(['sample1', 'sample2', 'sample3']),
+                columns=['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 'seq6']
+            )
+        )
+        pdt.assert_series_equal(self.taxonomy.view(pd.Series),
+                                taxonomy.view(pd.Series))
 
     def test_reconstruct_fragment_rep_seqs(self):
         recon_map = Artifact.import_data(

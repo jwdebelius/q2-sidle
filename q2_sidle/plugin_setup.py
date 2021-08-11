@@ -476,98 +476,99 @@ plugin.methods.register_function(
 )
 
 
-# plugin.pipelines.register_function(
-#     function=q2_sidle.sidle_reconstruction,
-#     name="A pipeline to reconstruct the database, count table, and taxonomy",
-#     description=("A pipeline to reconstruct a database, count table, and "
-#                  "taxonomy"),
-#     inputs={'kmer_map': List[FeatureData[KmerMap]],
-#             'regional_alignment': List[FeatureData[KmerAlignment]],
-#             'regional_table': List[FeatureTable[Frequency]],
-#             'reference_taxonomy': FeatureData[Taxonomy],
-#             },
-#     outputs=[('database_map', FeatureData[SidleReconstruction]),
-#              ('database_summary', FeatureData[ReconstructionSummary]),
-#              ('reconstructed_taxonomy', FeatureData[Taxonomy]),
-#              ],
-#     parameters={'region': List[Str],
-#                 'min_counts': Int % Range(0, None),
-#                 'database': Str % Choices('none', 'greengenes', 'silva'),
-#                 'define_missing': Str % Choices('merge', 'inherit', 'ignore'),
-#                 'block_size': Int,
-#                 'n_workers': Int % Range(1, None),
-#                 'client_address': Str,
-#                 'debug': Bool,
-#                 },
-#     input_descriptions={
-#         'kmer_map': ('A mapping relationship between the name of the '
-#                      'sequence in the database and the kmer identifier used'
-#                      ' in this region. The kmer map should correspond to the '
-#                      'kmers used in regional alignment'),
-#         'regional_alignment': ('A mapping between the kmer names (in the kmer'
-#                                ' map) and the features (found in the regional'
-#                                ' table)'),
-#         'regional_table': ('A feature-table for each region, where  the '
-#                            'features in the table correspond to the ASVs '
-#                            'which were aligned in the regional alignment '
-#                            'artifact'),
-#         'reference_taxonomy': ('The taxonomic strings from the database'),
-#         },
-#     output_descriptions={
-#         'database_map': ('A map between the final kmer name and the '
-#                                'original database sequence. Useful for '
-#                                'reconstructing taxonomy and trees.'),
-#         'database_summary': ('A summary of the statitics for the '
-#                                    'regional map describing the number of '
-#                                    'regions mapped to each reference sequence'
-#                                    ' and the number of kmers. The kmer '
-#                                    'mapping estimate can account for '
-#                                    'degeneracy when the `--count-degenerates`'
-#                                    ' flag is used or can ignore degenrate '
-#                                    'sequences in mapping'),
-#         'reconstructed_table': ('The feature table with the reconstructed '
-#                                 'abundance using ASVs from all regions mapped'
-#                                 ' to database sequences.'),
-#         'reconstructed_taxonomy': ('Taxonomy which addresses the ambiguity'
-#                                    ' in assignment associated with mapping '
-#                                    'to multiple sequences in reconstruction.')
-#         },
-#     parameter_descriptions={
-#         'region': ('The name of the sub region used in alignment. The region'
-#                    ' names do not matter, however, the region order must '
-#                    'match the order along the hypervariable region.'),
-#         'min_counts': ('The mininum depth across all regions after alignment '
-#                        'for a sample to be included in a reconstruction'),
-#         'database': ('The taxonomic database being used. Currently, the only'
-#                     ' two supported databases are Greengenes and Silva. '
-#                     'The database choice influences the handling of missing '
-#                     'and ambigious taxa.'),
-#         'define_missing':  ('Taxonomic strings may be missing information '
-#                              '(for example  `g__` in greengenes  or '
-#                              '`D_5__uncultured bacteria` in Silva). These '
-#                              'can be ignored  (`"ignore"`) and treated like'
-#                              ' any other taxonomic designation; they can be'
-#                              ' first inherited in merged sequences '
-#                              '(`"merge`"), where, when there are two strings'
-#                              ' being merged and one has a missing level, '
-#                              'the missing level is taken form the defined'
-#                              ' one, or they can be inherited from the '
-#                              'previous level (`"inherit"`) first, and then '
-#                              'merged.'),
-#         'block_size': ('The number of sequences to use in parallel '
-#                        'computation. The larger the block_size, the faster '
-#                        'processing can happen, but the more memory that will'
-#                        ' be required.'),
-#         'n_workers': ('The number of jobs to initiate.'),
-#         'client_address': ('The IP address for an existing cluster. '
-#                           'Please see the dask client documentation for more'
-#                           ' information: '
-#                           'https://distributed.dask.org/en/latest/client.html'
-#                           ),
-#         'debug': ('Whether the function should be run in debug mode (without '
-#                   'a client) or not. `debug` superceeds all options'),
-#         },
-# )
+plugin.pipelines.register_function(
+    function=q2_sidle.sidle_reconstruction,
+    name="A pipeline to reconstruct the database, count table, and taxonomy",
+    description=("A pipeline to reconstruct a database, count table, and "
+                 "taxonomy"),
+    inputs={'kmer_map': List[FeatureData[KmerMap]],
+            'regional_alignment': List[FeatureData[KmerAlignment]],
+            'regional_table': List[FeatureTable[Frequency]],
+            'reference_taxonomy': FeatureData[Taxonomy],
+            },
+    outputs=[('database_map', FeatureData[SidleReconstruction]),
+             ('database_summary', FeatureData[ReconstructionSummary]),
+             ('reconstructed_table', FeatureTable[Frequency]),
+             ('reconstructed_taxonomy', FeatureData[Taxonomy]),
+             ],
+    parameters={'region': List[Str],
+                'min_counts': Int % Range(0, None),
+                'database': Str % Choices('none', 'greengenes', 'silva'),
+                'define_missing': Str % Choices('merge', 'inherit', 'ignore'),
+                'block_size': Int,
+                'n_workers': Int % Range(1, None),
+                'client_address': Str,
+                'debug': Bool,
+                },
+    input_descriptions={
+        'kmer_map': ('A mapping relationship between the name of the '
+                     'sequence in the database and the kmer identifier used'
+                     ' in this region. The kmer map should correspond to the '
+                     'kmers used in regional alignment'),
+        'regional_alignment': ('A mapping between the kmer names (in the kmer'
+                               ' map) and the features (found in the regional'
+                               ' table)'),
+        'regional_table': ('A feature-table for each region, where  the '
+                           'features in the table correspond to the ASVs '
+                           'which were aligned in the regional alignment '
+                           'artifact'),
+        'reference_taxonomy': ('The taxonomic strings from the database'),
+        },
+    output_descriptions={
+        'database_map': ('A map between the final kmer name and the '
+                               'original database sequence. Useful for '
+                               'reconstructing taxonomy and trees.'),
+        'database_summary': ('A summary of the statitics for the '
+                                   'regional map describing the number of '
+                                   'regions mapped to each reference sequence'
+                                   ' and the number of kmers. The kmer '
+                                   'mapping estimate can account for '
+                                   'degeneracy when the `--count-degenerates`'
+                                   ' flag is used or can ignore degenrate '
+                                   'sequences in mapping'),
+        'reconstructed_table': ('The feature table with the reconstructed '
+                                'abundance using ASVs from all regions mapped'
+                                ' to database sequences.'),
+        'reconstructed_taxonomy': ('Taxonomy which addresses the ambiguity'
+                                   ' in assignment associated with mapping '
+                                   'to multiple sequences in reconstruction.')
+        },
+    parameter_descriptions={
+        'region': ('The name of the sub region used in alignment. The region'
+                   ' names do not matter, however, the region order must '
+                   'match the order along the hypervariable region.'),
+        'min_counts': ('The mininum depth across all regions after alignment '
+                       'for a sample to be included in a reconstruction'),
+        'database': ('The taxonomic database being used. Currently, the only'
+                    ' two supported databases are Greengenes and Silva. '
+                    'The database choice influences the handling of missing '
+                    'and ambigious taxa.'),
+        'define_missing':  ('Taxonomic strings may be missing information '
+                             '(for example  `g__` in greengenes  or '
+                             '`D_5__uncultured bacteria` in Silva). These '
+                             'can be ignored  (`"ignore"`) and treated like'
+                             ' any other taxonomic designation; they can be'
+                             ' first inherited in merged sequences '
+                             '(`"merge`"), where, when there are two strings'
+                             ' being merged and one has a missing level, '
+                             'the missing level is taken form the defined'
+                             ' one, or they can be inherited from the '
+                             'previous level (`"inherit"`) first, and then '
+                             'merged.'),
+        'block_size': ('The number of sequences to use in parallel '
+                       'computation. The larger the block_size, the faster '
+                       'processing can happen, but the more memory that will'
+                       ' be required.'),
+        'n_workers': ('The number of jobs to initiate.'),
+        'client_address': ('The IP address for an existing cluster. '
+                          'Please see the dask client documentation for more'
+                          ' information: '
+                          'https://distributed.dask.org/en/latest/client.html'
+                          ),
+        'debug': ('Whether the function should be run in debug mode (without '
+                  'a client) or not. `debug` superceeds all options'),
+        },
+)
 
 
 
