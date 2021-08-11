@@ -32,7 +32,7 @@ def sidle_reconstruction(ctx,
         debug=debug,
         )
 
-    counts = reconstruct_counts(
+    counts, = reconstruct_counts(
         region=region,
         regional_alignment=regional_alignment,
         regional_table=regional_table,
@@ -46,7 +46,7 @@ def sidle_reconstruction(ctx,
         debug=debug,
         )
 
-    taxonomy = reconstruct_taxonomy(
+    taxonomy, = reconstruct_taxonomy(
         reconstruction_map=db_map,
         taxonomy=reference_taxonomy,
         database=database,
