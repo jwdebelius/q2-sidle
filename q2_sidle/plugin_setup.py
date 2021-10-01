@@ -8,6 +8,8 @@ from q2_types.feature_data import (FeatureData,
                                    Taxonomy,
                                    AlignedSequence,
                                    ) 
+from q2_types.sample_data import (SampleData,
+                                  )
 from q2_types.feature_table import (FeatureTable, 
                                     Frequency, 
                                     )
@@ -28,7 +30,10 @@ from q2_sidle import (KmerMap,
                       SidleReconDirFormat,
                       ReconstructionSummary,
                       ReconSummaryFormat,
-                      ReconSummaryDirFormat,                      
+                      ReconSummaryDirFormat,
+                      AlignmentLedger,
+                      AlignmentLedgerFormat,
+                      AlignmentLedgerDirFormat,                    
                       )
 import q2_sidle
 
@@ -118,6 +123,38 @@ plugin.methods.register_function(
 )
 
 
+# plugin.methods.register_function(
+#     function=q2_sidle.track_aligned_counts,
+#     name='Tracks the aligned sequencings to determine which are lost',
+#     description=('This function determines how many counts are lost from an '
+#                  'orginal table during alignment.'),
+#     inputs={
+#         'regional_alignment': List[FeatureData[KmerAlignment]],
+#         'regional_table': List[FeatureTable[Frequency]],
+#     },
+#     parameters={
+#         'region': List[Str],
+#     },
+#     outputs=[
+#         ('alignment_summary', SampleData[AlignmentLedger]),
+#     ],
+#     input_descriptions={
+#         'regional_alignment': ('Maps regional ASVs to database regional '
+#                                'reference kmers, most likely the output of'
+#                                ' `align-regional-kmers`.'),
+#         'regional_table': ('The region-specific denoised feature table'),
+#     },
+#      parameter_descriptions={
+#         'region': ('A unique description of the hypervariable region being '
+#                    'from alignment.'),
+#     },
+#     output_descriptions={
+#         'alignment_summary': ('A map betewen the number of reads per region '
+#                               'aligned.')
+#     }
+# )
+
+
 plugin.methods.register_function(
     function=q2_sidle.align_regional_kmers,
     name='Aligns ASV representative sequences to a regional kmer database.',
@@ -176,7 +213,6 @@ plugin.methods.register_function(
     },
     citations=[citations['Fuks2018']],
 )
-
 
 plugin.methods.register_function(
     function=q2_sidle.reconstruct_database,
@@ -573,6 +609,7 @@ plugin.pipelines.register_function(
         },
 )
 
+
 plugin.pipelines.register_function(
     function=q2_sidle.reconstruct_tree,
     name=("A pipeline to build a phylogenetic tree based on reconstructed "
@@ -627,6 +664,7 @@ plugin.pipelines.register_function(
     },
 )
 
+
 plugin.register_formats(KmerMapFormat, 
                         KmerMapDirFmt, 
                         KmerAlignFormat, 
@@ -659,6 +697,9 @@ plugin.register_semantic_type_to_format(FeatureData[SidleReconstruction],
 
 plugin.register_semantic_type_to_format(FeatureData[ReconstructionSummary], 
                                         ReconSummaryDirFormat)
+
+plugin.register_semantic_type_to_format(SampleData[AlignmentLedger], 
+                                        AlignmentLedgerDirFormat)
 
 
 importlib.import_module('q2_sidle._transformer')

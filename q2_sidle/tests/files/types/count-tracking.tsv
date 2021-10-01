@@ -1,0 +1,5 @@
+sample-id	total starting counts	total aligned counts	total aligned percentage	Bludhaven starting counts	Bludhaven aligned counts	Bludhaven aligned percentage	Gotham starting counts	Gotham aligned counts	Gotham aligned percentage
+#q2:types	numeric	numeric	numeric	numeric	numeric	numeric	numeric	numeric	numeric
+sample1	600	550	0.9166667	300	250	0.833333	300	300	1
+sample2	600	575	0.9583333	300	275	0.916667	300	300	1
+sample3	600	600	1	300	300	1	300	300	1

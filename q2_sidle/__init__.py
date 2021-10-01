@@ -7,6 +7,7 @@ from ._formats import (KmerMapFormat, KmerMapDirFmt,
                        KmerAlignFormat, KmerAlignDirFmt,
                        ReconSummaryFormat, ReconSummaryDirFormat,
                        SidleReconFormat, SidleReconDirFormat,
+                       AlignmentLedgerFormat, AlignmentLedgerDirFormat,
                        )
 from ._pipelines import (sidle_reconstruction,
                          reconstruct_tree,
@@ -19,4 +20,5 @@ from ._type import (KmerMap,
                     KmerAlignment,
                     SidleReconstruction,
                     ReconstructionSummary,
+                    AlignmentLedger,
                     )
