@@ -75,12 +75,14 @@ def reconstruct_tree(ctx,
     insert_fragments = ctx.get_action('fragment_insertion', 'sepp')
     prune_tree = ctx.get_action('phylogeny', 'filter_tree')
     
+    print('Reconstructing Fragments')
     rep_fragments, = reconstruct_fragments(
         reconstruction_summary=reconstruction_summary,
         reconstruction_map=reconstruction_map,
         aligned_sequences=aligned_sequences,
         )
 
+    print('Reconstructing Tree')
     tree, placements = insert_fragments(
         representative_sequences=rep_fragments,
         referencce_database=sepp_reference_database,
