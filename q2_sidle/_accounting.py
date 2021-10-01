@@ -6,20 +6,13 @@ import numpy as np
 import pandas as pd
 
 from qiime2 import Metadata, Artifact
-from q2_sidle._utils import (_setup_dask_client, 
-                             _convert_generator_to_seq_block,
-                             _convert_generator_to_delayed_seq_block, 
-                             _convert_seq_block_to_dna_fasta_format,
-                             degen_reps,
-                             database_params,
-                             )
 
 
-def check_alignment_discard(alignment: pd.DataFrame,
-                            table: biom.Table,
-                            max_mismatch: int=None,
-                            discarded: bool=True,
-                            ) -> biom.Table:
+def get_aligned_counts(alignment: pd.DataFrame,
+                       table: biom.Table,
+                       max_mismatch: int = None,
+                       discarded: bool = True,
+                       ) -> biom.Table:
     """
     Filters to the sequences retained during a sidle alignmeent
 
@@ -54,12 +47,9 @@ def check_alignment_discard(alignment: pd.DataFrame,
 
 
 def track_aligned_counts(
-    regions: str,
-    regional_alignments: pd.DataFrame,
-    regional_tables: biom.Table,
-    # reconstruction_map: pd.DataFrame,
-    # reconstruction_summary: pd.DataFrame,
-    # reconstructed_counts: pd.DataFrame,
+    region: str,
+    regional_alignment: pd.DataFrame,
+    regional_table: biom.Table,
     ) -> Metadata:
     """
     Tracks where sample counts have gone.
@@ -67,9 +57,9 @@ def track_aligned_counts(
     print(regions)
     # Maps the regioional counts
     regional_counts = [
-        _alignment_accounting(region, align, table)
-        for (region, align, table) 
-        in zip(*(regions, regional_alignments, regional_tables))
+        _alignment_accounting(r, a, t)
+        for (r, a, t) 
+        in zip(*(region, regional_alignment, regional_table))
         ]
     total_table = regional_tables[0].copy().merge(*regional_tables[1:])
     total_counts = _alignment_accounting('total', 
@@ -80,7 +70,8 @@ def track_aligned_counts(
     counts.index.set_names('sample-id', inplace=True)
 
     return Metadata(counts)
-    
+
+
 def _alignment_accounting(region, alignment, table):
     keep_asvs = alignment['asv'].unique()
     table_n = table.copy().norm(axis='sample')
@@ -95,4 +86,4 @@ def _alignment_accounting(region, alignment, table):
         columns=table.ids(axis='sample'),
         index=['starting counts', 'aligned counts', 'aligned percentage']
     ).T
-    return regional_account.add_prefix('%s ' % region)
+    return regional_account.add_prefix(f' {region}')
