@@ -99,29 +99,46 @@ class PrimerlessTest(TestCase):
             })
         pdt.assert_series_equal(test.astype(str), known.astype(str))
 
-    def test_find_first_rep_seq_position(self):
+    def test_find_find_first_alignment_position(self):
         known = pd.DataFrame(
             data=np.vstack([
-                np.array([12] * 5),
-                np.array([300, 100, 100, 100, 100]),
-                np.array(['fwd'] * 5)
+                np.hstack([np.array([12.] * 5), np.array([52.] * 3), 0., 28.]),
+                np.array([101.] * 10),
                 ]).T,
-            columns=['starting-position', 'sequence-counts', 'direction'],
-            index=pd.Index(['asv01', 'asv02', 'asv03', 'asv04', 'asv05'],
+            columns=['starting-position', 'sequence-counts'],
+            index=pd.Index(['asv01', 'asv02', 'asv03', 'asv04', 'asv05', 
+                            'asv06', 'asv07', 'asv08', 'asv09', 'asv10'],
                            name='feature-id'),
             )
-        known[['starting-position', 'sequence-counts']]  = \
-            known[['starting-position', 'sequence-counts']].astype(float)
+        known['direction'] = 'fwd'
+        known['sequence-counts'] = known['sequence-counts'].astype(float)
+        known['starting-position'] = \
+            known['starting-position'].astype(int).astype(str)
 
         test = find_first_alignment_position(
             alignment=self.expanded_alignment,
             representative_sequences=self.rep_seqs,
-            table=self.table,
             ).to_dataframe()
-        test[['starting-position', 'sequence-counts']]  = \
-            test[['starting-position', 'sequence-counts']].astype(float)
 
         pdt.assert_frame_equal(known, test)
+
+    def test_find_first_alignment_position_error(self):
+        test_seqs = pd.Series({
+            'nightwing': skbio.DNA("AAAAA", metadata={'id': 'nightwing'}),
+            'arsenel':  skbio.DNA("CCCCC", metadata={'id': 'arsenel'}),
+            'troya':  skbio.DNA("GGGGG", metadata={'id': 'troya'}),
+            })
+        with self.assertRaises(ValueError) as err:
+            find_first_alignment_position(
+                alignment=self.expanded_alignment,
+                representative_sequences=test_seqs,
+            )
+        self.assertEqual(str(err.exception),
+                         ('All the representative sequences must be present '
+                         'in the alignment. Please make sure that you have '
+                         'the correct representative sequences and '
+                         'alignment.')    
+                        )
 
     def test_generate_align_mask(self):
         test = _generate_align_mask(self.expanded_alignment, 

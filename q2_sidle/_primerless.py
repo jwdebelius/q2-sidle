@@ -44,10 +44,7 @@ def find_first_alignment_position(alignment: pd.Series,
 
     # Cleans up the result to be presented as metadata to make filtering 
     # and alignment easier
-    first_pos = \
-        first_pos.loc[first_pos['starting-position'].isin(keep_regions)]
     first_pos['direction'] = direction
-
     first_pos['starting-position'] = \
         first_pos['starting-position'].astype(int).astype(str)
     first_pos.index.set_names('feature-id', inplace=True)
