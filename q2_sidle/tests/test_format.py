@@ -16,6 +16,9 @@ from q2_sidle._formats import (KmerMapFormat,
                                SidleReconDirFormat,
                                ReconSummaryFormat,
                                ReconSummaryDirFormat,
+                               AlignmentPosFmt,
+                               AlignmentPosDirFmt,
+
                                )
 
 class PluginSetupTest(TestCase):
@@ -88,6 +91,16 @@ class PluginSetupTest(TestCase):
         format = ReconSummaryDirFormat(self.tmp, 'r')
         format.validate()
 
+    def test_sidle_summary_format(self):
+        filepath = os.path.join(self.base_dir, 'position-summary.tsv')
+        format = AlignmentPosFmt(filepath, mode='r')
+        format.validate()
+
+    def test_alignment_positition_dir_format_validate(self):
+        shutil.copy(os.path.join(self.base_dir, 'position-summary.tsv'), 
+                    self.tmp)
+        format = AlignmentPosDirFmt(self.tmp, 'r')
+        format.validate()
 
 
 if __name__ == '__main__':

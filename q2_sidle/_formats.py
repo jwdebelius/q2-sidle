@@ -46,3 +46,11 @@ class ReconSummaryFormat(model.TextFileFormat):
 ReconSummaryDirFormat = model.SingleFileDirectoryFormat(
     'ReconSummaryDirFormat', 'sidle-summary.tsv', ReconSummaryFormat
     )
+
+class AlignmentPosFormat(model.TextFileFormat):
+    def validate(*args):
+        pass
+
+AlignmentPosDirFmt = model.SingleFileDirectoryFormat(
+    'AlignmentPosDirFmt', 'position-summary.tsv', AlignmentPosFormat
+    )

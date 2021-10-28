@@ -15,7 +15,8 @@ from qiime2.plugin.testing import TestPluginBase
 from q2_sidle import (KmerMapFormat,
                       KmerAlignFormat,
                       SidleReconFormat,
-                      ReconSummaryFormat
+                      ReconSummaryFormat,
+                      AlignmentPosFormat
                       )
 import q2_sidle._transformer as t
 
@@ -226,6 +227,32 @@ class TestTransform(TestCase):
         pdt.assert_frame_equal(test.to_dataframe(), known)
 
     def test_metadata_to_recon_summary(self):
+        # tested in plugin setup
+        pass
+
+    def test_alignment_pos_to_metadata(self):
+        known = pd.DataFrame(
+            data=np.vstack([
+                np.hstack([np.array([12.] * 5), np.array([52.] * 3), 0., 28.]),
+                np.array([101.] * 10),
+                ]).T,
+            columns=['starting-position', 'sequence-counts'],
+            index=pd.Index(['asv01', 'asv02', 'asv03', 'asv04', 'asv05', 
+                            'asv06', 'asv07', 'asv08', 'asv09', 'asv10'],
+                           name='feature-id'),
+            )
+        filepath = os.path.join(self.base_dir, 'position-summary.tsv')
+        format = AlignmentPosFormat(filepath, mode='r')
+        test = t._16(format)
+        self.assertTrue(isinstance(test, Metadata))
+        columns = dict(test.columns)
+        npt.assert_array_equal(list(columns.keys()),
+                              ['starting-position', 'sequence-counts'])
+        for k, v in columns.items():
+            self.assertEqual(v.type, 'numeric')
+        pdt.assert_frame_equal(test.to_dataframe(), known)
+
+    def test_metadata_to_alignment_pos(self):
         # tested in plugin setup
         pass
 

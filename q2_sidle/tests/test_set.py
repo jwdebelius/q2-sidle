@@ -3,9 +3,28 @@
 import biom
 import numpy as np
 import pandas as pd
+import skbio
 from skbio import DNA
 
 from qiime2 import Artifact, Metadata
+
+
+db_alignment = Artifact.import_data('FeatureData[AlignedSequence]', pd.Series({
+    'seq1': skbio.DNA('-----AAATCATGCGAAGCGGCTCAGGATGATGATGGGTGAGTCACCTCGTAAGAGAGGCTGAATCCATGACGTG---ACCAGC', metadata={'id': 'seq1'}),
+    'seq2': skbio.DNA('-----AAATCATGCGAAGCGGCTCAGGATGATGATGGGTGAGTCACCTCGTCAGAGTTTCTGAATCCATGACGTG---ACCAGC', metadata={'id': 'seq2'}),
+    'seq3': skbio.DNA('TATGGTACTCATWTCCGCGTTGGAGTTATGATGATGGGGTGA-CACCTCGTTCCAGTTCCGCGCTTCATGACGTGCTGACC---', metadata={'id': 'seq3'}),
+    'seq4': skbio.DNA('------------------------------AAGGCGGGTGAG-CACCTCGTCCCGGAGACGAGAGGCATGACGTG---ATCCGT', metadata={'id': 'seq4'}),
+    'seq5': skbio.DNA('-AGGCTAGTCATCGTTTATGTATGCCCATGATGATGGGGTGAGCACCTCGTGTGGATGTAGAGCCACCTGACGTGC--ACCTG-', metadata={'id': 'seq5'}),
+    'seq6': skbio.DNA('-AGGCTAGTCATCGTTTATGTATGCCCATGATGATGGGGTGAGCACCTCGTGAAAATGTAGAGCCACCTGACGTGC--ACC---', metadata={'id': 'seq6'}),
+    }))
+db_sequences =  Artifact.import_data('FeatureData[Sequence]', pd.Series({
+    'seq1': skbio.DNA('AAATCATGCGAAGCGGCTCAGGATGATGATGGGTGAGTCACCTCGTAAGAGAGGCTGAATCCATGACGTGACCAGC', metadata={'id': 'seq1'}),
+    'seq2': skbio.DNA('AAATCATGCGAAGCGGCTCAGGATGATGATGGGTGAGTCACCTCGTCAGAGTTTCTGAATCCATGACGTGACCAGC', metadata={'id': 'seq2'}),
+    'seq3': skbio.DNA('TATGGTACTCATWTCCGCGTTGGAGTTATGATGATGGGGTGACACCTCGTTCCAGTTCCGCGCTTCATGACGTGCTGACC', metadata={'id': 'seq3'}),
+    'seq4': skbio.DNA('AAGGCGGGTGAGCACCTCGTCCCGGAGACGAGAGGCATGACGTGATCCGT', metadata={'id': 'seq4'}),
+    'seq5': skbio.DNA('AGGCTAGTCATCGTTTATGTATGCCCATGATGATGGGGTGAGCACCTCGTGTGGATGTAGAGCCACCTGACGTGCACCTG', metadata={'id': 'seq5'}),
+    'seq6': skbio.DNA('AGGCTAGTCATCGTTTATGTATGCCCATGATGATGGGGTGAGCACCTCGTGAAAATGTAGAGCCACCTGACGTGCACC', metadata={'id': 'seq6'}),
+    }))
 
 region1_db_seqs = Artifact.import_data('FeatureData[Sequence]', pd.Series({
     'seq1|seq2': DNA('GCGAAGCGGCTCAGG', metadata={'id': 'seq1|seq2'}),
