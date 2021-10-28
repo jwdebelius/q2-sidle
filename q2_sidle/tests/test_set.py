@@ -8,6 +8,30 @@ from skbio import DNA
 
 from qiime2 import Artifact, Metadata
 
+extra_alignment = Artifact.import_data('FeatureData[AlignedSequence]', pd.Series(
+    data=[
+        skbio.DNA('-----AAATCATGCGAAGCGGCTCAGGATGATGATGGGTGAGTCACCTCGTAAGAGAGGCTGAATCCATGACGTG---ACCAGC', metadata={'id': 'seq1'}),
+        skbio.DNA('-----AAATCATGCGAAGCGGCTCAGGATGATGATGGGTGAGTCACCTCGTCAGAGTTTCTGAATCCATGACGTG---ACCAGC', metadata={'id': 'seq2'}),
+        skbio.DNA('TATGGTACTCATWTCCGCGTTGGAGTTATGATGATGGGGTGA-CACCTCGTTCCAGTTCCGCGCTTCATGACGTGCTGACC---', metadata={'id': 'seq3'}),
+        skbio.DNA('------------------------------AAGGCGGGTGAG-CACCTCGTCCCGGAGACGAGAGGCATGACGTG---ATCCGT', metadata={'id': 'seq4'}),
+        skbio.DNA('-AGGCTAGTCATCGTTTATGTATGCCCATGATGATGGGGTGAGCACCTCGTGTGGATGTAGAGCCACCTGACGTGC--ACCTG-', metadata={'id': 'seq5'}),
+        skbio.DNA('-AGGCTAGTCATCGTTTATGTATGCCCATGATGATGGGGTGAGCACCTCGTGAAAATGTAGAGCCACCTGACGTGC--ACC---', metadata={'id': 'seq6'}),
+        skbio.DNA('------------GCGAAGCGGCTCAGG---------------------------------------------------------', metadata={'id': 'asv01'}),
+        skbio.DNA('------------ATCCGCGTTGGAGTT---------------------------------------------------------', metadata={'id': 'asv02'}),
+        skbio.DNA('------------TTCCGCGTTGGAGTT---------------------------------------------------------', metadata={'id': 'asv03'}),
+        skbio.DNA('------------CGTTTATGTATGCCC---------------------------------------------------------', metadata={'id': 'asv04'}),
+        skbio.DNA('------------CGTTTATGTATGCCT---------------------------------------------------------', metadata={'id': 'asv05'}),
+        skbio.DNA('----------------------------------------------------AGAGAGGCTGAATCC-----------------', metadata={'id': 'asv06'}),
+        skbio.DNA('----------------------------------------------------AGAGTTTCTGAATCC-----------------', metadata={'id': 'asv07'}),
+        skbio.DNA('----------------------------------------------------CCGGAGACGAGAGGC-----------------', metadata={'id': 'asv08'}),
+        skbio.DNA('AAGGCTAGTCATCGT---------------------------------------------------------------------', metadata={'id': 'asv09'}),
+        skbio.DNA('----------------------------TGAGTWWGGGAGGGA-----------------------------------------', metadata={'id': 'asv10'}),
+        ],
+    index=pd.Index(['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 'seq6', 'asv01', 'asv02',
+                    'asv03', 'asv04', 'asv05', 'asv06', 'asv07', 'asv08', 'asv09', 'asv10'],
+                    dtype='object')
+    )
+)
 
 db_alignment = Artifact.import_data('FeatureData[AlignedSequence]', pd.Series({
     'seq1': skbio.DNA('-----AAATCATGCGAAGCGGCTCAGGATGATGATGGGTGAGTCACCTCGTAAGAGAGGCTGAATCCATGACGTG---ACCAGC', metadata={'id': 'seq1'}),
