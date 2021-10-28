@@ -79,7 +79,7 @@ plugin.methods.register_function(
         'table': FeatureTable[Frequency],
         },
     outputs=[
-        ('position-summary', FeatureData[AlignmentPosSummary])
+        ('position_summary', FeatureData[AlignmentPosSummary])
     ],
     parameters={
         'direction': Str % Choices('fwd', 'rev'),
@@ -100,7 +100,7 @@ plugin.methods.register_function(
         'direction': 'Identifies the read orientation',
         },
     output_descriptions={
-        'position-summary': ('A map between the sequence identifier, the '
+        'position_summary': ('A map between the sequence identifier, the '
                              'starting position in the alignment, and the '
                              'total number of reads from the input feature '
                              'table (or a proxy value) mapped to that read.'),
