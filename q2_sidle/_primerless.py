@@ -40,7 +40,7 @@ def find_first_alignment_position(alignment: pd.Series,
     coverage = _generate_align_mask(alignment, ids_both)
 
     # Identifies the starting position for the alignment
-    first_pos = _get_first_align_pos(coverage, table, min_freq_median)
+    first_pos = _get_first_align_pos(coverage, table)
 
     # Cleans up the result to be presented as metadata to make filtering 
     # and alignment easier

@@ -49,6 +49,65 @@ plugin = Plugin(
     citations=[citations['Debelius2021']],
 )
 
+seq_match = TypeMatch([Sequence, AlignedSequence])
+plugin.methods.register_function(
+    function=q2_sidle.reverse_complement_sequence,
+    name='Reverse Complements a sequence',
+    description=('This function reverse complements a sequence'),
+    inputs={'sequence': FeatureData[seq_match]},
+    outputs=[('reverse_complement', FeatureData[seq_match])],
+    parameters={},
+    input_descriptions={
+        'sequence': ('The sequences to be reverse complemented'),
+        },
+    output_descriptions={
+        'reverse_complement': 'The reverse complement of the input sequences',
+        },
+    parameter_descriptions={},
+)
+
+plugin.methods.register_function(
+    function=q2_sidle.find_first_alignment_position,
+    name='Finds the first position of a sequence in an alignment',
+    description=('The function uses an alignment between regional ASV '
+                 'representative sequences and a larger refernece alignment'
+                 ' to map the representative sequences to a starting position'
+                 ' on the representative sequence.'),
+    inputs={
+        'alignment': FeatureData[AlignedSequence],
+        'representative_sequences': FeatureData[Sequence],
+        'table': FeatureTable[Frequency],
+        },
+    outputs=[
+        ('position-summary', FeatureData[AlignmentPosSummary])
+    ],
+    parameters={
+        'direction': Str % Choices('fwd', 'rev'),
+    },
+    input_descriptions={
+        'alignment': ('The multiple sequence alignment between a reference'
+                      ' alignment and the representative sequences to be '
+                      'identified.'),
+        'representative_sequences': ('Sequences which need to be mapped to a'
+                                     ' starting position'),
+        'table': ('A feature table containing the counts of the '
+                  'representative sequences. The total number of reads mapped'
+                  ' to a feature can be added to make filtering easier; if '
+                  'no tree is provided than a proxy value will be provided '
+                  'for every feature'),
+    },
+    parameter_descriptions={
+        'direction': 'Identifies the read orientation',
+        },
+    output_descriptions={
+        'position-summary': ('A map between the sequence identifier, the '
+                             'starting position in the alignment, and the '
+                             'total number of reads from the input feature '
+                             'table (or a proxy value) mapped to that read.'),
+    }
+)
+
+
 plugin.methods.register_function(
     function=q2_sidle.prepare_extracted_region,
     name='Prepares an already extracted region to be a kmer database.',

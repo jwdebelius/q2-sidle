@@ -9,6 +9,9 @@ from ._formats import (KmerMapFormat, KmerMapDirFmt,
                        SidleReconFormat, SidleReconDirFormat,
                        AlignmentPosFormat, AlignmentPosDirFmt,
                        )
+from ._primerless import (reverse_complement_sequence,
+                          find_first_alignment_position,
+                          )
 from ._pipelines import (sidle_reconstruction,
                          reconstruct_tree,
                          )
