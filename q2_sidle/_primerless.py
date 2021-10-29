@@ -41,6 +41,9 @@ def find_first_alignment_position(alignment: pd.Series,
 
     # Identifies the starting position for the alignment
     first_pos = _get_first_align_pos(coverage, table)
+    if direction == 'rev':
+        first_pos['starting-position'] = \
+            len(coverage.columns) - first_pos['starting-position']
 
     # Cleans up the result to be presented as metadata to make filtering 
     # and alignment easier
@@ -85,9 +88,3 @@ def _get_first_align_pos(coverage, table=None, min_median_freq=100):
         first_pos['sequence-counts'] = min_median_freq + 1
 
     return first_pos
-
-
-# def _build_align_matrix(coverage, summary):
-#     """
-#     Plots the representative sequences
-#     """

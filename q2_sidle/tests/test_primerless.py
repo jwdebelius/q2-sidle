@@ -20,6 +20,7 @@ from q2_sidle._primerless import (reverse_complement_sequence,
                                   )
 import q2_sidle.tests.test_set as ts
 
+
 class PrimerlessTest(TestCase):
     def setUp(self):
         self.expanded_alignment = ts.extra_alignment.view(pd.Series)
@@ -43,21 +44,16 @@ class PrimerlessTest(TestCase):
                              'asv06', 'asv07', 'asv08', 'asv09', 'asv10'),
             sample_ids=('grayson', 'todd')
             )
-        self.coverage = pd.DataFrame(
+        self.coverage = ts.coverage
+        self.summary = pd.DataFrame(
             data=np.array([
-                list('000000000000111111111111111000000000000000000000000000000000000000000000000000000000'), 
-                list('000000000000111111111111111000000000000000000000000000000000000000000000000000000000'),
-                list('000000000000111111111111111000000000000000000000000000000000000000000000000000000000'),
-                list('000000000000111111111111111000000000000000000000000000000000000000000000000000000000'),
-                list('000000000000111111111111111000000000000000000000000000000000000000000000000000000000'), 
-                list('000000000000000000000000000000000000000000000000000011111111111111100000000000000000'),
-                list('000000000000000000000000000000000000000000000000000011111111111111100000000000000000'),
-                list('000000000000000000000000000000000000000000000000000011111111111111100000000000000000'),
-                list('111111111111111000000000000000000000000000000000000000000000000000000000000000000000'), 
-                list('000000000000000000000000000011111111111111100000000000000000000000000000000000000000'),
-            ]).astype(int),
+                [ 12,  12,  12,  12,  12,  52,  52,  52,   0,  28],
+                [300, 100, 100, 100, 100,  20,  10, 100, 525,  13]
+                ]).T,
+            columns=['starting-position', 'sequence-counts'],
             index=pd.Index(['asv01', 'asv02', 'asv03', 'asv04', 'asv05', 
-                            'asv06', 'asv07', 'asv08', 'asv09', 'asv10'])
+                            'asv06', 'asv07', 'asv08', 'asv09', 'asv10'],
+                           name='feature-id'),
             )
 
     def test_reverse_complement_sequence(self):
@@ -78,27 +74,19 @@ class PrimerlessTest(TestCase):
         pdt.assert_series_equal(test.astype(str), known.astype(str))
 
     def test_find_find_first_alignment_position(self):
-        known = pd.DataFrame(
-            data=np.vstack([
-                np.hstack([np.array([12.] * 5), np.array([52.] * 3), 0., 28.]),
-                np.array([101.] * 10),
-                ]).T,
-            columns=['starting-position', 'sequence-counts'],
-            index=pd.Index(['asv01', 'asv02', 'asv03', 'asv04', 'asv05', 
-                            'asv06', 'asv07', 'asv08', 'asv09', 'asv10'],
-                           name='feature-id'),
-            )
-        known['direction'] = 'fwd'
-        known['sequence-counts'] = known['sequence-counts'].astype(float)
-        known['starting-position'] = \
-            known['starting-position'].astype(int).astype(str)
+        self.summary['direction'] = 'fwd'
+        self.summary['sequence-counts'] = \
+            self.summary['sequence-counts'].astype(float)
+        self.summary['starting-position'] = \
+            self.summary['starting-position'].astype(int).astype(str)
 
         test = find_first_alignment_position(
             alignment=self.expanded_alignment,
             representative_sequences=self.rep_seqs,
+            table=self.table,
             ).to_dataframe()
 
-        pdt.assert_frame_equal(known, test)
+        pdt.assert_frame_equal(self.summary, test)
 
     def test_find_first_alignment_position_error(self):
         test_seqs = pd.Series({
@@ -118,9 +106,26 @@ class PrimerlessTest(TestCase):
                          'alignment.')    
                         )
 
+    def test_get_first_algin_pos_table_rev(self):
+        self.summary['direction'] = 'rev'
+        self.summary['sequence-counts'] = \
+            self.summary['sequence-counts'].astype(float)
+        self.summary['starting-position'] = \
+            (84 - self.summary['starting-position'].astype(int)).astype(str)
+        test = find_first_alignment_position(
+            alignment=self.expanded_alignment,
+            representative_sequences=self.rep_seqs,
+            table=self.table,
+            direction='rev',
+            ).to_dataframe()
+
+        pdt.assert_frame_equal(self.summary, test)
+
+
     def test_generate_align_mask(self):
         test = _generate_align_mask(self.expanded_alignment, 
                                     self.rep_seqs.index)
+        test.index.set_names('feature-id', inplace=True)
         pdt.assert_frame_equal(self.coverage, test)
 
     def test_get_first_align_pos_no_table(self):
@@ -138,18 +143,8 @@ class PrimerlessTest(TestCase):
         pdt.assert_frame_equal(known.astype(float), test.astype(float))
 
     def test_get_first_align_pos_table(self):
-        known = pd.DataFrame(
-            data=np.array([
-                [ 12,  12,  12,  12,  12,  52,  52,  52,   0,  28],
-                [300, 100, 100, 100, 100,  20,  10, 100, 525,  13]
-                ]).T,
-            columns=['starting-position', 'sequence-counts'],
-            index=pd.Index(['asv01', 'asv02', 'asv03', 'asv04', 'asv05', 
-                            'asv06', 'asv07', 'asv08', 'asv09', 'asv10'],
-                           name='feature-id'),
-            )
         test = _get_first_align_pos(self.coverage, self.table)
-        pdt.assert_frame_equal(known.astype(float), test.astype(float))
+        pdt.assert_frame_equal(self.summary.astype(float), test.astype(float))
 
 
 if __name__ == '__main__':
