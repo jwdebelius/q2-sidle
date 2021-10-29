@@ -37,17 +37,20 @@ def summarize_alignment_positions(output_dir,
     sort_cols = sort_cols.split(',')
     summary = position_summary.to_dataframe()
     summary['starting-position'] = summary['starting-position'].astype(int)
+    dir_ = summary['direction'].unique()[0]
 
     # Builds the heatmap
     weighted_coverage = _build_cover_matrix(alignment=alignment,
                                             summary=summary,
                                             sort_cols=sort_cols,
-                                            weight=weight_by_abundance)
+                                            weight=weight_by_abundance,
+                                            )
     heatmap = _make_alignment_heatmap(weighted_coverage=weighted_coverage,
                                       cmap=colormap,
                                       maskcolor=heatmap_maskcolor,
                                       grid=heatmap_grid,
                                       tick_interval=tick_interval,
+                                      direction=dir_
                                       )
     # Saves the heatmap 
     for ext in ['png', 'svg']:
@@ -66,7 +69,8 @@ def summarize_alignment_positions(output_dir,
 def _build_cover_matrix(alignment,
                         summary,
                         sort_cols=['starting-position'],
-                        weight=True):
+                        weight=True,
+                        ):
     """
     Builds heatmap of sequences for plotting
     """
@@ -97,6 +101,7 @@ def _make_alignment_heatmap(weighted_coverage,
                            grid=True,
                            tick_interval=100,
                            test=False,
+                           direction='fwd',
                            ):
     """
     Generates a heatmap showing alignment positions
@@ -119,8 +124,13 @@ def _make_alignment_heatmap(weighted_coverage,
     hm_ax.set_ylabel("ASV", size=12)
     hm_ax.set_xlabel("Alignment Position", size=12)
 
-    hm_ax.set_xticks(np.arange(0, len(weighted_coverage.T), tick_interval))
-    hm_ax.set_xticklabels(hm_ax.get_xticks())
+    xticks = np.arange(0, len(weighted_coverage.T), tick_interval)
+    if direction == 'fwd':
+        hm_ax.set_xticks(xticks)
+    else:
+        hm_ax.set_xlim(hm_ax.get_xlim()[::-1])
+        hm_ax.set_xticks(hm_ax.get_xlim()[0] - xticks)
+    hm_ax.set_xticklabels(xticks)
     hm_ax.xaxis.set_tick_params(bottom=True, 
                                 top=False, 
                                 labelbottom=True, 
@@ -128,7 +138,7 @@ def _make_alignment_heatmap(weighted_coverage,
                                 labelsize=10,
                                 rotation=90,
                                 )
-    hm_ax.grid(True)
+    hm_ax.grid(grid)
 
     if test:
         return fig, hm_mask

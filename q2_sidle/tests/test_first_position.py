@@ -45,6 +45,7 @@ class FirstPositionTest(TestCase):
             (self.coverage.T * np.log10(self.summary['sequence-counts'])).T
         self.start_ordered = ['asv09', 'asv01', 'asv02', 'asv03', 'asv04',
                               'asv05', 'asv10', 'asv06', 'asv07', 'asv08']
+
     def tearDown(self):
         self.output_dir_obj.cleanup()
 
@@ -133,7 +134,7 @@ class FirstPositionTest(TestCase):
         pdt.assert_frame_equal(test_mask, known_mask)
         self.assertTrue(isinstance(fig, plt.Figure))
         self.assertEqual(fig.axes[0].get_facecolor(), (1, 0, 0, 1))
-        npt.assert_array_equal(np.arange(0, 86, 10), fig.axes[0].get_xticks())
+        npt.assert_array_equal(np.arange(0, 84, 10), fig.axes[0].get_xticks())
 
     def test_make_alignment_heatmap_unmasked(self):
         known_mask = self.coverage.isna()
@@ -145,7 +146,20 @@ class FirstPositionTest(TestCase):
         pdt.assert_frame_equal(test_mask, known_mask)
         self.assertTrue(isinstance(fig, plt.Figure))
         self.assertEqual(fig.axes[0].get_facecolor(), (1, 1, 1, 1))
-        npt.assert_array_equal(np.arange(0, 86, 100), fig.axes[0].get_xticks())
+        npt.assert_array_equal(np.arange(0, 84, 100), 
+                              fig.axes[0].get_xticks())
+
+    def test_make_alignment_heatmap_rev(self):
+        known_mask = self.coverage.isna()
+        fig, test_mask = _make_alignment_heatmap(self.weighted_coverage,
+                                                 maskcolor=None,
+                                                 test=True,
+                                                 direction='rev',
+                                                 )
+        pdt.assert_frame_equal(test_mask, known_mask)
+        self.assertTrue(isinstance(fig, plt.Figure))
+        npt.assert_array_equal(84 - np.arange(0, 84, 100), 
+                               fig.axes[0].get_xticks())
 
 
 if __name__ == '__main__':
