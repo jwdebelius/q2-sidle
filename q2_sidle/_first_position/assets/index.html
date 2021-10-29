@@ -1,0 +1,28 @@
+{% extends "tabbed.html" %}
+
+{% block content %}
+
+<div class="row">
+  <div class="col-lg-12">
+    <h1>Regional summary</h1>
+
+    <div class="row">
+      <div class="col-lg-6">
+        <{{ regional_summary }}
+      </div>
+  </div>
+</div>
+<div class='row'>
+  <div class='col-md-12'>
+      <h1>Heatmap of Sample Positions</h1>
+      <a href='./alignment-start-heatmap.svg' target="_blank" rel="noopener noreferrer" class='btn btn-default'>
+      Download SVG
+      </a>
+    </div>
+</div>
+<div class='row'>
+  <div class='col-md-12'>
+    <img src='./alignment-start-heatmap.png'>
+  </div>
+</div>
+{% endblock %}

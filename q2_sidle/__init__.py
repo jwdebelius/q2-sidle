@@ -3,6 +3,7 @@ from ._align import align_regional_kmers
 from ._build_database import reconstruct_database
 from ._extract import (prepare_extracted_region,
 					   )
+from ._first_position import (summarize_alignment_positions)
 from ._formats import (KmerMapFormat, KmerMapDirFmt,
                        KmerAlignFormat, KmerAlignDirFmt,
                        ReconSummaryFormat, ReconSummaryDirFormat,

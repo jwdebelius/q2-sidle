@@ -17,6 +17,8 @@ from q2_types.tree import (Phylogeny,
 from q2_fragment_insertion._type import (SeppReferenceDatabase, 
                                          Placements
                                          )
+from q2_feature_table import heatmap_choices
+
 from q2_sidle import (KmerMap, 
                       KmerMapFormat, 
                       KmerMapDirFmt, 
@@ -635,6 +637,7 @@ plugin.pipelines.register_function(
         },
 )
 
+
 plugin.pipelines.register_function(
     function=q2_sidle.reconstruct_tree,
     name=("A pipeline to build a phylogenetic tree based on reconstructed "
@@ -688,6 +691,51 @@ plugin.pipelines.register_function(
         'n_threads': 'the number of threads to use during fragment insertion',
     },
 )
+
+
+# TO DO: Write a prettier description
+plugin.visualizers.register_function(
+    function=q2_sidle.summarize_alignment_positions,
+    name='Summarizes sequences and their mapped starting positions',
+    description=('Generates a summary and heatmap describing the starting '
+                 'position of amplicons in an alignment.'),
+    inputs={'alignment': FeatureData[AlignedSequence],
+            'position_summary': FeatureData[AlignmentPosSummary],
+            },
+    parameters={'sort_cols': Str,
+              'weight_by_abundance': Bool,
+              'colormap': Str % Choices(heatmap_choices['color_scheme']),
+              'heatmap_maskcolor': Str,
+              'heatmap_grid': Bool,
+              'tick_interval': Int,
+              },
+    input_descriptions={
+        'alignment': ('A multiple sequence alignment between a reference'
+                      ' alignment and the representative sequences to '
+                      'identify the starting position in the alignment'),
+        'position_summary': ('A map between the sequence identifier, the '
+                             'starting position in the alignment, and the '
+                             'total number of reads from the input feature '
+                             'table (or a proxy value) mapped to that read.'),
+    },
+    parameter_descriptions={
+        'sort_cols': ('The columns in the position summary which should be '
+                      'used to sort the heatmap. By default, the heatmap '
+                      'will be sorted by the starting position. Multiple '
+                      'columns can be added using the a comma (`,`).'),
+        'weight_by_abundance': ('Add coloring to the heatmap to show the '
+                                'total log frequency of the mappeed read'),
+        'colormap': 'The colormap for the heatmap',
+        'heatmap_maskcolor': ('A color to show if the reads are not mapped '
+                              'to a position. If none is supplied, unmapped '
+                              'positions will be show as whatever the '
+                              'minimum color is for the colormap.'),
+        'heatmap_grid': ('Display a grid on the heatmap'),
+        'tick_interval': ('Spacing between xtick positions in the heatmap'),
+    },
+)
+
+
 
 plugin.register_formats(KmerMapFormat, 
                         KmerMapDirFmt, 
