@@ -125,10 +125,10 @@ def reconstruct_database(
     ).reset_index()
     region_db.columns = ['composite', 'kmer']
     region_db['region'] = region_db['composite'].apply(
-        lambda x: int(x.split("-")[1]), 
+        lambda x: int(x.split("-")[-1]), 
         meta=(None, int))
     region_db['db-seq'] = region_db['composite'].apply(
-        lambda x: x.split("-")[0], meta=(None, str)
+        lambda x: '-'.join(x.split("-")[:-1]), meta=(None, str)
     )
     print('regions grouped')
     
