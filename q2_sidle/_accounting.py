@@ -8,11 +8,11 @@ import pandas as pd
 from qiime2 import Metadata, Artifact
 
 
-def get_aligned_counts(alignment: pd.DataFrame,
-                       table: biom.Table,
-                       max_mismatch: int = None,
-                       discarded: bool = True,
-                       ) -> biom.Table:
+def filter_with_aligned(alignment: pd.DataFrame,
+                        table: biom.Table,
+                        max_mismatch: int = None,
+                        discarded: bool = True,
+                        ) -> biom.Table:
     """
     Filters to the sequences retained during a sidle alignmeent
 
@@ -54,16 +54,15 @@ def track_aligned_counts(
     """
     Tracks where sample counts have gone.
     """
-    print(regions)
     # Maps the regioional counts
     regional_counts = [
         _alignment_accounting(r, a, t)
         for (r, a, t) 
         in zip(*(region, regional_alignment, regional_table))
         ]
-    total_table = regional_tables[0].copy().merge(*regional_tables[1:])
+    total_table = regional_table[0].copy().merge(*regional_table[1:])
     total_counts = _alignment_accounting('total', 
-                                         pd.concat(regional_alignments),
+                                         pd.concat(regional_alignment),
                                          total_table)
 
     counts = pd.concat(axis=1, objs=[total_counts, *regional_counts])
@@ -86,4 +85,4 @@ def _alignment_accounting(region, alignment, table):
         columns=table.ids(axis='sample'),
         index=['starting counts', 'aligned counts', 'aligned percentage']
     ).T
-    return regional_account.add_prefix(f' {region}')
+    return regional_account.add_prefix(f'{region} ')

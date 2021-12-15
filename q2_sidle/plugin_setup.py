@@ -123,36 +123,36 @@ plugin.methods.register_function(
 )
 
 
-# plugin.methods.register_function(
-#     function=q2_sidle.track_aligned_counts,
-#     name='Tracks the aligned sequencings to determine which are lost',
-#     description=('This function determines how many counts are lost from an '
-#                  'orginal table during alignment.'),
-#     inputs={
-#         'regional_alignment': List[FeatureData[KmerAlignment]],
-#         'regional_table': List[FeatureTable[Frequency]],
-#     },
-#     parameters={
-#         'region': List[Str],
-#     },
-#     outputs=[
-#         ('alignment_summary', SampleData[AlignmentLedger]),
-#     ],
-#     input_descriptions={
-#         'regional_alignment': ('Maps regional ASVs to database regional '
-#                                'reference kmers, most likely the output of'
-#                                ' `align-regional-kmers`.'),
-#         'regional_table': ('The region-specific denoised feature table'),
-#     },
-#      parameter_descriptions={
-#         'region': ('A unique description of the hypervariable region being '
-#                    'from alignment.'),
-#     },
-#     output_descriptions={
-#         'alignment_summary': ('A map betewen the number of reads per region '
-#                               'aligned.')
-#     }
-# )
+plugin.methods.register_function(
+    function=q2_sidle.track_aligned_counts,
+    name='Tracks the aligned sequencings to determine which are lost',
+    description=('This function determines how many counts are lost from an '
+                 'orginal table during alignment.'),
+    inputs={
+        'regional_alignment': List[FeatureData[KmerAlignment]],
+        'regional_table': List[FeatureTable[Frequency]],
+    },
+    parameters={
+        'region': List[Str],
+    },
+    outputs=[
+        ('alignment_summary', SampleData[AlignmentLedger]),
+    ],
+    input_descriptions={
+        'regional_alignment': ('Maps regional ASVs to database regional '
+                               'reference kmers, most likely the output of'
+                               ' `align-regional-kmers`.'),
+        'regional_table': ('The region-specific denoised feature table'),
+    },
+     parameter_descriptions={
+        'region': ('A unique description of the hypervariable region being '
+                   'from alignment.'),
+    },
+    output_descriptions={
+        'alignment_summary': ('A map betewen the number of reads per region '
+                              'aligned.')
+    }
+)
 
 
 plugin.methods.register_function(

@@ -10,7 +10,7 @@ import pandas.testing as pdt
 
 import q2_sidle.tests.test_set as ts
 
-from q2_sidle._accounting import (check_alignment_discard,
+from q2_sidle._accounting import (filter_with_aligned,
                                   track_aligned_counts,
                                   _alignment_accounting
                                   )
@@ -38,10 +38,10 @@ class ReconstructTest(TestCase):
         self.align1 = ts.region1_align.view(pd.DataFrame)
         self.align2 = ts.region2_align.view(pd.DataFrame)
 
-    def test_check_alignment_discard(self):
+    def test_filter_with_aligned(self):
         known = np.array([[50,  25, 0]])
 
-        test = check_alignment_discard(self.align1, self.table1)
+        test = filter_with_aligned(self.align1, self.table1)
         npt.assert_array_equal(test.ids(axis='sample'), 
                                np.array(['sample1', 'sample2', 'sample3']))
         npt.assert_array_equal(test.ids(axis='observation'),
@@ -50,11 +50,11 @@ class ReconstructTest(TestCase):
         npt.assert_array_equal(test.matrix_data.toarray(),
                                known)
 
-    def test_check_alignment_max_discard(self):
+    def test_filter_with_aligned_max(self):
         known = np.array([[50, 25, 50],
                           [50,  25, 0]])
         self.align1 = self.align1.loc[self.align1['kmer'] != 'seq5']
-        test = check_alignment_discard(
+        test = filter_with_aligned(
             alignment=self.align1,
             table=self.table1,
             max_mismatch=0,
@@ -93,9 +93,9 @@ class ReconstructTest(TestCase):
             index=pd.Index(['sample1', 'sample2', 'sample3'], name='sample-id')
             )
         test = track_aligned_counts(
-            regions=['Bludhaven', 'Gotham'],
-            regional_alignments=[self.align1, self.align2],
-            regional_tables=[self.table1, self.table2]
+            region=['Bludhaven', 'Gotham'],
+            regional_alignment=[self.align1, self.align2],
+            regional_table=[self.table1, self.table2]
             )
         self.assertTrue(isinstance(test, Metadata))
         pdt.assert_frame_equal(test.to_dataframe().round(5), known.round(5))
