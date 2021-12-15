@@ -8,6 +8,8 @@ from q2_types.feature_data import (FeatureData,
                                    Taxonomy,
                                    AlignedSequence,
                                    ) 
+from q2_types.sample_data import (SampleData,
+                                  )
 from q2_types.feature_table import (FeatureTable, 
                                     Frequency, 
                                     )
@@ -17,8 +19,6 @@ from q2_types.tree import (Phylogeny,
 from q2_fragment_insertion._type import (SeppReferenceDatabase, 
                                          Placements
                                          )
-from q2_feature_table import heatmap_choices
-
 from q2_sidle import (KmerMap, 
                       KmerMapFormat, 
                       KmerMapDirFmt, 
@@ -30,10 +30,7 @@ from q2_sidle import (KmerMap,
                       SidleReconDirFormat,
                       ReconstructionSummary,
                       ReconSummaryFormat,
-                      ReconSummaryDirFormat,
-                      AlignmentPosSummary,
-                      AlignmentPosFormat,
-                      AlignmentPosDirFmt,
+                      ReconSummaryDirFormat,                  
                       )
 import q2_sidle
 
@@ -51,67 +48,66 @@ plugin = Plugin(
     citations=[citations['Debelius2021']],
 )
 
-seq_match = TypeMatch([Sequence, AlignedSequence])
-plugin.methods.register_function(
-    function=q2_sidle.reverse_complement_sequence,
-    name='Reverse Complements a sequence',
-    description=('This function reverse complements a sequence'),
-    inputs={'sequence': FeatureData[seq_match]},
-    outputs=[('reverse_complement', FeatureData[seq_match])],
-    parameters={},
-    input_descriptions={
-        'sequence': ('The sequences to be reverse complemented'),
-        },
-    output_descriptions={
-        'reverse_complement': 'The reverse complement of the input sequences',
-        },
-    parameter_descriptions={},
-)
-
-plugin.methods.register_function(
-    function=q2_sidle.find_first_alignment_position,
-    name='Finds the first position of a sequence in an alignment',
-    description=('The function uses an alignment between regional ASV '
-                 'representative sequences and a larger refernece alignment'
-                 ' to map the representative sequences to a starting position'
-                 ' on the representative sequence.'),
+plugin.methods.register_function(function=q2_sidle.align_regional_kmers,
+    name='Aligns ASV representative sequences to a regional kmer database.',
+    description=('This takes an "amplified" region of the database and '
+                 'performs alignment with representative ASV sequences. The '
+                 'alignment assumes the ASVs and kmers start at the same '
+                 'position in the sequence and that they are the same length.'
+                 ),
     inputs={
-        'alignment': FeatureData[AlignedSequence],
-        'representative_sequences': FeatureData[Sequence],
-        'table': FeatureTable[Frequency],
-        },
+        'kmers': FeatureData[Sequence],
+        'rep_seq': FeatureData[Sequence],
+    },
     outputs=[
-        ('position_summary', FeatureData[AlignmentPosSummary])
+        ('regional_alignment', FeatureData[KmerAlignment]),
+        # ('discarded_sequences', FeatureData[Sequence]),
+
     ],
     parameters={
-        'direction': Str % Choices('fwd', 'rev'),
+        'region': Str,
+        'max_mismatch': Int % Range(0, None),
+        'chunk_size':  (Int % Range(1, None)),
+        'client_address': Str,
+        'n_workers': Int % Range(1, None),
+        'debug': Bool,
     },
     input_descriptions={
-        'alignment': ('The multiple sequence alignment between a reference'
-                      ' alignment and the representative sequences to be '
-                      'identified.'),
-        'representative_sequences': ('Sequences which need to be mapped to a'
-                                     ' starting position'),
-        'table': ('A feature table containing the counts of the '
-                  'representative sequences. The total number of reads mapped'
-                  ' to a feature can be added to make filtering easier; if '
-                  'no tree is provided than a proxy value will be provided '
-                  'for every feature'),
+        'kmers': ('The reference kmer sequences from the database which have '
+                  'had degenerate sequences expanded and duplicate sequences '
+                  'identified.'),
+        'rep_seq': ('The representative sequences for the ASVs being aligned. '
+                    'These must be a consistent length.'),
     },
-    parameter_descriptions={
-        'direction': 'Identifies the read orientation',
-        },
     output_descriptions={
-        'position_summary': ('A map between the sequence identifier, the '
-                             'starting position in the alignment, and the '
-                             'total number of reads from the input feature '
-                             'table (or a proxy value) mapped to that read.'),
-    }
+        'regional_alignment': ('A mapping between the database kmer name and '
+                               'the ASV.'),
+    },
+     parameter_descriptions={
+        'region': ('A unique description of the hypervariable region being '
+                   'aligned. Ideally, this matches the unique identifier '
+                   'used during the regional extraction.'),
+        'max_mismatch': ('The maximum number of mismatched nucleotides '
+                         'allowed in mapping between a sequence and kmer.'),
+        'chunk_size': ('The number of sequences to be analyzed in parallel '
+                       'blocks. It is highly recommended this number stay '
+                       'relatively small (<1000) in combination with parallel '
+                       'processing (`n_workers`>1) for the best performance '
+                       'and memory optimization.'),
+        'n_workers': ('The number of jobs to initiate.'),
+        'client_address': ('The IP address for an existing cluster. '
+                          'Please see the dask client documentation for more '
+                          'information: '
+                          'https://distributed.dask.org/en/latest/client.html'
+                          ),
+        'debug': ('Whether the function should be run in debug mode (without '
+                  'a client) or not. `debug` superceeds all options.'),
+    },
+    citations=[citations['Fuks2018']],
 )
 
 
-plugin.methods.register_function(
-    function=q2_sidle.prepare_extracted_region,
+plugin.methods.register_function(function=q2_sidle.prepare_extracted_region,
     name='Prepares an already extracted region to be a kmer database.',
     description=('This function takes an amplified region of the database, '
                  'expands the degenerate sequences and collapses the '
@@ -182,133 +178,7 @@ plugin.methods.register_function(
 )
 
 
-plugin.methods.register_function(
-    function=q2_sidle.align_regional_kmers,
-    name='Aligns ASV representative sequences to a regional kmer database.',
-    description=('This takes an "amplified" region of the database and '
-                 'performs alignment with representative ASV sequences. The '
-                 'alignment assumes the ASVs and kmers start at the same '
-                 'position in the sequence and that they are the same length.'
-                 ),
-    inputs={
-        'kmers': FeatureData[Sequence],
-        'rep_seq': FeatureData[Sequence],
-    },
-    outputs=[
-        ('regional_alignment', FeatureData[KmerAlignment]),
-        # ('discarded_sequences', FeatureData[Sequence]),
-
-    ],
-    parameters={
-        'region': Str,
-        'max_mismatch': Int % Range(0, None),
-        'chunk_size':  (Int % Range(1, None)),
-        'client_address': Str,
-        'n_workers': Int % Range(1, None),
-        'debug': Bool,
-    },
-    input_descriptions={
-        'kmers': ('The reference kmer sequences from the database which have '
-                  'had degenerate sequences expanded and duplicate sequences '
-                  'identified.'),
-        'rep_seq': ('The representative sequences for the ASVs being aligned. '
-                    'These must be a consistent length.'),
-    },
-    output_descriptions={
-        'regional_alignment': ('A mapping between the database kmer name and '
-                               'the ASV.'),
-    },
-     parameter_descriptions={
-        'region': ('A unique description of the hypervariable region being '
-                   'aligned. Ideally, this matches the unique identifier '
-                   'used during the regional extraction.'),
-        'max_mismatch': ('The maximum number of mismatched nucleotides '
-                         'allowed in mapping between a sequence and kmer.'),
-        'chunk_size': ('The number of sequences to be analyzed in parallel '
-                       'blocks. It is highly recommended this number stay '
-                       'relatively small (<1000) in combination with parallel '
-                       'processing (`n_workers`>1) for the best performance '
-                       'and memory optimization.'),
-        'n_workers': ('The number of jobs to initiate.'),
-        'client_address': ('The IP address for an existing cluster. '
-                          'Please see the dask client documentation for more '
-                          'information: '
-                          'https://distributed.dask.org/en/latest/client.html'
-                          ),
-        'debug': ('Whether the function should be run in debug mode (without '
-                  'a client) or not. `debug` superceeds all options.'),
-    },
-    citations=[citations['Fuks2018']],
-)
-
-
-plugin.methods.register_function(
-    function=q2_sidle.reconstruct_database,
-    name='Reconstructs regional kmers into full database names',
-    description=('Uses the kmer maps and regional alignments to solve the '
-                 'regional sidle database'),
-    inputs={'regional_alignment': List[FeatureData[KmerAlignment]],
-            'kmer_map': List[FeatureData[KmerMap]],
-            },
-    outputs=[('database_map', FeatureData[SidleReconstruction]),
-             ('database_summary', FeatureData[ReconstructionSummary]),
-             ],
-    parameters={'region': List[Str],
-                'count_degenerates': Bool,
-                'block_size': Int,
-                'n_workers': Int % Range(1, None),
-                'client_address': Str,
-                 'debug': Bool,
-                 },
-    input_descriptions={
-        'regional_alignment': ('A mapping between the kmer names (in the kmer'
-                               ' map) and the features (found in the regional'
-                               ' table)'),
-        'kmer_map': ('A mapping relationship between the name of the '
-                     'sequence in the database and the kmer identifier used'
-                     ' in this region. The kmer map should correspond to the '
-                     'kmers used in regional alignment'),
-        },
-    output_descriptions={
-        'database_map': ('A map between the final kmer name and the '
-                               'original database sequence. Useful for '
-                               'reconstructing taxonomy and trees.'),
-        'database_summary': ('A summary of the statitics for the '
-                                   'regional map describing the number of '
-                                   'regions mapped to each reference sequence'
-                                   ' and the number of kmers. The kmer '
-                                   'mapping estimate can account for '
-                                   'degeneracy when the `--count-degenerates`'
-                                   ' flag is used or can ignore degenrate '
-                                   'sequences in mapping'),
-        },
-    parameter_descriptions={
-        'region': ('The name of the sub region used in alignment. The region'
-                   ' names do not matter, however, the region order must '
-                   'match the order along the hypervariable region.'),
-        'count_degenerates': ("Whether sequences which contain degenerate "
-                              "nucleotides should be counted as unqiue kmers"
-                              " or whether the number of original database "
-                              "sequences before degenerate expansion should "
-                              "be used."),
-        'block_size': ('The number of sequences to use in parallel '
-                       'computation. The larger the block_size, the faster '
-                       'processing can happen, but the more memory that will'
-                       ' be required.'),
-        'n_workers': ('The number of jobs to initiate.'),
-        'client_address': ('The IP address for an existing cluster. '
-                          'Please see the dask client documentation for more'
-                          ' information: '
-                          'https://distributed.dask.org/en/latest/client.html'
-                          ),
-        'debug': ('Whether the function should be run in debug mode (without '
-                  'a client) or not. `debug` superceeds all options'),
-        },
-)
-
-
-plugin.methods.register_function(
-    function=q2_sidle.reconstruct_counts,
+plugin.methods.register_function(function=q2_sidle.reconstruct_counts,
     name='Reconstructs multiple aligned regions into a count table.',
     description=('This takes multiple regional alignments and regional counts '
                  'and reconstructs them into a single table with region-'
@@ -394,8 +264,113 @@ plugin.methods.register_function(
 )
 
 
-plugin.methods.register_function(
-    function=q2_sidle.reconstruct_taxonomy,
+plugin.methods.register_function(function=q2_sidle.reconstruct_database,
+    name='Reconstructs regional kmers into full database names',
+    description=('Uses the kmer maps and regional alignments to solve the '
+                 'regional sidle database'),
+    inputs={'regional_alignment': List[FeatureData[KmerAlignment]],
+            'kmer_map': List[FeatureData[KmerMap]],
+            },
+    outputs=[('database_map', FeatureData[SidleReconstruction]),
+             ('database_summary', FeatureData[ReconstructionSummary]),
+             ],
+    parameters={'region': List[Str],
+                'count_degenerates': Bool,
+                'block_size': Int,
+                'n_workers': Int % Range(1, None),
+                'client_address': Str,
+                 'debug': Bool,
+                 },
+    input_descriptions={
+        'regional_alignment': ('A mapping between the kmer names (in the kmer'
+                               ' map) and the features (found in the regional'
+                               ' table)'),
+        'kmer_map': ('A mapping relationship between the name of the '
+                     'sequence in the database and the kmer identifier used'
+                     ' in this region. The kmer map should correspond to the '
+                     'kmers used in regional alignment'),
+        },
+    output_descriptions={
+        'database_map': ('A map between the final kmer name and the '
+                               'original database sequence. Useful for '
+                               'reconstructing taxonomy and trees.'),
+        'database_summary': ('A summary of the statitics for the '
+                                   'regional map describing the number of '
+                                   'regions mapped to each reference sequence'
+                                   ' and the number of kmers. The kmer '
+                                   'mapping estimate can account for '
+                                   'degeneracy when the `--count-degenerates`'
+                                   ' flag is used or can ignore degenrate '
+                                   'sequences in mapping'),
+        },
+    parameter_descriptions={
+        'region': ('The name of the sub region used in alignment. The region'
+                   ' names do not matter, however, the region order must '
+                   'match the order along the hypervariable region.'),
+        'count_degenerates': ("Whether sequences which contain degenerate "
+                              "nucleotides should be counted as unqiue kmers"
+                              " or whether the number of original database "
+                              "sequences before degenerate expansion should "
+                              "be used."),
+        'block_size': ('The number of sequences to use in parallel '
+                       'computation. The larger the block_size, the faster '
+                       'processing can happen, but the more memory that will'
+                       ' be required.'),
+        'n_workers': ('The number of jobs to initiate.'),
+        'client_address': ('The IP address for an existing cluster. '
+                          'Please see the dask client documentation for more'
+                          ' information: '
+                          'https://distributed.dask.org/en/latest/client.html'
+                          ),
+        'debug': ('Whether the function should be run in debug mode (without '
+                  'a client) or not. `debug` superceeds all options'),
+        },
+)
+
+
+plugin.methods.register_function(function=q2_sidle.reconstruct_fragment_rep_seqs,
+    name='Reconstract representative sequences for shared fragments.',
+    description=('EXPERIMENTAL!!!\n'
+                 'This function simulates a represenative sequence for '
+                 'reference regions that are derived from multiple sequences '
+                 'to allow tree building via fragment insertion. The function '
+                 'will find the consensus sequence for all the database '
+                 'regions covered between the amplicons.'
+                 ),
+    inputs={
+        'reconstruction_summary': FeatureData[ReconstructionSummary],
+        'reconstruction_map': FeatureData[SidleReconstruction],
+        'aligned_sequences': FeatureData[AlignedSequence]
+    },
+    outputs=[
+        ('representative_fragments', FeatureData[Sequence]),
+    ],
+    parameters={},
+    input_descriptions={
+        'reconstruction_summary': ('A summary of the statitics for the '
+                                   'regional map describing the number of '
+                                   'regions mapped to each reference sequence '
+                                   'and the number of kmers. The kmer '
+                                   'mapping estimate can account for '
+                                   'degeneracy when the `--count-degenerates` '
+                                   'flag is used or can ignore degenrate '
+                                   'sequences in mapping.'),
+        'reconstruction_map': ('A map between the final kmer name and the '
+                               'original database sequence. Useful for '
+                               'reconstructing taxonomy and trees.'),
+        'aligned_sequences': ('The aligned representative sequences '
+                              'corresponding to the database used in '
+                              'reconstruction.'),
+    },
+    output_descriptions={
+        'representative_fragments': ('The consensus sequence fragments '
+                                     'to be used for fragment insertion.')
+    },
+    parameter_descriptions={},
+)
+
+
+plugin.methods.register_function(function=q2_sidle.reconstruct_taxonomy,
     name='Reconstructs taxonomic strings for a reconstructed sidle table.',
     description=('Reconstructs the taxonomic annotation based on a sidle '
                  'database by identifying the lowest taxonomic level  where'
@@ -447,9 +422,29 @@ plugin.methods.register_function(
     citations=[citations['Fuks2018']],
 )
 
+T1 = TypeMatch([AlignedSequence, Sequence])
+plugin.methods.register_function(function=q2_sidle.reverse_complement_sequence,
+    name='Reverse complements sequences',
+    description=('Just what it says on the tin: generates reverse complemented sequences'),
+    inputs={
+        'sequence': FeatureData[T1],
+    },
+    outputs=[
+        ('reverse_complement', FeatureData[T1])
+    ],
+    parameters={
+    },
+    input_descriptions={
+        'sequence': ('The sequences to be reverse complemented'),
+    },
+    output_descriptions={
+        'reverse_complement': ('The reverse complement of the input sequences')
+    },
+    parameter_descriptions={},
+)
 
-plugin.methods.register_function(
-    function=q2_sidle.trim_dada2_posthoc,
+
+plugin.methods.register_function(function=q2_sidle.trim_dada2_posthoc,
     name='Trim a dada2 ASV table and rep set to a consistent length.',
     description=('This function trims ASVs generated by DADA2 to a '
                  'consistent length and collapses them into a single '
@@ -500,51 +495,8 @@ plugin.methods.register_function(
 )
 
 
-plugin.methods.register_function(
-    function=q2_sidle.reconstruct_fragment_rep_seqs,
-    name='Reconstract representative sequences for shared fragments.',
-    description=('EXPERIMENTAL!!!\n'
-                 'This function simulates a represenative sequence for '
-                 'reference regions that are derived from multiple sequences '
-                 'to allow tree building via fragment insertion. The function '
-                 'will find the consensus sequence for all the database '
-                 'regions covered between the amplicons.'
-                 ),
-    inputs={
-        'reconstruction_summary': FeatureData[ReconstructionSummary],
-        'reconstruction_map': FeatureData[SidleReconstruction],
-        'aligned_sequences': FeatureData[AlignedSequence]
-    },
-    outputs=[
-        ('representative_fragments', FeatureData[Sequence]),
-    ],
-    parameters={},
-    input_descriptions={
-        'reconstruction_summary': ('A summary of the statitics for the '
-                                   'regional map describing the number of '
-                                   'regions mapped to each reference sequence '
-                                   'and the number of kmers. The kmer '
-                                   'mapping estimate can account for '
-                                   'degeneracy when the `--count-degenerates` '
-                                   'flag is used or can ignore degenrate '
-                                   'sequences in mapping.'),
-        'reconstruction_map': ('A map between the final kmer name and the '
-                               'original database sequence. Useful for '
-                               'reconstructing taxonomy and trees.'),
-        'aligned_sequences': ('The aligned representative sequences '
-                              'corresponding to the database used in '
-                              'reconstruction.'),
-    },
-    output_descriptions={
-        'representative_fragments': ('The consensus sequence fragments '
-                                     'to be used for fragment insertion.')
-    },
-    parameter_descriptions={},
-)
 
-
-plugin.pipelines.register_function(
-    function=q2_sidle.sidle_reconstruction,
+plugin.pipelines.register_function(function=q2_sidle.sidle_reconstruction,
     name="A pipeline to reconstruct the database, count table, and taxonomy",
     description=("A pipeline to reconstruct a database, count table, and "
                  "taxonomy"),
@@ -638,8 +590,7 @@ plugin.pipelines.register_function(
 )
 
 
-plugin.pipelines.register_function(
-    function=q2_sidle.reconstruct_tree,
+plugin.pipelines.register_function(function=q2_sidle.reconstruct_tree,
     name=("A pipeline to build a phylogenetic tree based on reconstructed "
           "sequences"),
     description=("A pipeline to reconstruct a database, count table, and "
@@ -693,50 +644,6 @@ plugin.pipelines.register_function(
 )
 
 
-# TO DO: Write a prettier description
-plugin.visualizers.register_function(
-    function=q2_sidle.summarize_alignment_positions,
-    name='Summarizes sequences and their mapped starting positions',
-    description=('Generates a summary and heatmap describing the starting '
-                 'position of amplicons in an alignment.'),
-    inputs={'alignment': FeatureData[AlignedSequence],
-            'position_summary': FeatureData[AlignmentPosSummary],
-            },
-    parameters={'sort_cols': Str,
-              'weight_by_abundance': Bool,
-              'colormap': Str % Choices(heatmap_choices['color_scheme']),
-              'heatmap_maskcolor': Str,
-              'heatmap_grid': Bool,
-              'tick_interval': Int,
-              },
-    input_descriptions={
-        'alignment': ('A multiple sequence alignment between a reference'
-                      ' alignment and the representative sequences to '
-                      'identify the starting position in the alignment'),
-        'position_summary': ('A map between the sequence identifier, the '
-                             'starting position in the alignment, and the '
-                             'total number of reads from the input feature '
-                             'table (or a proxy value) mapped to that read.'),
-    },
-    parameter_descriptions={
-        'sort_cols': ('The columns in the position summary which should be '
-                      'used to sort the heatmap. By default, the heatmap '
-                      'will be sorted by the starting position. Multiple '
-                      'columns can be added using the a comma (`,`).'),
-        'weight_by_abundance': ('Add coloring to the heatmap to show the '
-                                'total log frequency of the mappeed read'),
-        'colormap': 'The colormap for the heatmap',
-        'heatmap_maskcolor': ('A color to show if the reads are not mapped '
-                              'to a position. If none is supplied, unmapped '
-                              'positions will be show as whatever the '
-                              'minimum color is for the colormap.'),
-        'heatmap_grid': ('Display a grid on the heatmap'),
-        'tick_interval': ('Spacing between xtick positions in the heatmap'),
-    },
-)
-
-
-
 plugin.register_formats(KmerMapFormat, 
                         KmerMapDirFmt, 
                         KmerAlignFormat, 
@@ -744,17 +651,14 @@ plugin.register_formats(KmerMapFormat,
                         SidleReconFormat, 
                         SidleReconDirFormat,
                         ReconSummaryFormat,
-                        ReconSummaryDirFormat,
-                        AlignmentPosFormat,
-                        AlignmentPosDirFmt,
+                        ReconSummaryDirFormat
                         )
 
 
 plugin.register_semantic_types(KmerMap, 
                                KmerAlignment,
                                SidleReconstruction,
-                               ReconstructionSummary,
-                               AlignmentPosSummary,
+                               ReconstructionSummary
                                )
 
 
@@ -772,10 +676,6 @@ plugin.register_semantic_type_to_format(FeatureData[SidleReconstruction],
 
 plugin.register_semantic_type_to_format(FeatureData[ReconstructionSummary], 
                                         ReconSummaryDirFormat)
-
-
-plugin.register_semantic_type_to_format(FeatureData[AlignmentPosSummary],
-                                        AlignmentPosDirFmt)
 
 
 importlib.import_module('q2_sidle._transformer')
