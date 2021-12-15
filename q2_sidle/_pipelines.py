@@ -90,3 +90,52 @@ def reconstruct_tree(ctx,
         )
 
     return (rep_fragments, tree, placements)
+
+
+def map_alignment_positions(ctx, 
+                            alignment,
+                            sequences,
+                            direction,
+                            table=None,
+                            n_threads=1,
+                            add_fragments=False,
+                            colormap=None,
+                            ):
+    rc_seqs = \
+        ctx.get_action('sidle', 'reverse_complement_sequence')
+    expand_alignment = \
+        ctx.get_action('alignment', 'mafft_add')
+    first_position = \
+        ctx.get_action('sidle', 'find_first_alignment_position')
+    ballet_recital = \
+        ctx.get_action('sidle', 'summarize_alignment_positions')
+
+
+
+    if direction == 'rev':
+        alignment, = rc_seqs(alignment)
+
+    expanded, = expand_alignment(alignment=alignment,
+                                 sequences=sequences,
+                                 addfragments=add_fragments,
+                                 n_threads=n_threads,
+                                 )
+
+    starts, = first_position(alignment=expanded,
+                             representative_sequences=sequences,
+                             table=table,
+                             direction=direction,
+                             )
+
+    viz, = ballet_recital(
+        alignment=expanded,
+        position_summary=starts,
+        colormap=colormap,
+        weight_by_abundance=(table is not None),
+        )
+
+    return (expanded, starts, viz)
+
+
+
+

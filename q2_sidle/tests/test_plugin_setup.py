@@ -35,6 +35,7 @@ class PluginSetupTest(TestCase):
         self.region2_db_map = ts.region2_db_map
         self.rep_seqs1 = \
             Artifact.load(os.path.join(self.base_dir, 'region1_rep_set.qza'))
+
         self.align1 = ts.region1_align
         self.align2 = ts.region2_align
         self.kmer_map1 = ts.region1_db_map
@@ -193,35 +194,6 @@ class PluginSetupTest(TestCase):
         pdt.assert_series_equal(self.taxonomy.view(pd.Series),
                                 test.view(pd.Series))
 
-    def test_sidle_reconstruction(self):
-        mapping, summary, counts, taxonomy  = sidle.sidle_reconstruction(
-            region=['Bludhaven', 'Gotham'],
-            kmer_map=[self.kmer_map1, self.kmer_map2],
-            regional_alignment=[self.align1, self.align2],
-            regional_table=[self.table1, self.table2],
-            reference_taxonomy=self.taxonomy,
-            database='greengenes',
-            define_missing='ignore',
-            min_counts=10,
-            debug=True
-            )
-        pdt.assert_frame_equal(mapping.view(pd.DataFrame), 
-                               self.seq_map.view(pd.DataFrame))
-        pdt.assert_frame_equal(summary.view(pd.DataFrame),
-                               self.database_summary.view(pd.DataFrame))
-        pdt.assert_frame_equal(
-            counts.view(pd.DataFrame),
-            pd.DataFrame( 
-                data=np.array([[100.,  50,   0,  50,  50, 50],
-                               [100.,  25, 100,  25,  25, 25],
-                               [  0., 100, 100,   0,  50, 50]]),
-                index=pd.Index(['sample1', 'sample2', 'sample3']),
-                columns=['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 'seq6']
-            )
-        )
-        pdt.assert_series_equal(self.taxonomy.view(pd.Series),
-                                taxonomy.view(pd.Series))
-
     def test_reconstruct_fragment_rep_seqs(self):
         recon_map = Artifact.import_data(
             'FeatureData[SidleReconstruction]', 
@@ -278,151 +250,6 @@ class PluginSetupTest(TestCase):
             ).representative_fragments
         pdt.assert_series_equal(known, test.view(pd.Series).astype(str))
 
-    # # def test_integration(self):
-    # #     # This will run through a slightly more complex dataset...
-    # #     base_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), 
-    # #                      'files/integration')
-    # #     test_dir = os.path.join(base_dir, 'test')
-    # #     known_dir = os.path.join(base_dir, 'known')
-    # #     data_dir = os.path.join(base_dir, 'data')
-    # #     if os.path.exists(test_dir):
-    # #         shutil.rmtree(test_dir)
-
-    # #     ### Sequence extraction
-    # #     region1_seqs, region1_map = sidle.prepare_extracted_region(
-    # #         Artifact.load(os.path.join(data_dir, 'region1-extract-seqs.qza')),
-    # #         fwd_primer='TGGCGGACGGGTGAGTAA',
-    # #         rev_primer='CTGCTGCCTCCCGTAGGA',
-    # #         trim_length=50,
-    # #         region='1',
-    # #         debug=True,
-    # #         )
-    # #     known = \
-    # #         Artifact.load(os.path.join(known_dir, 'region1-kmer-seqs.qza'))
-    # #     pdt.assert_series_equal(region1_seqs.view(pd.Series).astype(str),
-    # #                             known.view(pd.Series).astype(str))
-    # #     known = \
-    # #         Artifact.load(os.path.join(known_dir, 'region1-kmer-map.qza'))
-    # #     pdt.assert_frame_equal(known.view(pd.DataFrame).sort_index(), 
-    # #                           region1_map.view(pd.DataFrame).sort_index())
-
-    # #     region2_seqs, region2_map = sidle.prepare_extracted_region(
-    # #         Artifact.load(os.path.join(data_dir, 'region2-extract-seqs.qza')),
-    # #         fwd_primer='CAGCAGCCGCGGTAATAC',
-    # #         rev_primer='CGCATTTCACCGCTACAC',
-    # #         trim_length=50,
-    # #         region='2',
-    # #         debug=True,
-    # #         )
-    # #     known = \
-    # #         Artifact.load(os.path.join(known_dir, 'region2-kmer-seqs.qza'))
-    # #     pdt.assert_series_equal(region2_seqs.view(pd.Series).astype(str),
-    # #                             known.view(pd.Series).astype(str))
-    # #     known = \
-    # #         Artifact.load(os.path.join(known_dir, 'region2-kmer-map.qza'))
-    # #     pdt.assert_frame_equal(known.view(pd.DataFrame), 
-    # #                           region2_map.view(pd.DataFrame))
-    # #     region3_seqs, region3_map = sidle.prepare_extracted_region(
-    # #         Artifact.load(os.path.join(data_dir, 'region3-extract-seqs.qza')),
-    # #         fwd_primer='GCACAAGCGGTGGAGCAT',
-    # #         rev_primer='CGCTCGTTGCGGGACTTA',
-    # #         trim_length=50,
-    # #         region='3',
-    # #         debug=True,
-    # #         )
-    # #     known = \
-    # #         Artifact.load(os.path.join(known_dir, 'region3-kmer-seqs.qza'))
-    # #     pdt.assert_series_equal(region3_seqs.view(pd.Series).astype(str),
-    # #                             known.view(pd.Series).astype(str))
-    # #     known = \
-    # #         Artifact.load(os.path.join(known_dir, 'region3-kmer-map.qza'))
-    # #     pdt.assert_frame_equal(known.view(pd.DataFrame), 
-    # #                           region3_map.view(pd.DataFrame))
-
-        
-    # #     ### Regiomal Alignment
-    # #     align1 = sidle.align_regional_kmers(
-    # #         region1_seqs, 
-    # #         Artifact.load(os.path.join(data_dir, 'region1-rep-seq.qza')),
-    # #         region='1',
-    # #         max_mismatch=2,
-    # #         debug=True,
-    # #         chunk_size=1,
-    # #         ).regional_alignment
-    # #     known = \
-    # #         Artifact.load(os.path.join(known_dir, 'region1-align-map.qza'))
-    # #     pdt.assert_frame_equal(align1.view(pd.DataFrame).sort_values(['kmer', 'asv']),
-    # #                            known.view(pd.DataFrame))
-
-    # #     align2 = sidle.align_regional_kmers(
-    # #         region2_seqs, 
-    # #         Artifact.load(os.path.join(data_dir, 'region2-rep-seq.qza')),
-    # #         region='2',
-    # #         max_mismatch=2,
-    # #         debug=True,
-    # #         ).regional_alignment
-    # #     known = \
-    # #         Artifact.load(os.path.join(known_dir, 'region2-align-map.qza'))
-    # #     pdt.assert_frame_equal(align2.view(pd.DataFrame).sort_values(['kmer', 'asv']),
-    # #                            known.view(pd.DataFrame))
-        
-    # #     align3 = sidle.align_regional_kmers(
-    # #         region3_seqs, 
-    # #         Artifact.load(os.path.join(data_dir, 'region3-rep-seq.qza')),
-    # #         region='3',
-    # #         max_mismatch=2,
-    # #          debug=True,
-    # #         ).regional_alignment
-    # #     known = \
-    # #         Artifact.load(os.path.join(known_dir, 'region3-align-map.qza'))
-    # #     pdt.assert_frame_equal(align3.view(pd.DataFrame).sort_values(['kmer', 'asv']),
-    # #                            known.view(pd.DataFrame))
-
-    # #     count1 = Artifact.load(os.path.join(data_dir, 'region1-counts.qza'))
-    # #     count2 = Artifact.load(os.path.join(data_dir, 'region2-counts.qza'))
-    # #     count3 = Artifact.load(os.path.join(data_dir, 'region3-counts.qza'))
-
-    # #     ### Reconstruction
-    # #     map_, summary = sidle.reconstruct_database(
-    # #         region=['1', '2', '3'],
-    # #         kmer_map=[region1_map, region2_map, region3_map],
-    # #         regional_alignment=[align1, align2, align3],
-    # #         count_degenerates=False,
-    # #         debug=True,
-    # #         )
-    # #     known = \
-    # #         Artifact.load(os.path.join(known_dir, 'reconstructed-summary.qza'))
-    # #     # ASV mapping was optional in the  original sidle. This is  tested
-    # #     # elsewhere  and dealing w ith it is going to suck. 
-    # #     pdt.assert_frame_equal(
-    # #         known.view(pd.DataFrame),
-    # #         summary.view(pd.DataFrame).drop(columns=['mapped-asvs'])
-    # #         )
-    # #     known = \
-    # #         Artifact.load(os.path.join(known_dir, 'sidle-reconstruction.qza'))
-    # #     pdt.assert_series_equal(known.view(pd.Series).sort_index(), 
-    # #                             map_.view(pd.Series))
-
-    # #     table = sidle.reconstruct_counts(
-    # #         region=['1', '2', '3'],
-    # #         regional_alignment=[align1, align2, align3],
-    # #         regional_table=[count1, count2, count3],
-    # #         database_map=map_,
-    # #         database_summary=summary,
-    # #         debug=True,
-    # #         min_counts=100,
-    # #         min_abund=1e-5,
-    # #         ).reconstructed_table
-    # #     known = \
-    # #         Artifact.load(os.path.join(known_dir, 'reconstructed-table.qza'))
-    # #     pdt.assert_frame_equal(known.view(pd.DataFrame), 
-    # #                            table.view(pd.DataFrame))
-    # #     known = \
-    # #         Artifact.load(os.path.join(known_dir, 'reconstructed-summary.qza'))
-    # #     pdt.assert_frame_equal(
-    # #         known.view(pd.DataFrame),
-    # #         summary.view(pd.DataFrame).drop(columns=['mapped-asvs'])
-    # #         )
 
 
 if __name__ == '__main__':

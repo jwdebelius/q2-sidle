@@ -15,6 +15,7 @@ from ._primerless import (reverse_complement_sequence,
                           )
 from ._pipelines import (sidle_reconstruction,
                          reconstruct_tree,
+                         map_alignment_positions,
                          )
 from ._reconstruct import reconstruct_counts
 from ._taxonomy import reconstruct_taxonomy
