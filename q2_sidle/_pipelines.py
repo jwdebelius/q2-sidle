@@ -126,6 +126,7 @@ def map_alignment_positions(ctx,
                              table=table,
                              direction=direction,
                              )
+    print(expanded)
 
     viz, = ballet_recital(
         alignment=expanded,
