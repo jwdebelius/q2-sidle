@@ -19,6 +19,8 @@ from q2_types.tree import (Phylogeny,
 from q2_fragment_insertion._type import (SeppReferenceDatabase, 
                                          Placements
                                          )
+from q2_feature_table import heatmap_choices
+
 from q2_sidle import (KmerMap, 
                       KmerMapFormat, 
                       KmerMapDirFmt, 
@@ -30,7 +32,10 @@ from q2_sidle import (KmerMap,
                       SidleReconDirFormat,
                       ReconstructionSummary,
                       ReconSummaryFormat,
-                      ReconSummaryDirFormat,                  
+                      ReconSummaryDirFormat,  
+                      AlignmentPosSummary,
+                      AlignmentPosFormat, 
+                      AlignmentPosDirFmt,                
                       )
 import q2_sidle
 
@@ -38,7 +43,7 @@ citations = Citations.load('citations.bib', package='q2_sidle')
 
 plugin = Plugin(
     name='sidle',
-    version='2020.08',
+    version='2022.2-dev',
     website='https://github.com/jwdebelius/q2-sidle',
     package='q2_sidle',
     description=('This plugin reconstructs a full 16s sequence from short '
@@ -48,7 +53,8 @@ plugin = Plugin(
     citations=[citations['Debelius2021']],
 )
 
-<<<<<<< Updated upstream
+
+# Functions
 plugin.methods.register_function(function=q2_sidle.align_regional_kmers,
     name='Aligns ASV representative sequences to a regional kmer database.',
     description=('This takes an "amplified" region of the database and '
@@ -56,16 +62,6 @@ plugin.methods.register_function(function=q2_sidle.align_regional_kmers,
                  'alignment assumes the ASVs and kmers start at the same '
                  'position in the sequence and that they are the same length.'
                  ),
-=======
-
-plugin.methods.register_function(
-    function=q2_sidle.find_first_alignment_position,
-    name='Finds the first position of a sequence in an alignment',
-    description=('The function uses an alignment between regional ASV '
-                 'representative sequences and a larger refernece alignment'
-                 ' to map the representative sequences to a starting position'
-                 ' on the representative sequence.'),
->>>>>>> Stashed changes
     inputs={
         'kmers': FeatureData[Sequence],
         'rep_seq': FeatureData[Sequence],
@@ -115,6 +111,43 @@ plugin.methods.register_function(
                   'a client) or not. `debug` superceeds all options.'),
     },
     citations=[citations['Fuks2018']],
+)
+
+
+plugin.methods.register_function(function=q2_sidle.find_first_alignment_position,
+    name='Finds the first position of a sequence in an alignment',
+    description=('The function uses an alignment between regional ASV '
+                 'representative sequences and a larger refernece alignment'
+                 ' to map the representative sequences to a starting position'
+                 ' on the representative sequence.'),
+    inputs={
+        'alignment': FeatureData[AlignedSequence],
+        'representative_sequences': FeatureData[Sequence],
+        'table': FeatureTable[Frequency],
+    },
+    outputs=[('position_summary', FeatureData[AlignmentPosSummary])],
+    parameters={
+        'direction': Str % Choices('fwd', 'rev'),
+    },
+    input_descriptions={
+        'alignment': ('A muliple sequence alignment between the reference '
+                      'database and the sequences represented in '
+                      '`representative-sequences` to identify the starting '
+                      'position of each sequence'),
+        'representative_sequences': ("ASV sequences from mixed regions with "
+                                     "unknown starting positions"),
+        'table': ('The ASV table corresponding to `representative-sequences`.'
+                  ' Some users may find this useful to set threshholds for '
+                  'filtering or summarizing their data.'),
+    },
+    output_descriptions={
+        'position_summary': ('The starting position, and if provided, total '
+                              'counts, for each representaative sequence in'
+                              ' the alignment.'),
+    },
+    parameter_descriptions={
+        'direction': ('The direction of the read')
+    },
 )
 
 
@@ -381,56 +414,7 @@ plugin.methods.register_function(function=q2_sidle.reconstruct_fragment_rep_seqs
 )
 
 
-<<<<<<< Updated upstream
 plugin.methods.register_function(function=q2_sidle.reconstruct_taxonomy,
-=======
-plugin.methods.register_function(
-    function=q2_sidle.reconstruct_fragment_rep_seqs,
-    name='Reconstract representative sequences for shared fragments.',
-    description=('EXPERIMENTAL!!!\n'
-                 'This function simulates a represenative sequence for '
-                 'reference regions that are derived from multiple sequences '
-                 'to allow tree building via fragment insertion. The function '
-                 'will find the consensus sequence for all the database '
-                 'regions covered between the amplicons.'
-                 ),
-    inputs={
-        'reconstruction_summary': FeatureData[ReconstructionSummary],
-        'reconstruction_map': FeatureData[SidleReconstruction],
-        'aligned_sequences': FeatureData[AlignedSequence]
-    },
-    outputs=[
-        ('representative_fragments', FeatureData[Sequence]),
-    ],
-    parameters={},
-    input_descriptions={
-        'reconstruction_summary': ('A summary of the statitics for the '
-                                   'regional map describing the number of '
-                                   'regions mapped to each reference sequence '
-                                   'and the number of kmers. The kmer '
-                                   'mapping estimate can account for '
-                                   'degeneracy when the `--count-degenerates` '
-                                   'flag is used or can ignore degenrate '
-                                   'sequences in mapping.'),
-        'reconstruction_map': ('A map between the final kmer name and the '
-                               'original database sequence. Useful for '
-                               'reconstructing taxonomy and trees.'),
-        'aligned_sequences': ('The aligned representative sequences '
-                              'corresponding to the database used in '
-                              'reconstruction.'),
-    },
-    output_descriptions={
-        'representative_fragments': ('The consensus sequence fragments '
-                                     'to be used for fragment insertion.')
-    },
-    parameter_descriptions={},
-)
-
-
-
-plugin.methods.register_function(
-    function=q2_sidle.reconstruct_taxonomy,
->>>>>>> Stashed changes
     name='Reconstructs taxonomic strings for a reconstructed sidle table.',
     description=('Reconstructs the taxonomic annotation based on a sidle '
                  'database by identifying the lowest taxonomic level  where'
@@ -482,29 +466,9 @@ plugin.methods.register_function(
     citations=[citations['Fuks2018']],
 )
 
-<<<<<<< Updated upstream
-T1 = TypeMatch([AlignedSequence, Sequence])
-plugin.methods.register_function(function=q2_sidle.reverse_complement_sequence,
-    name='Reverse complements sequences',
-    description=('Just what it says on the tin: generates reverse complemented sequences'),
-    inputs={
-        'sequence': FeatureData[T1],
-    },
-    outputs=[
-        ('reverse_complement', FeatureData[T1])
-    ],
-    parameters={
-    },
-    input_descriptions={
-        'sequence': ('The sequences to be reverse complemented'),
-    },
-    output_descriptions={
-        'reverse_complement': ('The reverse complement of the input sequences')
-    },
-=======
+
 seq_match = TypeMatch([Sequence, AlignedSequence])
-plugin.methods.register_function(
-    function=q2_sidle.reverse_complement_sequence,
+plugin.methods.register_function(function=q2_sidle.reverse_complement_sequence,
     name='Reverse Complements a sequence',
     description=('This function reverse complements a sequence'),
     inputs={'sequence': FeatureData[seq_match]},
@@ -516,7 +480,6 @@ plugin.methods.register_function(
     output_descriptions={
         'reverse_complement': 'The reverse complement of the input sequences',
         },
->>>>>>> Stashed changes
     parameter_descriptions={},
 )
 
@@ -571,11 +534,52 @@ plugin.methods.register_function(function=q2_sidle.trim_dada2_posthoc,
     }
 )
 
+# Visualizations
+plugin.visualizers.register_function(function=q2_sidle.summarize_alignment_positions,
+    name='Generate a heatmap summarizing the starting position of sequences',
+    description=('Summarizes the number of sequences at a starting count and '
+                 'visualizes the aligned representative sequences'),
+    inputs={
+        'alignment': FeatureData[AlignedSequence],
+        'position_summary': FeatureData[AlignmentPosSummary],
+    },
+    parameters={
+        'sort_cols': Str,
+        'weight_by_abundance': Bool,
+        'colormap': Str % Choices(heatmap_choices['color_scheme']),
+        'heatmap_maskcolor': Str,
+        'heatmap_grid': Bool,
+        'tick_interval': Int,
+    },
+    input_descriptions={
+        'alignment': ('A muliple sequence alignment between the reference '
+                      'database and represetnative sequences of interest'),
+        'position_summary': ('The starting position, and if provided, total '
+                             'counts, for each representaative sequence in'
+                             ' the alignment.'),
+    },
+    parameter_descriptions={
+        'sort_cols': ('The column in the position summary to be used to sort'
+                      ' the aligned sequence'),
+        'weight_by_abundance': ('If the abundance information is present in '
+                                'the position summary (if, for example, a '
+                                'table was based when the starting position '
+                                'was identified), this will color the heatmap'
+                                ' by the total sequence abundance'),
+        'colormap': 'The matplotlib colorscheme to generate the heatmap with',
+        'heatmap_maskcolor': ('The color to use as a background to highlight'
+                              ' specifically where sequences are present. '
+                              'Otherwwise, they will be displayed based on '
+                              'the colormap specified'),
+        'heatmap_grid': 'When true, a grid will be displayed on the heatmap',
+        'tick_interval': ('How frequently xticks, indicating position in the'
+                          ' alignment, should be displayed on the heatmap'),
+    },
+    citations=[citations['Hunter2007Matplotlib']]
+)
 
-<<<<<<< Updated upstream
-=======
-plugin.pipelines.register_function(
-    function=q2_sidle.map_alignment_positions,
+# Pipelines
+plugin.pipelines.register_function(function=q2_sidle.map_alignment_positions,
     name='Finds the starting positions of denoised amplicons in an alignment',
     description=('For studies without primers, this will take amplicons, '
                  'align them against a provided reference to identify '
@@ -595,7 +599,8 @@ plugin.pipelines.register_function(
                 'colormap': Str % Choices(heatmap_choices['color_scheme']),
                 },
     )
->>>>>>> Stashed changes
+
+
 
 plugin.pipelines.register_function(function=q2_sidle.sidle_reconstruction,
     name="A pipeline to reconstruct the database, count table, and taxonomy",
@@ -745,6 +750,8 @@ plugin.pipelines.register_function(function=q2_sidle.reconstruct_tree,
 )
 
 
+
+# Registers semantic types
 plugin.register_formats(KmerMapFormat, 
                         KmerMapDirFmt, 
                         KmerAlignFormat, 
@@ -752,16 +759,18 @@ plugin.register_formats(KmerMapFormat,
                         SidleReconFormat, 
                         SidleReconDirFormat,
                         ReconSummaryFormat,
-                        ReconSummaryDirFormat
+                        ReconSummaryDirFormat,
+                        AlignmentPosFormat,
+                        AlignmentPosDirFmt,
                         )
 
 
 plugin.register_semantic_types(KmerMap, 
                                KmerAlignment,
                                SidleReconstruction,
-                               ReconstructionSummary
+                               ReconstructionSummary,
+                               AlignmentPosSummary,
                                )
-
 
 plugin.register_semantic_type_to_format(FeatureData[KmerMap], 
                                         KmerMapDirFmt)
@@ -777,6 +786,10 @@ plugin.register_semantic_type_to_format(FeatureData[SidleReconstruction],
 
 plugin.register_semantic_type_to_format(FeatureData[ReconstructionSummary], 
                                         ReconSummaryDirFormat)
+
+
+plugin.register_semantic_type_to_format(FeatureData[AlignmentPosSummary],
+                                        AlignmentPosDirFmt)
 
 
 importlib.import_module('q2_sidle._transformer')

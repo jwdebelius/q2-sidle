@@ -56,9 +56,6 @@ class FirstPositionTest(TestCase):
         with open(index_fp) as fh:
             index_html = fh.read()
 
-        # normalize_str = '(normalized)' if normalize else '(not normalized)'
-        # self.assertTrue(normalize_str in index_html)
-
         for ext in ['png', 'svg']:
             fp = os.path.join(viz_dir, 'alignment-start-heatmap.%s' % ext)
             self.assertTrue(os.path.exists(fp))
