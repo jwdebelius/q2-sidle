@@ -8,7 +8,6 @@ from q2_sidle import (KmerMapFormat,
                       KmerAlignFormat, 
                       SidleReconFormat,
                       ReconSummaryFormat,
-                      AlignmentPosFormat,
                       )
 from q2_types.feature_data import  AlignedDNAFASTAFormat, DNAFASTAFormat
 from q2_sidle.plugin_setup import plugin
@@ -127,12 +126,3 @@ def _15(obj: dd.DataFrame) -> KmerAlignFormat:
     obj.to_csv(str(ff), sep='\t', index=False, single_file=True)
     return ff
 
-@plugin.register_transformer
-def _16(ff:AlignmentPosFormat) -> Metadata:
-    return Metadata.load(str(ff))
-
-@plugin.register_transformer
-def _17(obj: Metadata) -> AlignmentPosFormat:
-    ff = AlignmentPosFormat()
-    obj.save(str(ff))
-    return ff

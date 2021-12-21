@@ -13,6 +13,3 @@ SidleReconstruction = SemanticType('SidleReconstruction',
 
 ReconstructionSummary = SemanticType('ReconstructionSummary',
                                      variant_of=FeatureData.field['type'])
-
-AlignmentPosSummary = SemanticType('AlignmentPosSummary',
-                                   variant_of=FeatureData.field['type'])

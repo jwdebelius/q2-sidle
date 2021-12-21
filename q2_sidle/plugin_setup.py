@@ -29,9 +29,6 @@ from q2_sidle import (KmerMap,
                       ReconstructionSummary,
                       ReconSummaryFormat,
                       ReconSummaryDirFormat,
-                      AlignmentPosSummary,
-                      AlignmentPosFormat,
-                      AlignmentPosDirFmt,
                       )
 import q2_sidle
 
@@ -638,8 +635,6 @@ plugin.register_formats(KmerMapFormat,
                         SidleReconDirFormat,
                         ReconSummaryFormat,
                         ReconSummaryDirFormat,
-                        AlignmentPosFormat,
-                        AlignmentPosDirFmt,
                         )
 
 
@@ -647,7 +642,6 @@ plugin.register_semantic_types(KmerMap,
                                KmerAlignment,
                                SidleReconstruction,
                                ReconstructionSummary,
-                               AlignmentPosSummary,
                                )
 
 
@@ -666,9 +660,6 @@ plugin.register_semantic_type_to_format(FeatureData[SidleReconstruction],
 plugin.register_semantic_type_to_format(FeatureData[ReconstructionSummary], 
                                         ReconSummaryDirFormat)
 
-
-plugin.register_semantic_type_to_format(FeatureData[AlignmentPosSummary],
-                                        AlignmentPosDirFmt)
 
 
 importlib.import_module('q2_sidle._transformer')
