@@ -251,6 +251,5 @@ class PluginSetupTest(TestCase):
         pdt.assert_series_equal(known, test.view(pd.Series).astype(str))
 
 
-
 if __name__ == '__main__':
     main()

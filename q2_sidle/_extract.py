@@ -83,14 +83,13 @@ def prepare_extracted_region(sequences: DNAFASTAFormat,
     seq_blocks = [dask.delayed(_block_seqs)(seq)
                   for seq in _chunks(sequences, int((chunk_size)))]
     # Makes the fake extraction position based on the trim length
-    fragment = [dask.delayed(_artifical_trim)(seq, trim_length) 
+    fragment = [dask.delayed(_artifical_trim)(seq, trim_length)
                 for seq in seq_blocks]
     # Prepares the amplicon for collapsing
     condensed = dd.from_delayed([
         dask.delayed(_condense_seqs)(seq) for seq in fragment],
         meta=[('amplicon', 'str'), ('seq-name', 'str')]
     )
-    # Writes the 
     ff, group2 = _collapse_all_sequences(condensed, reverse_complement_result)
     ids = _expand_ids(group2, fwd_primer, rev_primer, region, trim_length,
                       chunk_size)
@@ -103,7 +102,6 @@ def _artifical_trim(seqs, trim_length):
     Trims sequences if a trim lengthis supplied
     """
     seqs['extract-length'] = seqs['sequence'].apply(lambda x: len(x))
-    print()
     keep = (np.absolute(seqs['extract-length']) >= np.absolute(trim_length))
     seqs = seqs.loc[keep].copy()
 
@@ -118,13 +116,15 @@ def _artifical_trim(seqs, trim_length):
     return seqs[['seq-name',  'amplicon']]
 
 
-def _block_seqs(seqs, degen_thresh=3):
+def _block_seqs(seqs, degen_thresh=10):
     """
     Converts the sequences into an expanded sequence block
     """
     s2 = pd.concat([_expand_degenerate_gen(seq, degen_thresh=degen_thresh) 
                     for seq in seqs]).astype(str)
+
     s2.index.set_names('seq-name', inplace=True)
+    s2.index = s2.index.astype(str)
     s2.name = 'sequence'
     s3 = s2.reset_index()
     s3['db-seq'] = s3['seq-name'].apply(lambda x: x.split("@")[0])
@@ -136,6 +136,7 @@ def _collapse_all_sequences(condensed, reverse_complement_result):
     Collapse and reverse complelent the results and tidies it
     """
     # Collapses the data into grouped data and prints the computed result
+    condensed['seq-name'] = condensed['seq-name'].astype(str)
     grouped = condensed.groupby('amplicon')['seq-name'].apply(
         lambda x: '>%s' % "|".join(np.sort(x.values)), meta=('seq-name', str))  
     group2 = grouped.compute().reset_index()
@@ -166,7 +167,7 @@ def _condense_seqs(seqs):
     return fragment.sort_index().reset_index()
 
 
-def _expand_degenerate_gen(seq_, degen_thresh=3):
+def _expand_degenerate_gen(seq_, degen_thresh=10):
     """
     Expands the degenerate sequences in the seq blocks
     """

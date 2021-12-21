@@ -121,7 +121,6 @@ class PrimerlessTest(TestCase):
 
         pdt.assert_frame_equal(self.summary, test)
 
-
     def test_generate_align_mask(self):
         test = _generate_align_mask(self.expanded_alignment, 
                                     self.rep_seqs.index)

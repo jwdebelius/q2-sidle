@@ -112,6 +112,7 @@ def map_alignment_positions(ctx,
 
 
 
+
     if direction == 'rev':
         alignment, = rc_seqs(alignment)
 
@@ -120,13 +121,14 @@ def map_alignment_positions(ctx,
                                  addfragments=add_fragments,
                                  n_threads=n_threads,
                                  )
+    print('alignment expanded')
 
     starts, = first_position(alignment=expanded,
                              representative_sequences=sequences,
                              table=table,
                              direction=direction,
                              )
-    print(expanded)
+    print('got starting position')
 
     viz, = ballet_recital(
         alignment=expanded,
