@@ -298,32 +298,34 @@ class ReconstructTest(TestCase):
                 database_map=self.datbase_map['clean_name'],
                 database_summary = self.database_summary,
                 debug=True, 
+                min_counts=590,
                 min_abund=1e-2
                 )
         self.assertEqual(
             str(err.exception),
-            'None of the samples have more than the 1000 total '
-            'sequences required for reconstruction.' 
+            'There are 2 samples with fewer than 590 total sequences. '
+            'Please check your minimum counts and make sure your '
+            'representative sequences are aligned with the database.'
             )
 
-    def test_reconstruct_counts_align_drop_samples_warning(self):
-        with warnings.catch_warnings(record=True) as w:
-            count_table = reconstruct_counts(
-                region=['Bludhaven', 'Gotham'],
-                regional_alignment=[ts.region1_align.view(pd.DataFrame).copy(), 
-                                    ts.region2_align.view(pd.DataFrame).copy()],
-                regional_table=[ts.region1_counts.view(biom.Table),
-                              ts.region2_counts.view(biom.Table)],
-                database_map=self.datbase_map['clean_name'],
-                database_summary = self.database_summary,
-                debug=True, 
-                min_counts=590,
-                min_abund=1e-2
-                )
-        self.assertTrue(issubclass(w[-1].category, UserWarning))
-        self.assertEqual(str(w[-1].message), 
-                         'There are 2 samples with fewer than 590 '
-                         'total reads. These samples will be discarded.')
+    # def test_reconstruct_counts_align_drop_samples_warning(self):
+    #     with warnings.catch_warnings(record=True) as w:
+    #         count_table = reconstruct_counts(
+    #             region=['Bludhaven', 'Gotham'],
+    #             regional_alignment=[ts.region1_align.view(pd.DataFrame).copy(), 
+    #                                 ts.region2_align.view(pd.DataFrame).copy()],
+    #             regional_table=[ts.region1_counts.view(biom.Table),
+    #                           ts.region2_counts.view(biom.Table)],
+    #             database_map=self.datbase_map['clean_name'],
+    #             database_summary = self.database_summary,
+    #             debug=True, 
+    #             min_counts=590,
+    #             min_abund=1e-2
+    #             )
+    #     self.assertTrue(issubclass(w[-1].category, UserWarning))
+    #     self.assertEqual(str(w[-1].message), 
+    #                      'There are 2 samples with fewer than 590 '
+    #                      'total reads. These samples will be discarded.')
 
     def test_construct_align_mat(self):
         sequence_map = pd.Series({'seq1': 'seq1',
