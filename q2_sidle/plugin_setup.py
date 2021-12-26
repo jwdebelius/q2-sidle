@@ -585,19 +585,58 @@ plugin.pipelines.register_function(function=q2_sidle.map_alignment_positions,
                  'align them against a provided reference to identify '
                  'starting positions, and provide a map to split the '
                  'data into regions.'),
-    inputs={'alignment': FeatureData[AlignedSequence],
-            'sequences': FeatureData[Sequence],
-            'table': FeatureTable[Frequency],
-            },
-    outputs=[('expanded_alignment', FeatureData[AlignedSequence]),
-             ('position_summary', FeatureData[AlignmentPosSummary]),
-             ('position_map', Visualization),
-             ],
-    parameters={'direction': Str % Choices('fwd', 'rev'),
-                'n_threads': Int % Range(1, None),
-                'add_fragments': Bool,
-                'colormap': Str % Choices(heatmap_choices['color_scheme']),
-                },
+    inputs={
+        'alignment': FeatureData[AlignedSequence],
+        'sequences': FeatureData[Sequence],
+        'table': FeatureTable[Frequency],
+        },
+    outputs=[
+        ('expanded_alignment', FeatureData[AlignedSequence]),
+        ('position_summary', FeatureData[AlignmentPosSummary]),
+        ('position_map', Visualization),
+        ],
+    parameters={
+        'direction': Str % Choices('fwd', 'rev'),
+        'reverse_complement_ref': Bool,
+        'n_threads': Int % Range(1, None),
+        'add_fragments': Bool,
+        'colormap': Str % Choices(heatmap_choices['color_scheme']),
+        },
+    input_descriptions={
+        'alignment': ('The reference multiple sequence alignment which '
+                      'representatative ASVs should be aligned against'),
+        'sequences': ('The representative ASV sequences that need to be '
+                      'positioned to find their starting regions'),
+        'table': ('The feature table corresponding to the sequences. This is '
+                  'optional and can be used to identify starting positions'
+                  ' in the alignment with more abundance reads.')
+    },
+    output_descriptions={
+        'expanded_alignment': ("The multiple sequence alignment including the"
+                               " representative sequences"),
+        'position_summary': ("Describes the relationship between an ASV, "
+                             "and its starting position in the multiple "
+                             "sequence alignment. The per-ASV information can"
+                             " be viewed by tabulating the metadata"),
+        'position_map': ("A summary of the number of sequences mapped to "
+                         "different starting positions along the multiple "
+                         "sequence alignment"),
+    },
+    parameter_descriptions={
+        'direction': ("The orientation of the sequences being aligned"),
+        'reverse_complement_ref': ('If the sequences are reverse complemented'
+                                   ', this will also reverse complement the'
+                                   ' reference sequences within the pipeline'
+                                   ),
+        'n_threads': ('The number of threads to use in multiple sequence '
+                      'alignment.'),
+        'add_fragments': ('Whether the ASV sequences should be added to the'
+                          ' alignment as full sequences, or if they should '
+                          'be allowed to be inserted with gaps. This is '
+                          'most useful for short sequences like primers.'),
+        'colormap': ('The colormap used to render the heatmap of aligned '
+                     'sequences'),
+        },
     )
 
 
@@ -736,17 +775,17 @@ plugin.pipelines.register_function(function=q2_sidle.reconstruct_tree,
                                     'IMPORTANT: The database versions must '
                                     'match for the table construction and '
                                     'tree.'),
-    },
+        },
     output_descriptions={
         'representative_fragments': ('The consensus sequence fragments '
                                      'to be used for fragment insertion.'),
         'tree': 'The tree with all the reconstructed features',
         'placements': ('The location of the representative fragments '
                        'in the phylogenetic tree')
-    },
+        },
     parameter_descriptions={
         'n_threads': 'the number of threads to use during fragment insertion',
-    },
+        }, 
 )
 
 
