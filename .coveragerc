@@ -4,4 +4,5 @@ branch = True
 omit =
     */tests*
     */__init__.py
+    */_pipelines.py
 
