@@ -6,3 +6,4 @@ omit =
     */__init__.py
     */_pipelines.py
     */_types.py
+    */*/assets*
