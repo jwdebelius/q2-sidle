@@ -96,8 +96,8 @@ def map_alignment_positions(ctx,
                             alignment,
                             sequences,
                             direction,
-                            reverse_complement_rev=True,
                             table=None,
+                            reverse_complement_ref=True,
                             n_threads=1,
                             add_fragments=False,
                             colormap=None,
@@ -114,7 +114,7 @@ def map_alignment_positions(ctx,
 
 
 
-    if (direction == 'rev') & reverse_complement_rev:
+    if (direction == 'rev') & reverse_complement_ref:
         alignment, = rc_seqs(alignment)
 
     expanded, = expand_alignment(alignment=alignment,
