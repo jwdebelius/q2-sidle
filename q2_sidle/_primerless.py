@@ -55,6 +55,37 @@ def find_first_alignment_position(alignment: pd.Series,
     return Metadata(first_pos)
 
 
+def find_span_positions(alignment: pd.Series, 
+                        representative_sequences: pd.Series,
+                        region_name: str='region',
+                        ) -> Metadata:
+    """
+    Finds the minimum and maximum alignment positions where the
+    reference sequences are within the alignment
+    """
+    ids_both = representative_sequences.index
+    if set(ids_both).issubset(set(alignment.index)) == False:
+        raise ValueError('All the representative sequences must be present '
+                         'in the alignment. Please make sure that you have '
+                         'the correct representative sequences and '
+                         'alignment.')
+    alignment = alignment.loc[ids_both].astype(str)
+    
+    coverage = _generate_align_mask(alignment, ids_both)
+    coverage.replace({0: np.nan}, inplace=True)
+    coverage.dropna(how='all', axis=1, inplace=True)
+    left = coverage.columns.min()
+    right = coverage.columns.max()
+
+    summary = pd.DataFrame(
+        data=np.array([[left, right]], dtype=float),
+        index=pd.Index([region_name], name='id'),
+        columns=['left', 'right'],
+        )
+
+    return Metadata(summary)
+
+
 def _generate_align_mask(alignment, seq_ids):
     """
     Gets the masked positions

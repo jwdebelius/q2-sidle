@@ -46,6 +46,7 @@ class PluginSetupTest(TestCase):
         self.taxonomy = ts.taxonomy
         self.count1 = ts.region1_counts
         self.database_summary = ts.db_summary
+        self.expanded_alignment = ts.extra_alignment
     
     def test_plugin_setup(self):
         self.assertEqual(plugin.name, 'sidle')
@@ -98,9 +99,21 @@ class PluginSetupTest(TestCase):
         known['starting-position'] = known['starting-position'].astype(int).astype(str)
         known['sequence-counts'] = known['sequence-counts'].astype(float)
         test = sidle.find_first_alignment_position(
-            alignment=ts.extra_alignment,
+            alignment=self.expanded_alignment,
             representative_sequences=self.rep_seqs1,
             ).position_summary
+        pdt.assert_frame_equal(known, test.view(Metadata).to_dataframe())
+
+    def test_find_span_positions(self):
+        known = pd.DataFrame(
+            data=np.array([[12., 26.]], dtype=float),
+            columns=['left', 'right'],
+            index=pd.Index(['region'], name='id'),
+            )
+        test = sidle.find_span_positions(
+            alignment=self.expanded_alignment,
+            representative_sequences=self.rep_seqs1,
+            ).span_summary
         pdt.assert_frame_equal(known, test.view(Metadata).to_dataframe())
 
     def test_prepare_extracted_region(self):

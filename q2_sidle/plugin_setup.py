@@ -151,6 +151,45 @@ plugin.methods.register_function(function=q2_sidle.find_first_alignment_position
 )
 
 
+plugin.methods.register_function(function=q2_sidle.find_span_positions,
+    name=('Finds the first and last positions of the representative sequences'
+          ' in the alignment'),
+    description=('This allows the identification of the starting and ending'
+                 ' position of a group of representative ASV sequences '
+                 'against an aligned reference database. The function will '
+                 'take the full span of the sequences as the trimming '
+                 'parameters, under the assumption that the alignment '
+                 'contains several sequences across these positions.'),
+    inputs={
+        'alignment': FeatureData[AlignedSequence],
+        'representative_sequences': FeatureData[Sequence],
+        },
+    outputs=[
+        ('span_summary', FeatureData[AlignmentPosSummary])
+        ],
+    parameters={
+        'region_name': Str,
+        },
+    input_descriptions={
+        'alignment': ('A muliple sequence alignment between the reference '
+                      'database and the sequences represented in '
+                      '`representative-sequences` to identify the starting '
+                      'position of each sequence'),
+        'representative_sequences': ("ASV sequences from mixed regions with "
+                                     "unknown starting positions"),
+        },
+    output_descriptions={
+        'span_summary': ('The starting and ending positions of the set of '
+                         'representative sequences within the alignmnet. '
+                         'The starting and ending positions can be viewed '
+                         'as metadata.'),
+        },
+    parameter_descriptions={
+        'region_name': ('A label for the region being aligned (mostly useful '
+                        'for display and accounting purposes.)')
+        },
+)
+
 plugin.methods.register_function(function=q2_sidle.prepare_extracted_region,
     name='Prepares an already extracted region to be a kmer database.',
     description=('This function takes an amplified region of the database, '
@@ -545,6 +584,7 @@ plugin.visualizers.register_function(function=q2_sidle.summarize_alignment_posit
     },
     parameters={
         'sort_cols': Str,
+        # 'min_max_counts': Int,
         'weight_by_abundance': Bool,
         'colormap': Str % Choices(heatmap_choices['color_scheme']),
         'heatmap_maskcolor': Str,
@@ -561,6 +601,12 @@ plugin.visualizers.register_function(function=q2_sidle.summarize_alignment_posit
     parameter_descriptions={
         'sort_cols': ('The column in the position summary to be used to sort'
                       ' the aligned sequence'),
+        # 'min_max_counts': ('The minimum value for the maximum relative '
+        #                    'abundance of sequences aligned to a position '
+        #                    'for the position to be displayed in the position '
+        #                    'summary table. This can be used to filter '
+        #                    "suprious reads that don't align into an easily"
+        #                    'grouped position.'),
         'weight_by_abundance': ('If the abundance information is present in '
                                 'the position summary (if, for example, a '
                                 'table was based when the starting position '

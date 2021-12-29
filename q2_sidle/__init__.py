@@ -12,6 +12,7 @@ from ._formats import (KmerMapFormat, KmerMapDirFmt,
                        )
 from ._primerless import (reverse_complement_sequence,
                           find_first_alignment_position,
+                          find_span_positions,
                           )
 from ._pipelines import (sidle_reconstruction,
                          reconstruct_tree,

@@ -15,6 +15,7 @@ from qiime2 import Artifact, Metadata
 
 from q2_sidle._primerless import (reverse_complement_sequence,
                                   find_first_alignment_position,
+                                  find_span_positions,
                                   _generate_align_mask,
                                   _get_first_align_pos,
                                   )
@@ -96,6 +97,39 @@ class PrimerlessTest(TestCase):
             })
         with self.assertRaises(ValueError) as err:
             find_first_alignment_position(
+                alignment=self.expanded_alignment,
+                representative_sequences=test_seqs,
+            )
+        self.assertEqual(str(err.exception),
+                         ('All the representative sequences must be present '
+                         'in the alignment. Please make sure that you have '
+                         'the correct representative sequences and '
+                         'alignment.')    
+                        )
+
+    def test_find_span_positions(self):
+        sub_seqs = self.rep_seqs.loc[['asv06', 'asv07', 'asv08']].copy()
+        known = pd.DataFrame(
+            data=np.array([[52, 66]], dtype=float),
+            columns=['left', 'right'],
+            index=pd.Index(['bludhaven'], name='id'),
+            )
+        test = find_span_positions(
+                alignment=self.expanded_alignment,
+                representative_sequences=sub_seqs,
+                region_name='bludhaven'
+            )
+        self.assertTrue(isinstance(test, Metadata))
+        pdt.assert_frame_equal(known, test.to_dataframe())
+
+    def test_find_span_positions_error(self):
+        test_seqs = pd.Series({
+            'nightwing': skbio.DNA("AAAAA", metadata={'id': 'nightwing'}),
+            'arsenel':  skbio.DNA("CCCCC", metadata={'id': 'arsenel'}),
+            'troya':  skbio.DNA("GGGGG", metadata={'id': 'troya'}),
+            })
+        with self.assertRaises(ValueError) as err:
+            find_span_positions(
                 alignment=self.expanded_alignment,
                 representative_sequences=test_seqs,
             )
