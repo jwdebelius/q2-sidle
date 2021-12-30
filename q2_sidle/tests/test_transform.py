@@ -87,8 +87,16 @@ class TestTransform(TestCase):
         pdt.assert_frame_equal(known, test.compute())
         
     def test_dataframe_to_kmer_map(self):
-        # tested in plugin setup
-        pass
+        input_ = pd.DataFrame(
+            data=[['Batman', 'Batman', 'Gotham', 'WANTCAT', 'CATCATCAT', 50],
+                  ['Superman', 'Superman', 'Metropolis', 'CATDAD', 'DADCAT', 
+                   50]],
+            columns=['seq-name', 'kmer', 'region', 'fwd-primer', 'rev-primer',
+                     'kmer-length'],
+            index=pd.Index(['Batman', 'Superman'], name='db-seq')
+            )
+        test = t._4(input_)
+        self.assertTrue(isinstance(test, KmerMapFormat))
 
     def test_kmer_align_to_dataframe(self):
         known = pd.DataFrame(
@@ -103,7 +111,6 @@ class TestTransform(TestCase):
         test = t._5(format)
         self.assertTrue(isinstance(test, pd.DataFrame))
         pdt.assert_frame_equal(test, known)
-
 
     def test_kmer_align_to_metadata(self):
         known = pd.DataFrame(
@@ -148,8 +155,15 @@ class TestTransform(TestCase):
         pdt.assert_frame_equal(test.compute(), known)
 
     def test_dataframe_to_kmer_align(self):
-        # tested in plugin setup
-        pass
+        input_ = known = pd.DataFrame(
+            data=[['Batman', 'Bruce Wayne', 80, 2, 2, 'Gotham'],
+                  ['Flash', 'Barry Allen', 50, 0, 2, 'Central City'],
+                  ['GreenArrow', 'Oliver Queen', 30, 0, 2, 'Star City']],
+            columns=['kmer', 'asv', 'length', 'mismatch', 
+                     'max-mismatch', 'region']
+            )
+        test = t._8(input_)
+        self.assertTrue(isinstance(test, KmerAlignFormat))
 
     def test_recon_map_to_series(self):
         known = pd.Series({"Batman": 'Batman', 
@@ -181,8 +195,17 @@ class TestTransform(TestCase):
         pdt.assert_frame_equal(test, known)
 
     def test_dataframe_recon_map(self):
-        # tested in plugin setup
-        pass
+        input_ = pd.DataFrame(
+            data=[['Batman', 80., 50., 'BATDAD', 'DADBAT'],
+                  ['WonderWoman', 60, 20, 'BATDAD', 'DADBAT'],
+                  ['Superman', 90, 50, 'BATDAD', 'DADBAT']],
+            columns=['clean_name', 'length-solo', 'length-justice-league', 
+                     'fwd-primer', 'rev-primer'],
+            index=pd.Index(['Batman', 'WonderWoman', 'Superman'],
+                           name='db-seq')
+        )
+        test = t._11(input_)
+        self.assertTrue(isinstance(test, SidleReconFormat))
 
     def test_recon_summary_to_dataframe(self):
         known = pd.DataFrame(
@@ -227,8 +250,30 @@ class TestTransform(TestCase):
         pdt.assert_frame_equal(test.to_dataframe(), known)
 
     def test_metadata_to_recon_summary(self):
-        # tested in plugin setup
-        pass
+        input_ = Metadata(pd.DataFrame(
+            data=[[2., 4., 2., 0., 'Bruce|Wayne|Richard|Grayson'],
+                  [1., 1., 1., 0., 'Kent']],
+            index=pd.Index(['Batman', 'Superman'], 
+                            name='feature-id'),
+            columns=['num-regions', 'total-kmers-mapped', 
+                     'mean-kmer-per-region', 'stdv-kmer-per-region', 
+                     'mapped-asvs'],
+        ))
+        test = t._14(input_)
+        self.assertTrue(isinstance(test, ReconSummaryFormat))
+
+    def test_delayed_df_recon_summary(self):
+        input_ = dd.from_pandas(pd.DataFrame(
+            data=[[2., 4., 2., 0., 'Bruce|Wayne|Richard|Grayson'],
+                  [1., 1., 1., 0., 'Kent']],
+            index=pd.Index(['Batman', 'Superman'], 
+                            name='feature-id'),
+            columns=['num-regions', 'total-kmers-mapped', 
+                     'mean-kmer-per-region', 'stdv-kmer-per-region', 
+                     'mapped-asvs'],
+        ), npartitions=1)
+        test = t._15(input_)
+        self.assertTrue(isinstance(test, KmerAlignFormat))
 
     def test_alignment_pos_to_metadata(self):
         known = pd.DataFrame(
@@ -253,8 +298,18 @@ class TestTransform(TestCase):
         pdt.assert_frame_equal(test.to_dataframe(), known)
 
     def test_metadata_to_alignment_pos(self):
-        # tested in plugin setup
-        pass
+        input_ = Metadata(pd.DataFrame(
+            data=np.vstack([
+                np.hstack([np.array([12.] * 5), np.array([52.] * 3), 0., 28.]),
+                np.array([101.] * 10),
+                ]).T,
+            columns=['starting-position', 'sequence-counts'],
+            index=pd.Index(['asv01', 'asv02', 'asv03', 'asv04', 'asv05', 
+                            'asv06', 'asv07', 'asv08', 'asv09', 'asv10'],
+                           name='feature-id'),
+            ))
+        test = t._17(input_)
+        self.assertTrue(isinstance(test, AlignmentPosFormat))
 
 
 if __name__ == '__main__':
