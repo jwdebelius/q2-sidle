@@ -81,15 +81,13 @@ def _8(obj: pd.DataFrame) -> KmerAlignFormat:
 @plugin.register_transformer
 def _9(ff: SidleReconFormat) -> pd.Series:
     df = pd.read_csv(str(ff), sep='\t', dtype=str)
-    if df.index.name is None:
-        df.set_index('db-seq', inplace=True)
+    df.set_index('db-seq', inplace=True)
     return df['clean_name']
 
 @plugin.register_transformer
 def _10(ff: SidleReconFormat) -> pd.DataFrame:
     df = pd.read_csv(str(ff), sep='\t', dtype=str)
-    if df.index.name is None:
-        df.set_index('db-seq', inplace=True)
+    df.set_index('db-seq', inplace=True)
     df[[c for c in df.columns if ('length' in c)]] = \
         df[[c for c in df.columns if ('length' in c)]].astype(float)
     return df
