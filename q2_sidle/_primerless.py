@@ -8,6 +8,8 @@ import skbio
 
 from qiime2 import Metadata
 
+from q2_sidle._dask_utils import _setup_dask_client
+
 
 def reverse_complement_sequence(sequence: pd.Series) -> pd.Series:
     """

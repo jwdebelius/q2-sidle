@@ -13,8 +13,9 @@ import pandas as pd
 from dask.delayed import Delayed
 from qiime2 import Metadata, Artifact
 from qiime2.plugin import ValidationError
-from q2_sidle._utils import (_setup_dask_client, 
-                             degen_reps,
+
+from q2_sidle._dask_utils import (_setup_dask_client)
+from q2_sidle._utils import (degen_reps,
                              _check_regions,
                              )                             
 
