@@ -12,11 +12,12 @@ from ._formats import (KmerMapFormat, KmerMapDirFmt,
                        )
 from ._primerless import (reverse_complement_sequence,
                           find_first_alignment_position,
-                          find_span_positions,
+                          find_alignment_span_positions,
                           )
 from ._pipelines import (sidle_reconstruction,
                          reconstruct_tree,
                          map_alignment_positions,
+                         find_and_prepare_regional_seqs,
                          )
 from ._reconstruct import reconstruct_counts
 from ._taxonomy import reconstruct_taxonomy

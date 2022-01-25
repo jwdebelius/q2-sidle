@@ -110,11 +110,11 @@ class PrimerlessTest(TestCase):
     def test_find_span_positions(self):
         sub_seqs = self.rep_seqs.loc[['asv06', 'asv07', 'asv08']].copy()
         known = pd.DataFrame(
-            data=np.array([[52, 66]], dtype=float),
+            data=np.array([[53, 67]], dtype=float),
             columns=['left', 'right'],
             index=pd.Index(['bludhaven'], name='id'),
             )
-        test = find_span_positions(
+        test = find_alignment_span_positions(
                 alignment=self.expanded_alignment,
                 representative_sequences=sub_seqs,
                 region_name='bludhaven'

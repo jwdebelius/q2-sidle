@@ -25,8 +25,10 @@ complement = {'A': 'T', 'T': 'A', 'G': 'C',  'C': 'G',
 def prepare_extracted_region(sequences: DNAFASTAFormat, 
     region:str, 
     trim_length:int, 
-    fwd_primer:str, 
-    rev_primer:str, 
+    fwd_primer:str=None, 
+    rev_primer:str=None, 
+    fwd_pos:int=None,
+    rev_pos:int=None,
     reverse_complement_rev:bool=True,
     reverse_complement_result:bool=False,
     chunk_size:int=10000, 
@@ -69,6 +71,18 @@ def prepare_extracted_region(sequences: DNAFASTAFormat,
         sequence name, along with regional information
     """
 
+    if pd.isnull([fwd_primer, fwd_pos]).all():
+        raise ValueError('The forward primer or forward position '
+                         'must be specified. Please provide one value')
+    if pd.isnull([rev_primer, rev_pos]).all():
+        raise ValueError('The reverse primer or reverse position '
+                         'must be specified. Please provide one value')
+    if ((pd.isnull([fwd_primer, rev_primer]).sum() == 1) | 
+            (pd.isnull([fwd_pos, rev_pos]).sum() == 1)):
+        raise ValueError('A primer and position have been supplied for '
+                         'the region. Please provide either a '
+                         'primer or a position.')
+
     # Sets up the client
     _setup_dask_client(debug=debug, cluster_config=None,  
                        n_workers=n_workers, address=client_address)
@@ -90,8 +104,8 @@ def prepare_extracted_region(sequences: DNAFASTAFormat,
         meta=[('amplicon', 'str'), ('seq-name', 'str')]
     )
     ff, group2 = _collapse_all_sequences(condensed, reverse_complement_result)
-    ids = _expand_ids(group2, fwd_primer, rev_primer, region, trim_length,
-                      chunk_size)
+    ids = _expand_ids(group2, fwd_primer, rev_primer, fwd_pos, rev_pos, 
+                      region, trim_length, chunk_size)
 
     return (ff, ids.compute().set_index('db-seq').sort_index())
 
@@ -183,8 +197,8 @@ def _expand_degenerate_gen(seq_, degen_thresh=10):
     return expand
 
 
-def _expand_ids(group2, fwd_primer, rev_primer, region, trim_length, 
-    chunk_size):
+def _expand_ids(group2, fwd_primer, rev_primer, fwd_pos, rev_pos, region, 
+    trim_length, chunk_size):
     """
     Expands the seq-name column from grouped IDs into an ID map to be used
     in alignment
@@ -226,6 +240,8 @@ def _expand_ids(group2, fwd_primer, rev_primer, region, trim_length,
                                           meta=('db-seq', str))
     ids['fwd-primer'] = fwd_primer
     ids['rev-primer'] = rev_primer
+    ids['fwd-pos'] = fwd_pos
+    ids['rev-pos'] = rev_pos
     ids['region'] = region
     ids['kmer-length'] = trim_length
 

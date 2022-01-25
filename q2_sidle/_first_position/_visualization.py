@@ -34,6 +34,10 @@ def summarize_alignment_positions(output_dir,
     Builds a visualization describing alignment between a first position 
     and reference
     """
+
+    # TO DO: make this a modifable parameter
+    min_seqs = 2
+
     sort_cols = sort_cols.split(',')
     summary = position_summary.to_dataframe()
     summary['starting-position'] = summary['starting-position'].astype(int)
@@ -59,7 +63,7 @@ def summarize_alignment_positions(output_dir,
 
 
     # Builds the regional summary and formats to be a pretty(?) table
-    regional_summary = _regional_alignment_results(summary)
+    regional_summary = _regional_alignment_results(summary, min_seqs)
 
     context = {'regional_summary': q2templates.df_to_html(regional_summary)}
     index_fp = os.path.join(TEMPLATES, 'index.html')
@@ -145,13 +149,14 @@ def _make_alignment_heatmap(weighted_coverage,
     return fig
 
 
-def _regional_alignment_results(summary): 
+def _regional_alignment_results(summary, min_seqs=0): 
     """
     Identifies information about positions
     """
     per_region = \
         summary.groupby(['starting-position', 'direction']).describe()
     per_region = per_region['sequence-counts']
+    per_region = per_region.loc[per_region['count'] >= min_seqs].copy()
     per_region.rename(columns={"count": 'number of mapped ASVs',
                                'min': 'Frequency of ASV with fewest counts',
                                'max': 'Frequency of ASV with most counts',

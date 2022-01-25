@@ -97,7 +97,7 @@ class FirstPositionTest(TestCase):
         pdt.assert_frame_equal(self.weighted_coverage.loc[self.start_ordered], 
                               test)
 
-    def test_regional_alignment_results(self):
+    def test_regional_alignment_results_no_min(self):
         known = pd.DataFrame(
             data=np.array([['fwd', 1., 525., 525., 525.],
                            ['fwd', 5., 100., 100., 300.],
@@ -117,7 +117,28 @@ class FirstPositionTest(TestCase):
                      'Median Frequency of mapped ASVs',
                      'Frequency of ASV with most counts']
         known[num_cols] = known[num_cols].astype(float)
-        test = _regional_alignment_results(self.summary)
+        test = _regional_alignment_results(self.summary) 
+        pdt.assert_frame_equal(test, known)
+
+    def test_regional_alignment_results_min(self):
+        known = pd.DataFrame(
+            data=np.array([['fwd', 5., 100., 100., 300.],
+                           ['fwd', 3.,  10.,  20., 100.],
+                           ], dtype=object),
+            index=pd.Index([12, 52], name='Starting Position'),
+            columns=['Sequence Direction',
+                     'number of mapped ASVs', 
+                     'Frequency of ASV with fewest counts', 
+                     'Median Frequency of mapped ASVs',
+                     'Frequency of ASV with most counts', 
+                     ],
+            )
+        num_cols = ['number of mapped ASVs', 
+                     'Frequency of ASV with fewest counts', 
+                     'Median Frequency of mapped ASVs',
+                     'Frequency of ASV with most counts']
+        known[num_cols] = known[num_cols].astype(float)
+        test = _regional_alignment_results(self.summary, min_seqs=2)
         pdt.assert_frame_equal(test, known)
 
     def test_make_alignment_heatmap_vigilante(self):

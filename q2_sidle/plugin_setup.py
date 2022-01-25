@@ -151,7 +151,7 @@ plugin.methods.register_function(function=q2_sidle.find_first_alignment_position
 )
 
 
-plugin.methods.register_function(function=q2_sidle.find_span_positions,
+plugin.methods.register_function(function=q2_sidle.find_alignment_span_positions,
     name=('Finds the first and last positions of the representative sequences'
           ' in the alignment'),
     description=('This allows the identification of the starting and ending'
@@ -190,75 +190,76 @@ plugin.methods.register_function(function=q2_sidle.find_span_positions,
         },
 )
 
-plugin.methods.register_function(function=q2_sidle.prepare_extracted_region,
-    name='Prepares an already extracted region to be a kmer database.',
-    description=('This function takes an amplified region of the database, '
-                 'expands the degenerate sequences and collapses the '
-                 'duplicated sequences under a single id that can be '
-                 'untangled later.'),
-    inputs={
-        'sequences': FeatureData[Sequence]
-    },
-    outputs=[
-        ('collapsed_kmers', FeatureData[Sequence]), 
-        ('kmer_map', FeatureData[KmerMap]),
-    ],
-    parameters={
-        'trim_length': Int,
-        'region': Str,
-        'fwd_primer': Str,
-        'rev_primer': Str,
-        'reverse_complement_rev': Bool,
-        'reverse_complement_result': Bool,
-        'chunk_size':  (Int % Range(1, None)),
-        'n_workers': Int % Range(1, None),
-        'client_address': Str,
-        'debug': Bool,
 
-    },
-    input_descriptions={
-        'sequences': 'The full length sequences from the reference database.',
-    },
-    output_descriptions={
-        'collapsed_kmers': ('Reference kmer sequences for the region with '
-                            'the degenerate sequences expanded and '
-                            'duplicated sequences identified.'
-                            ),
-        'kmer_map': ('A mapping relationship between the name of the '
-                     'sequence in the database and the kmer identifier used '
-                     'in this region.'),
-    },
-    parameter_descriptions={
-        'region': ('A unique description of the hypervariable region being '
-                   'extracted.'),
-        'trim_length': ('The length of the extracted regional kmers.'),
-        'fwd_primer': ('The forward primer used to amplify the region of '
-                       'interest.'),
-        'rev_primer': ('The reverse primer used to amplify the region of '
-                       'interest.'),
-        'reverse_complement_rev': ('If the reverse primer was reverse '
-                                   'complemented during sequence extraction. '
-                                   'This is used to later generate fragments '
-                                   'for the phylogenetic tree.'),
-        'reverse_complement_result': ('Whether the sequences for alignment '
-                                      'should be reverse complemented for '
-                                      'alignment, for example, in cases where '
-                                      'the forward and reverse primers do '
-                                      'not overlap and you want to align with '
-                                      'the reverse sequence.'),
-        'chunk_size': ('The number of sequences to be analyzed in parallel '
-                       'blocks.'),
-        'n_workers': ('The number of jobs to initiate.'),
-        'debug': ('Whether the function should be run in debug mode (without '
-                  'a client) or not. `debug` superceeds all options.'),
-        'client_address': ('The IP address for an existing cluster. '
-                           'Please see the dask client documentation for more '
-                           'information: '
-                           'https://distributed.dask.org/en/latest/client.html'
-                           ),
-    },
-    citations=[citations['Fuks2018']],
-)
+# plugin.methods.register_function(function=q2_sidle.prepare_extracted_region,
+#     name='Prepares an already extracted region to be a kmer database.',
+#     description=('This function takes an amplified region of the database, '
+#                  'expands the degenerate sequences and collapses the '
+#                  'duplicated sequences under a single id that can be '
+#                  'untangled later.'),
+#     inputs={
+#         'sequences': FeatureData[Sequence]
+#     },
+#     outputs=[
+#         ('collapsed_kmers', FeatureData[Sequence]), 
+#         ('kmer_map', FeatureData[KmerMap]),
+#     ],
+#     parameters={
+#         'trim_length': Int,
+#         'region': Str,
+#         'fwd_primer': Str,
+#         'rev_primer': Str,
+#         'reverse_complement_rev': Bool,
+#         'reverse_complement_result': Bool,
+#         'chunk_size':  (Int % Range(1, None)),
+#         'n_workers': Int % Range(1, None),
+#         'client_address': Str,
+#         'debug': Bool,
+
+#     },
+#     input_descriptions={
+#         'sequences': 'The full length sequences from the reference database.',
+#     },
+#     output_descriptions={
+#         'collapsed_kmers': ('Reference kmer sequences for the region with '
+#                             'the degenerate sequences expanded and '
+#                             'duplicated sequences identified.'
+#                             ),
+#         'kmer_map': ('A mapping relationship between the name of the '
+#                      'sequence in the database and the kmer identifier used '
+#                      'in this region.'),
+#     },
+#     parameter_descriptions={
+#         'region': ('A unique description of the hypervariable region being '
+#                    'extracted.'),
+#         'trim_length': ('The length of the extracted regional kmers.'),
+#         'fwd_primer': ('The forward primer used to amplify the region of '
+#                        'interest.'),
+#         'rev_primer': ('The reverse primer used to amplify the region of '
+#                        'interest.'),
+#         'reverse_complement_rev': ('If the reverse primer was reverse '
+#                                    'complemented during sequence extraction. '
+#                                    'This is used to later generate fragments '
+#                                    'for the phylogenetic tree.'),
+#         'reverse_complement_result': ('Whether the sequences for alignment '
+#                                       'should be reverse complemented for '
+#                                       'alignment, for example, in cases where '
+#                                       'the forward and reverse primers do '
+#                                       'not overlap and you want to align with '
+#                                       'the reverse sequence.'),
+#         'chunk_size': ('The number of sequences to be analyzed in parallel '
+#                        'blocks.'),
+#         'n_workers': ('The number of jobs to initiate.'),
+#         'debug': ('Whether the function should be run in debug mode (without '
+#                   'a client) or not. `debug` superceeds all options.'),
+#         'client_address': ('The IP address for an existing cluster. '
+#                            'Please see the dask client documentation for more '
+#                            'information: '
+#                            'https://distributed.dask.org/en/latest/client.html'
+#                            ),
+#     },
+#     citations=[citations['Fuks2018']],
+# )
 
 
 plugin.methods.register_function(function=q2_sidle.reconstruct_counts,
@@ -584,7 +585,6 @@ plugin.visualizers.register_function(function=q2_sidle.summarize_alignment_posit
     },
     parameters={
         'sort_cols': Str,
-        # 'min_max_counts': Int,
         'weight_by_abundance': Bool,
         'colormap': Str % Choices(heatmap_choices['color_scheme']),
         'heatmap_maskcolor': Str,
@@ -601,12 +601,6 @@ plugin.visualizers.register_function(function=q2_sidle.summarize_alignment_posit
     parameter_descriptions={
         'sort_cols': ('The column in the position summary to be used to sort'
                       ' the aligned sequence'),
-        # 'min_max_counts': ('The minimum value for the maximum relative '
-        #                    'abundance of sequences aligned to a position '
-        #                    'for the position to be displayed in the position '
-        #                    'summary table. This can be used to filter '
-        #                    "suprious reads that don't align into an easily"
-        #                    'grouped position.'),
         'weight_by_abundance': ('If the abundance information is present in '
                                 'the position summary (if, for example, a '
                                 'table was based when the starting position '
@@ -625,6 +619,92 @@ plugin.visualizers.register_function(function=q2_sidle.summarize_alignment_posit
 )
 
 # Pipelines
+plugin.pipelines.register_function(function=q2_sidle.find_and_prepare_regional_seqs,
+    name='Extracts kmer sequences from aligned sequences',
+    description=('In cases where primers are unavaliable, this expedites the'
+                 ' process of identifying the positions of sequences within '
+                 'the alignment, extracts the sequences, and then prepares '
+                 'them into kmers for sidle alignment.'),
+    inputs={
+        'alignment': FeatureData[AlignedSequence],
+        'sequences': FeatureData[Sequence],
+    },
+    outputs=[
+        ('sub_alignment', FeatureData[AlignedSequence]),
+        ('expanded_sub_alignment',  FeatureData[AlignedSequence]),
+        ('span_summary', FeatureData[AlignmentPosSummary]),
+        ('collapsed_kmers', FeatureData[Sequence]), 
+        ('kmer_map', FeatureData[KmerMap]),
+        ],
+    parameters={
+        'region': Str,
+        'subset_size': Float % Range(0, 1),
+        'subset_seed': Int % Range(1, None),
+        'add_fragments': Bool,
+        'chunk_size':  (Int % Range(1, None)),
+        'n_workers': Int % Range(1, None),
+        'client_address': Str,
+        'debug': Bool,
+        },
+    input_descriptions={
+        'alignment': ('The aligned representative sequences for the database '
+                     'to be used for Sidle. We recommend making sure the '
+                     'database is pre-filtered to remove any sequences '
+                     'which are not of interest (i.e. high degenerate '
+                     'sequences, sequences belonging to unamplified clades,'
+                     ' or poorly annotated sequences.'),
+        'sequences': ('The representative ASV sequences that need to be '
+                      'positioned to find their starting regions. These '
+                      'should all have been amplified with the same primer '
+                      'pair and come from the same starting region.'),
+        },
+    output_descriptions={
+        'sub_alignment': ('A subset of the original multiple seqence '
+                          'alignment used for determining the sequence '
+                          'positions.'),
+        'expanded_sub_alignment': ('The multiple sequence alignment with '
+                                   'representative sequences added to the '
+                                   'sub alignment.'),
+        'span_summary': ('The starting and ending positions of the set of '
+                         'representative sequences within the alignmnet. '
+                         'The starting and ending positions can be viewed '
+                         'as metadata.'),
+        'collapsed_kmers': ('Reference kmer sequences for the region with '
+                            'the degenerate sequences expanded and '
+                            'duplicated sequences identified.'
+                            ),
+        'kmer_map': ('A mapping relationship between the name of the '
+                     'sequence in the database and the kmer identifier used '
+                     'in this region.'),
+        },
+    parameter_descriptions={
+        'region': ('A unique description of the hypervariable region being '
+                   'extracted.'),
+        'subset_size': ('The fraction of sequences from the orignal alignment'
+                        ' which should be used to construct the alignment '
+                        'subset. More sequences may improve regional '
+                        'extraction, however, they will also increase memory'
+                        ' and runtime requirements.'),
+        'subset_seed': ('A random seed for subsetting the sequences; setting '
+                        'this as a constant will make sure you get the same'
+                        ' sequences every time.'),
+        'add_fragments': ('Whether the ASV sequences should be added to the'
+                          ' alignment as full sequences, or if they should '
+                          'be allowed to be inserted with gaps. This is '
+                          'most useful for short sequences like primers.'),
+        'chunk_size': ('The number of sequences to be analyzed in parallel '
+                       'blocks.'),
+        'n_workers': ('The number of jobs to initiate.'),
+        'debug': ('Whether the function should be run in debug mode (without '
+                  'a client) or not. `debug` superceeds all options.'),
+        'client_address': ('The IP address for an existing cluster. '
+                           'Please see the dask client documentation for more '
+                           'information: '
+                           'https://distributed.dask.org/en/latest/client.html'
+                           ),
+        },
+    )
+
 plugin.pipelines.register_function(function=q2_sidle.map_alignment_positions,
     name='Finds the starting positions of denoised amplicons in an alignment',
     description=('For studies without primers, this will take amplicons, '

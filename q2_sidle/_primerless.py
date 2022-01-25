@@ -57,10 +57,10 @@ def find_first_alignment_position(alignment: pd.Series,
     return Metadata(first_pos)
 
 
-def find_span_positions(alignment: pd.Series, 
-                        representative_sequences: pd.Series,
-                        region_name: str='region',
-                        ) -> Metadata:
+def find_alignment_span_positions(alignment: pd.Series, 
+                                  representative_sequences: pd.Series,
+                                  region_name: str='region',
+                                  ) -> Metadata:
     """
     Finds the minimum and maximum alignment positions where the
     reference sequences are within the alignment
@@ -80,7 +80,7 @@ def find_span_positions(alignment: pd.Series,
     right = coverage.columns.max()
 
     summary = pd.DataFrame(
-        data=np.array([[left, right]], dtype=float),
+        data=np.array([[left, right]], dtype=float) + 1,
         index=pd.Index([region_name], name='id'),
         columns=['left', 'right'],
         )

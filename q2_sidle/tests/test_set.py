@@ -84,28 +84,28 @@ region2_db_seqs = Artifact.import_data('FeatureData[Sequence]', pd.Series({
     'seq6': DNA('AAAATGTAGAGCCAC', metadata={'id': 'seq6'}),
     }))
 region1_db_map = Artifact.import_data('FeatureData[KmerMap]', pd.DataFrame(
-    data=np.array([['seq1', 'seq1|seq2', 'Bludhaven', 'WANTCAT', 'ATGATGATG', 15],
-                   ['seq2', 'seq1|seq2', 'Bludhaven', 'WANTCAT', 'ATGATGATG', 15],
-                   ['seq3@0001', 'seq3@0001', 'Bludhaven', 'WANTCAT', 'ATGATGATG', 15],
-                   ['seq3@0002', 'seq3@0002', 'Bludhaven', 'WANTCAT', 'ATGATGATG', 15],
-                   ['seq5', 'seq5', 'Bludhaven', 'WANTCAT', 'ATGATGATG', 15],
-                   ['seq6', 'seq6', 'Bludhaven', 'WANTCAT', 'ATGATGATG', 15],
+    data=np.array([['seq1', 'seq1|seq2', 'Bludhaven', 'WANTCAT', 'ATGATGATG', 13, 28, 15],
+                   ['seq2', 'seq1|seq2', 'Bludhaven', 'WANTCAT', 'ATGATGATG', 13, 28, 15],
+                   ['seq3@0001', 'seq3@0001', 'Bludhaven', 'WANTCAT', 'ATGATGATG',  13, 28, 15],
+                   ['seq3@0002', 'seq3@0002', 'Bludhaven', 'WANTCAT', 'ATGATGATG',  13, 28, 15],
+                   ['seq5', 'seq5', 'Bludhaven', 'WANTCAT', 'ATGATGATG',  13, 28, 15],
+                   ['seq6', 'seq6', 'Bludhaven', 'WANTCAT', 'ATGATGATG',  13, 28, 15],
                    ]),
     index=pd.Index(['seq1', 'seq2', 'seq3', 'seq3', 'seq5', 'seq6'], 
                    name='db-seq'),
-    columns=['seq-name', 'kmer', 'region', 'fwd-primer', 'rev-primer', 'kmer-length']
+    columns=['seq-name', 'kmer', 'region', 'fwd-primer', 'rev-primer', 'fwd-pos', 'rev-pos', 'kmer-length']
     ))
 region2_db_map = Artifact.import_data('FeatureData[KmerMap]', pd.DataFrame(
-    data=np.array([['seq1', 'seq1', 'Gotham', 'CACCTCGTN', 'MTGACGTG', 15],
-                   ['seq2', 'seq2', 'Gotham', 'CACCTCGTN', 'MTGACGTG', 15],
-                   ['seq3', 'seq3', 'Gotham', 'CACCTCGTN', 'MTGACGTG', 15],
-                   ['seq4', 'seq4', 'Gotham', 'CACCTCGTN', 'MTGACGTG', 15],
-                   ['seq5', 'seq5', 'Gotham', 'CACCTCGTN', 'MTGACGTG', 15],
-                   ['seq6', 'seq6', 'Gotham', 'CACCTCGTN', 'MTGACGTG', 15],
+    data=np.array([['seq1', 'seq1', 'Gotham', 'CACCTCGTN', 'MTGACGTG', 53, 67, 15],
+                   ['seq2', 'seq2', 'Gotham', 'CACCTCGTN', 'MTGACGTG', 53, 67, 15],
+                   ['seq3', 'seq3', 'Gotham', 'CACCTCGTN', 'MTGACGTG', 53, 67, 15],
+                   ['seq4', 'seq4', 'Gotham', 'CACCTCGTN', 'MTGACGTG', 53, 67, 15],
+                   ['seq5', 'seq5', 'Gotham', 'CACCTCGTN', 'MTGACGTG', 53, 67, 15],
+                   ['seq6', 'seq6', 'Gotham', 'CACCTCGTN', 'MTGACGTG', 53, 67, 15],
                    ]),
     index=pd.Index(['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 'seq6'],
                     name='db-seq'),
-    columns=['seq-name', 'kmer', 'region', 'fwd-primer', 'rev-primer', 'kmer-length'],
+    columns=['seq-name', 'kmer', 'region', 'fwd-primer', 'rev-primer', 'fwd-pos', 'rev-pos',  'kmer-lengt28h'],
     ))
 region1_rep_seqs = Artifact.import_data('FeatureData[Sequence]', pd.Series({
     'asv01': DNA('GCGAAGCGGCTCAGG', metadata={'id': 'asv01'}),
