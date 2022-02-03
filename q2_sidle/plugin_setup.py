@@ -191,75 +191,91 @@ plugin.methods.register_function(function=q2_sidle.find_alignment_span_positions
 )
 
 
-# plugin.methods.register_function(function=q2_sidle.prepare_extracted_region,
-#     name='Prepares an already extracted region to be a kmer database.',
-#     description=('This function takes an amplified region of the database, '
-#                  'expands the degenerate sequences and collapses the '
-#                  'duplicated sequences under a single id that can be '
-#                  'untangled later.'),
-#     inputs={
-#         'sequences': FeatureData[Sequence]
-#     },
-#     outputs=[
-#         ('collapsed_kmers', FeatureData[Sequence]), 
-#         ('kmer_map', FeatureData[KmerMap]),
-#     ],
-#     parameters={
-#         'trim_length': Int,
-#         'region': Str,
-#         'fwd_primer': Str,
-#         'rev_primer': Str,
-#         'reverse_complement_rev': Bool,
-#         'reverse_complement_result': Bool,
-#         'chunk_size':  (Int % Range(1, None)),
-#         'n_workers': Int % Range(1, None),
-#         'client_address': Str,
-#         'debug': Bool,
+plugin.methods.register_function(function=q2_sidle.prepare_extracted_region,
+    name='Prepares an already extracted region to be a kmer database.',
+    description=('This function takes an amplified region of the database, '
+                 'expands the degenerate sequences and collapses the '
+                 'duplicated sequences under a single id that can be '
+                 'untangled later.'),
+    inputs={
+        'sequences': FeatureData[Sequence]
+    },
+    outputs=[
+        ('collapsed_kmers', FeatureData[Sequence]), 
+        ('kmer_map', FeatureData[KmerMap]),
+    ],
+    parameters={
+        'trim_length': Int,
+        'region': Str,
+        'fwd_primer': Str,
+        'rev_primer': Str,
+        'fwd_pos': Int,
+        'rev_pos': Int,
+        'reverse_complement_rev': Bool,
+        'reverse_complement_result': Bool,
+        'chunk_size':  (Int % Range(1, None)),
+        'n_workers': Int % Range(1, None),
+        'client_address': Str,
+        'debug': Bool,
 
-#     },
-#     input_descriptions={
-#         'sequences': 'The full length sequences from the reference database.',
-#     },
-#     output_descriptions={
-#         'collapsed_kmers': ('Reference kmer sequences for the region with '
-#                             'the degenerate sequences expanded and '
-#                             'duplicated sequences identified.'
-#                             ),
-#         'kmer_map': ('A mapping relationship between the name of the '
-#                      'sequence in the database and the kmer identifier used '
-#                      'in this region.'),
-#     },
-#     parameter_descriptions={
-#         'region': ('A unique description of the hypervariable region being '
-#                    'extracted.'),
-#         'trim_length': ('The length of the extracted regional kmers.'),
-#         'fwd_primer': ('The forward primer used to amplify the region of '
-#                        'interest.'),
-#         'rev_primer': ('The reverse primer used to amplify the region of '
-#                        'interest.'),
-#         'reverse_complement_rev': ('If the reverse primer was reverse '
-#                                    'complemented during sequence extraction. '
-#                                    'This is used to later generate fragments '
-#                                    'for the phylogenetic tree.'),
-#         'reverse_complement_result': ('Whether the sequences for alignment '
-#                                       'should be reverse complemented for '
-#                                       'alignment, for example, in cases where '
-#                                       'the forward and reverse primers do '
-#                                       'not overlap and you want to align with '
-#                                       'the reverse sequence.'),
-#         'chunk_size': ('The number of sequences to be analyzed in parallel '
-#                        'blocks.'),
-#         'n_workers': ('The number of jobs to initiate.'),
-#         'debug': ('Whether the function should be run in debug mode (without '
-#                   'a client) or not. `debug` superceeds all options.'),
-#         'client_address': ('The IP address for an existing cluster. '
-#                            'Please see the dask client documentation for more '
-#                            'information: '
-#                            'https://distributed.dask.org/en/latest/client.html'
-#                            ),
-#     },
-#     citations=[citations['Fuks2018']],
-# )
+    },
+    input_descriptions={
+        'sequences': 'The full length sequences from the reference database.',
+    },
+    output_descriptions={
+        'collapsed_kmers': ('Reference kmer sequences for the region with '
+                            'the degenerate sequences expanded and '
+                            'duplicated sequences identified.'
+                            ),
+        'kmer_map': ('A mapping relationship between the name of the '
+                     'sequence in the database and the kmer identifier used '
+                     'in this region.'),
+    },
+    # parameter_descriptions={
+    #     'region': ('A unique description of the hypervariable region being '
+    #                'extracted.'),
+    #     'trim_length': ('The length of the extracted regional kmers.'),
+    #     'fwd_primer': ('The forward primer used to amplify the region of '
+    #                    'interest. This is optional, and can be specified in'
+    #                    ' combination with or instead of a forward postion. '
+    #                    'It must be paired with a reverse primer.'),
+    #     'rev_primer': ('The reverse primer used to amplify the region of '
+    #                    'interest. This is optional, and can be specified in'
+    #                    ' combination with or instead of a reverse postion.'
+    #                    ' It must be paired with a formard primer.'),
+    #     'fwd_pos': ('The forward position of the sequences mapped to this'
+    #                 ' region in the reference alignment. This is optional, '
+    #                 'and can be specified in combination with or instead of'
+    #                 ' a forward primer. It must be paired with a reverse '
+    #                 'position.'),
+    #     'rev_pos': ('The reverse position of the region the the reference '
+    #                 'multiple sequence alignment. This can be specified in '
+    #                 'combination with or instead of a reverse primer, but '
+    #                 'a primer or position must be specified. The reverse '
+    #                 'position must be paired with a formard position.'),
+    #     'reverse_complement_rev': ('If the reverse primer was reverse '
+    #                                'complemented during sequence extraction. '
+    #                                'This is used to later generate fragments '
+    #                                'for the phylogenetic tree.'),
+    #     'reverse_complement_result': ('Whether the sequences for alignment '
+    #                                   'should be reverse complemented for '
+    #                                   'alignment, for example, in cases where '
+    #                                   'the forward and reverse primers do '
+    #                                   'not overlap and you want to align with '
+    #                                   'the reverse sequence.'),
+    #     'chunk_size': ('The number of sequences to be analyzed in parallel '
+    #                    'blocks.'),
+    #     'n_workers': ('The number of jobs to initiate.'),
+    #     'debug': ('Whether the function should be run in debug mode (without '
+    #               'a client) or not. `debug` superceeds all options.'),
+    #     'client_address': ('The IP address for an existing cluster. '
+    #                        'Please see the dask client documentation for more '
+    #                        'information: '
+    #                        'https://distributed.dask.org/en/latest/client.html'
+    #                        ),
+    # },
+    citations=[citations['Fuks2018']],
+)
 
 
 plugin.methods.register_function(function=q2_sidle.reconstruct_counts,
@@ -627,17 +643,17 @@ plugin.pipelines.register_function(function=q2_sidle.find_and_prepare_regional_s
                  'them into kmers for sidle alignment.'),
     inputs={
         'alignment': FeatureData[AlignedSequence],
-        'sequences': FeatureData[Sequence],
+        'amplicons': FeatureData[Sequence],
     },
     outputs=[
-        ('sub_alignment', FeatureData[AlignedSequence]),
-        ('expanded_sub_alignment',  FeatureData[AlignedSequence]),
-        ('span_summary', FeatureData[AlignmentPosSummary]),
         ('collapsed_kmers', FeatureData[Sequence]), 
         ('kmer_map', FeatureData[KmerMap]),
         ],
     parameters={
         'region': Str,
+        'fwd_primer': Str,
+        'rev_primer': Str,
+        'length': Int % Range(1, None),
         'subset_size': Float % Range(0, 1),
         'subset_seed': Int % Range(1, None),
         'add_fragments': Bool,
@@ -653,22 +669,16 @@ plugin.pipelines.register_function(function=q2_sidle.find_and_prepare_regional_s
                      'which are not of interest (i.e. high degenerate '
                      'sequences, sequences belonging to unamplified clades,'
                      ' or poorly annotated sequences.'),
-        'sequences': ('The representative ASV sequences that need to be '
+        'amplicons': ('The representative ASV sequences that need to be '
                       'positioned to find their starting regions. These '
                       'should all have been amplified with the same primer '
-                      'pair and come from the same starting region.'),
+                      'pair and come from the same starting region. If '
+                      'amplicons are not provided, a forward and reverse '
+                      'primer and length must be provided. Amplicons cannot '
+                      'be provided at the same time as primers and sequence '
+                      'length.'),
         },
     output_descriptions={
-        'sub_alignment': ('A subset of the original multiple seqence '
-                          'alignment used for determining the sequence '
-                          'positions.'),
-        'expanded_sub_alignment': ('The multiple sequence alignment with '
-                                   'representative sequences added to the '
-                                   'sub alignment.'),
-        'span_summary': ('The starting and ending positions of the set of '
-                         'representative sequences within the alignmnet. '
-                         'The starting and ending positions can be viewed '
-                         'as metadata.'),
         'collapsed_kmers': ('Reference kmer sequences for the region with '
                             'the degenerate sequences expanded and '
                             'duplicated sequences identified.'
@@ -680,6 +690,18 @@ plugin.pipelines.register_function(function=q2_sidle.find_and_prepare_regional_s
     parameter_descriptions={
         'region': ('A unique description of the hypervariable region being '
                    'extracted.'),
+        'fwd_primer': ('The forward primer used to amplify the region of '
+                        'interest. It must be provided with a reverse primer'
+                        ' and length, and it cannot be used in combination '
+                        'with a set of amplicons.'),
+        'rev_primer': ('The revesre primer used to amplify the region of '
+                        'interest. It must be provided with a forward primer'
+                        ' and length, and it cannot be used in combination '
+                        'with a set of amplicons.'),
+        'length': ("The final length of the database sequences being "
+                   'amplified. This must be provided with a forward primer '
+                   'and a reverse primer. It cannot be combined with'
+                   ' amplicon sequences.'),
         'subset_size': ('The fraction of sequences from the orignal alignment'
                         ' which should be used to construct the alignment '
                         'subset. More sequences may improve regional '

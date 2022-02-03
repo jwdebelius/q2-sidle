@@ -31,11 +31,12 @@ class TestTransform(TestCase):
 
     def test_kmer_map_to_dataframe(self):
         known = pd.DataFrame(
-            data=[['Batman', 'Batman', 'Gotham', 'WANTCAT', 'CATCATCAT', 50],
+            data=[['Batman', 'Batman', 'Gotham', 'WANTCAT', 'CATCATCAT', 
+                   np.nan, np.nan, 50],
                   ['Superman', 'Superman', 'Metropolis', 'CATDAD', 'DADCAT', 
-                   50]],
+                   np.nan, np.nan, 50]],
             columns=['seq-name', 'kmer', 'region', 'fwd-primer', 'rev-primer',
-                     'kmer-length'],
+                     'fwd-pos', 'rev-pos', 'kmer-length'],
             index=pd.Index(['Batman', 'Superman'], name='db-seq')
             )
         filepath = os.path.join(self.base_dir, 'kmer-map.tsv')
@@ -48,11 +49,11 @@ class TestTransform(TestCase):
     def test_kmer_map_to_metadata(self):
         known = pd.DataFrame(
             data=[['Batman', 'Batman', 'Batman', 'Gotham', 'WANTCAT', 
-                   'CATCATCAT', 50.],
-                  ['Superman', 'Superman', 'Superman', 'Metropolis', 'CATDAD',
-                   'DADCAT', 50.]],
+                   'CATCATCAT', np.nan, np.nan, 50.],
+                  ['Superman', 'Superman', 'Superman', 'Metropolis', 
+                   'CATDAD', 'DADCAT', np.nan, np.nan, 50.]],
             columns=['db-seq', 'seq-name', 'kmer', 'region', 'fwd-primer', 
-                     'rev-primer', 'kmer-length'],
+                     'rev-primer', 'fwd-pos', 'rev-pos', 'kmer-length'],
             index=pd.Index(['0', '1'], name='id')
         )
         filepath = os.path.join(self.base_dir, 'kmer-map.tsv')
@@ -60,12 +61,13 @@ class TestTransform(TestCase):
         test = t._2(format)
         self.assertTrue(isinstance(test, Metadata))
         columns = dict(test.columns)
-        npt.assert_array_equal(list(columns.keys()),
-                              ['db-seq', 'seq-name', 'kmer', 'region', 
-                              'fwd-primer', 'rev-primer', 'kmer-length']
-                               )
+        npt.assert_array_equal(
+            list(columns.keys()),
+            ['db-seq', 'seq-name', 'kmer', 'region', 'fwd-primer', 
+             'rev-primer', 'fwd-pos', 'rev-pos', 'kmer-length'],
+        )
         for k, v in columns.items():
-            if k == 'kmer-length':
+            if k in {'kmer-length', 'fwd-pos', 'rev-pos'}:
                 self.assertEqual(v.type, 'numeric')
             else:
                 self.assertEqual(v.type, 'categorical')
@@ -73,11 +75,12 @@ class TestTransform(TestCase):
         
     def test_kmer_map_delayed(self):
         known = pd.DataFrame(
-            data=[['Batman', 'Batman', 'Gotham', 'WANTCAT', 'CATCATCAT', 50],
+            data=[['Batman', 'Batman', 'Gotham', 'WANTCAT', 'CATCATCAT', 
+                   np.nan, np.nan, 50],
                   ['Superman', 'Superman', 'Metropolis', 'CATDAD', 'DADCAT', 
-                   50]],
+                   np.nan, np.nan, 50]],
             columns=['seq-name', 'kmer', 'region', 'fwd-primer', 'rev-primer',
-                     'kmer-length'],
+                     'fwd-pos', 'rev-pos', 'kmer-length'],
             index=pd.Index(['Batman', 'Superman'], name='db-seq')
             )
         filepath = os.path.join(self.base_dir, 'kmer-map.tsv')
@@ -88,11 +91,12 @@ class TestTransform(TestCase):
         
     def test_dataframe_to_kmer_map(self):
         input_ = pd.DataFrame(
-            data=[['Batman', 'Batman', 'Gotham', 'WANTCAT', 'CATCATCAT', 50],
+            data=[['Batman', 'Batman', 'Gotham', 'WANTCAT', 'CATCATCAT', 
+                    np.nan, np.nan, 50],
                   ['Superman', 'Superman', 'Metropolis', 'CATDAD', 'DADCAT', 
-                   50]],
+                   np.nan, np.nan, 50]],
             columns=['seq-name', 'kmer', 'region', 'fwd-primer', 'rev-primer',
-                     'kmer-length'],
+                     'fwd-pos', 'rev-pos', 'kmer-length'],
             index=pd.Index(['Batman', 'Superman'], name='db-seq')
             )
         test = t._4(input_)

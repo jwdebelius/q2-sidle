@@ -15,7 +15,7 @@ from qiime2 import Artifact, Metadata
 
 from q2_sidle._primerless import (reverse_complement_sequence,
                                   find_first_alignment_position,
-                                  find_span_positions,
+                                  find_alignment_span_positions,
                                   _generate_align_mask,
                                   _get_first_align_pos,
                                   )
@@ -129,7 +129,7 @@ class PrimerlessTest(TestCase):
             'troya':  skbio.DNA("GGGGG", metadata={'id': 'troya'}),
             })
         with self.assertRaises(ValueError) as err:
-            find_span_positions(
+            find_alignment_span_positions(
                 alignment=self.expanded_alignment,
                 representative_sequences=test_seqs,
             )

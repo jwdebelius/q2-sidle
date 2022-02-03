@@ -17,8 +17,9 @@ from q2_sidle.plugin_setup import plugin
 def _1(ff:KmerMapFormat) -> pd.DataFrame:
     df = pd.read_csv(str(ff), sep='\t', dtype=str)
     df = df[['db-seq', 'seq-name', 'kmer', 'region', 'fwd-primer', 
-             'rev-primer', 'kmer-length']]
+             'rev-primer', 'fwd-pos', 'rev-pos', 'kmer-length']]
     df[['kmer-length']] = df[['kmer-length']].astype(int)
+    df[[ 'fwd-pos', 'rev-pos']] = df[[ 'fwd-pos', 'rev-pos']].astype(float)
     df.sort_values(['db-seq', 'seq-name', 'kmer'], inplace=True)
     return df.set_index('db-seq')
 
@@ -27,8 +28,10 @@ def _1(ff:KmerMapFormat) -> pd.DataFrame:
 def _2(ff:KmerMapFormat) -> Metadata:
     df = pd.read_csv(str(ff), sep='\t', dtype=str)
     df = df[['db-seq', 'seq-name', 'kmer', 'region',
-             'fwd-primer', 'rev-primer',  'kmer-length']]
-    df[['kmer-length']] = df[['kmer-length']].astype(int)
+             'fwd-primer', 'rev-primer',  'fwd-pos', 'rev-pos', 
+             'kmer-length']]
+    df[['kmer-length', 'fwd-pos', 'rev-pos']] = \
+        df[['kmer-length', 'fwd-pos', 'rev-pos']].astype(float)
     df.sort_values(['db-seq', 'seq-name', 'kmer'], inplace=True)
     df.reset_index(drop=True, inplace=True)
     df.index = df.index.astype(str)

@@ -70,18 +70,21 @@ def prepare_extracted_region(sequences: DNAFASTAFormat,
         A mapping between the kmer sequence name and the the full database 
         sequence name, along with regional information
     """
-
     if pd.isnull([fwd_primer, fwd_pos]).all():
         raise ValueError('The forward primer or forward position '
-                         'must be specified. Please provide one value')
+                         'must be specified. Please provide one.')
     if pd.isnull([rev_primer, rev_pos]).all():
         raise ValueError('The reverse primer or reverse position '
-                         'must be specified. Please provide one value')
-    if ((pd.isnull([fwd_primer, rev_primer]).sum() == 1) | 
-            (pd.isnull([fwd_pos, rev_pos]).sum() == 1)):
-        raise ValueError('A primer and position have been supplied for '
-                         'the region. Please provide either a '
-                         'primer or a position.')
+                         'must be specified. Please provide one.')
+    if pd.isnull([fwd_pos, rev_pos]).sum() == 1:
+        raise ValueError('Positions must be supplied in pairs. '
+                         'Please supply both a forward and a '
+                         'reverse position for the region.')
+    if pd.isnull([fwd_primer, rev_primer]).sum() == 1:
+        raise ValueError('Primers must be supplied in pairs. '
+                         'Please supply both a forward and a '
+                         'reverse position for the region.')
+
 
     # Sets up the client
     _setup_dask_client(debug=debug, cluster_config=None,  
