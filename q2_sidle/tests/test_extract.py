@@ -18,6 +18,7 @@ from q2_sidle._extract import (prepare_extracted_region,
                                _expand_degenerate_gen,
                                _expand_ids,
                                _split_ids,
+                               _trim_primers,
                                )
 from q2_sidle.tests import test_set as ts
 
@@ -35,6 +36,15 @@ class ExtractTest(TestCase):
         self.fwd_primer = 'WANTCAT'
         self.rev_primer = 'CATCATCAT'
 
+        self.untrimmed = Artifact.import_data('FeatureData[Sequence]',
+            pd.Series({
+                'seq1': skbio.DNA('AAATCATGCGAAGCGGCTCAGGATGATGATG', metadata={'id': 'seq1'}),
+                'seq2': skbio.DNA('AAATCATGCGAAGCGGCTCAGGATGATGATG', metadata={'id': 'seq2'}),
+                'seq3': skbio.DNA('TACTCATWTCCGCGTTGGAGTTATGATGATG', metadata={'id': 'seq3'}),
+                'seq5': skbio.DNA('TACTCATCGTTTATGTATGCCCATGATGATG', metadata={'id': 'seq5'}),
+                'seq6': skbio.DNA('TACTCATCGTTTATGTATGCCTATGATGATG', metadata={'id': 'seq6'}),
+                })
+            )
         self.trimmed = Artifact.import_data('FeatureData[Sequence]',
             pd.Series({
                 'seq1': skbio.DNA('GCGAAGCGGCTCAGG', metadata={'id': 'seq1'}),
@@ -103,8 +113,8 @@ class ExtractTest(TestCase):
                                      )
 
         pdt.assert_series_equal(
-            test_seqs.view(pd.Series).astype(str).sort_values(),
-            self.region_1.view(pd.Series).astype(str).sort_values()
+            test_seqs.view(pd.Series).astype(str).sort_index(),
+            self.region_1.view(pd.Series).astype(str).sort_index()
         )
         test_map.sort_values(['db-seq', 'seq-name'], inplace=True)
         test_map = test_map[self.col_order]
@@ -144,6 +154,33 @@ class ExtractTest(TestCase):
             test_map[['fwd-pos', 'rev-pos']].astype(float)
         pdt.assert_frame_equal(test_map, known_map)
 
+    def test_prepared_extracted_region_untrimmed(self):
+        test_seqs, test_map = \
+            prepare_extracted_region(sequences=self.untrimmed, 
+                                     region='Bludhaven',
+                                     trim_length=15,
+                                     debug=True,
+                                     fwd_primer='WANTCAT',
+                                     rev_primer='CATCATCAT',
+                                     trim_primers=True,
+                                     fwd_pos=13,
+                                     rev_pos=28,
+                                     reverse_complement_rev=True,
+                                     reverse_complement_result=False,
+                                     )
+
+        pdt.assert_series_equal(
+            test_seqs.view(pd.Series).astype(str).sort_index(),
+            self.region_1.view(pd.Series).astype(str).sort_index()
+        )
+        test_map.sort_values(['db-seq', 'seq-name'], inplace=True)
+        test_map = test_map[self.col_order]
+        test_map['kmer-length'] =  test_map['kmer-length'].astype(int)
+        test_map[['fwd-pos', 'rev-pos']] = \
+            test_map[['fwd-pos', 'rev-pos']].astype(float)
+        pdt.assert_frame_equal(test_map,  
+                              self.region1_map.view(pd.DataFrame))
+
     def test_prepared_extracted_region_fwd_error(self):
         with self.assertRaises(ValueError) as err:
             prepare_extracted_region(sequences=self.trimmed, 
@@ -158,6 +195,7 @@ class ExtractTest(TestCase):
             'The forward primer or forward position '
             'must be specified. Please provide one.'
             )
+
     def test_prepared_extracted_region_rev_error(self):
         with self.assertRaises(ValueError) as err:
             prepare_extracted_region(sequences=self.trimmed, 
@@ -192,6 +230,7 @@ class ExtractTest(TestCase):
             'Please supply both a forward and a '
             'reverse position for the region.'
             )
+
     def test_prepared_extracted_region_mismatch_primer(self):
         with self.assertRaises(ValueError) as err:
             prepare_extracted_region(sequences=self.trimmed, 
@@ -302,6 +341,30 @@ class ExtractTest(TestCase):
         test.sort_values(['kmer', 'seq-name'], inplace=True)
         test.reset_index(drop=True, inplace=True)
         pdt.assert_frame_equal(known, test)
+
+    def test_trim_primers_no_degen(self):
+        sequences = pd.DataFrame.from_dict(
+            data={'seq1': {'sequence': 'Jason Todd was Robin and Red Hood'}
+                  },
+            orient='index'
+            )
+        fwd_primer = 'Jason '
+        rev_primer = ' and'
+        known = pd.Series({'seq1': 'Todd was Robin'}, name='sequence')
+        test = _trim_primers(sequences, fwd_primer, rev_primer)
+        pdt.assert_series_equal(known, test['sequence'])
+
+    def test_trim_primers_degen(self):
+        sequences = pd.DataFrame.from_dict(
+            data={'seq1': {'sequence': 'Cass Cain is Batman and Black Bat'}
+                  },
+            orient='index',
+            )
+        fwd_primer = 'Nass '
+        rev_primer = ' and'
+        known = pd.Series({'seq1': 'Cain is Batman'}, name='sequence')
+        test = _trim_primers(sequences, fwd_primer, rev_primer)
+        pdt.assert_series_equal(known, test['sequence'])
 
 
 

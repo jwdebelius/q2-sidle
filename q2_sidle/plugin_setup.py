@@ -211,6 +211,7 @@ plugin.methods.register_function(function=q2_sidle.prepare_extracted_region,
         'rev_primer': Str,
         'fwd_pos': Int,
         'rev_pos': Int,
+        'trim_primers': Bool,
         'reverse_complement_rev': Bool,
         'reverse_complement_result': Bool,
         'chunk_size':  (Int % Range(1, None)),
@@ -231,49 +232,54 @@ plugin.methods.register_function(function=q2_sidle.prepare_extracted_region,
                      'sequence in the database and the kmer identifier used '
                      'in this region.'),
     },
-    # parameter_descriptions={
-    #     'region': ('A unique description of the hypervariable region being '
-    #                'extracted.'),
-    #     'trim_length': ('The length of the extracted regional kmers.'),
-    #     'fwd_primer': ('The forward primer used to amplify the region of '
-    #                    'interest. This is optional, and can be specified in'
-    #                    ' combination with or instead of a forward postion. '
-    #                    'It must be paired with a reverse primer.'),
-    #     'rev_primer': ('The reverse primer used to amplify the region of '
-    #                    'interest. This is optional, and can be specified in'
-    #                    ' combination with or instead of a reverse postion.'
-    #                    ' It must be paired with a formard primer.'),
-    #     'fwd_pos': ('The forward position of the sequences mapped to this'
-    #                 ' region in the reference alignment. This is optional, '
-    #                 'and can be specified in combination with or instead of'
-    #                 ' a forward primer. It must be paired with a reverse '
-    #                 'position.'),
-    #     'rev_pos': ('The reverse position of the region the the reference '
-    #                 'multiple sequence alignment. This can be specified in '
-    #                 'combination with or instead of a reverse primer, but '
-    #                 'a primer or position must be specified. The reverse '
-    #                 'position must be paired with a formard position.'),
-    #     'reverse_complement_rev': ('If the reverse primer was reverse '
-    #                                'complemented during sequence extraction. '
-    #                                'This is used to later generate fragments '
-    #                                'for the phylogenetic tree.'),
-    #     'reverse_complement_result': ('Whether the sequences for alignment '
-    #                                   'should be reverse complemented for '
-    #                                   'alignment, for example, in cases where '
-    #                                   'the forward and reverse primers do '
-    #                                   'not overlap and you want to align with '
-    #                                   'the reverse sequence.'),
-    #     'chunk_size': ('The number of sequences to be analyzed in parallel '
-    #                    'blocks.'),
-    #     'n_workers': ('The number of jobs to initiate.'),
-    #     'debug': ('Whether the function should be run in debug mode (without '
-    #               'a client) or not. `debug` superceeds all options.'),
-    #     'client_address': ('The IP address for an existing cluster. '
-    #                        'Please see the dask client documentation for more '
-    #                        'information: '
-    #                        'https://distributed.dask.org/en/latest/client.html'
-    #                        ),
-    # },
+    parameter_descriptions={
+        'region': ('A unique description of the hypervariable region being '
+                   'extracted.'),
+        'trim_length': ('The length of the extracted regional kmers.'),
+        'fwd_primer': ('The forward primer used to amplify the region of '
+                       'interest. This is optional, and can be specified in'
+                       ' combination with or instead of a forward postion. '
+                       'It must be paired with a reverse primer.'),
+        'rev_primer': ('The reverse primer used to amplify the region of '
+                       'interest. This is optional, and can be specified in'
+                       ' combination with or instead of a reverse postion.'
+                       ' It must be paired with a formard primer.'),
+        'fwd_pos': ('The forward position of the sequences mapped to this'
+                    ' region in the reference alignment. This is optional, '
+                    'and can be specified in combination with or instead of'
+                    ' a forward primer. It must be paired with a reverse '
+                    'position.'),
+        'rev_pos': ('The reverse position of the region the the reference '
+                    'multiple sequence alignment. This can be specified in '
+                    'combination with or instead of a reverse primer, but '
+                    'a primer or position must be specified. The reverse '
+                    'position must be paired with a formard position.'),
+        'trim_primers': ('If the primers are present in the extracted '
+                         'sequences (for instance sequences extracted using'
+                         ' RESCRIPt trim alignment), and the primers are '
+                         'supplied, they can be trimmed. Primer trimming is '
+                         'applied before overall length trimming.'),
+        'reverse_complement_rev': ('If the reverse primer was reverse '
+                                   'complemented during sequence extraction. '
+                                   'This is used to later generate fragments '
+                                   'for the phylogenetic tree.'),
+        'reverse_complement_result': ('Whether the sequences for alignment '
+                                      'should be reverse complemented for '
+                                      'alignment, for example, in cases where '
+                                      'the forward and reverse primers do '
+                                      'not overlap and you want to align with '
+                                      'the reverse sequence.'),
+        'chunk_size': ('The number of sequences to be analyzed in parallel '
+                       'blocks.'),
+        'n_workers': ('The number of jobs to initiate.'),
+        'debug': ('Whether the function should be run in debug mode (without '
+                  'a client) or not. `debug` superceeds all options.'),
+        'client_address': ('The IP address for an existing cluster. '
+                           'Please see the dask client documentation for more '
+                           'information: '
+                           'https://distributed.dask.org/en/latest/client.html'
+                           ),
+    },
     citations=[citations['Fuks2018']],
 )
 
@@ -657,6 +663,7 @@ plugin.pipelines.register_function(function=q2_sidle.find_and_prepare_regional_s
         'subset_size': Float % Range(0, 1),
         'subset_seed': Int % Range(1, None),
         'add_fragments': Bool,
+        'reverse_complement_rev_primer': Bool,
         'chunk_size':  (Int % Range(1, None)),
         'n_workers': Int % Range(1, None),
         'client_address': Str,
@@ -714,6 +721,9 @@ plugin.pipelines.register_function(function=q2_sidle.find_and_prepare_regional_s
                           ' alignment as full sequences, or if they should '
                           'be allowed to be inserted with gaps. This is '
                           'most useful for short sequences like primers.'),
+        'reverse_complement_rev_primer': ('Whether the reverse primer should '
+                                         'be reverse complemented before '
+                                         'alignment'),
         'chunk_size': ('The number of sequences to be analyzed in parallel '
                        'blocks.'),
         'n_workers': ('The number of jobs to initiate.'),

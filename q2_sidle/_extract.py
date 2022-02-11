@@ -1,4 +1,5 @@
 import itertools as it
+import re
 import warnings
 
 warnings.filterwarnings('ignore', category=RuntimeWarning)
@@ -13,13 +14,8 @@ from skbio import DNA
 from qiime2 import Metadata
 from q2_types.feature_data import (DNAFASTAFormat, DNAIterator)
 from q2_sidle._dask_utils import (_setup_dask_client)
+from q2_sidle._utils import degen_sub2
 from q2_feature_classifier._skl import _chunks
-
-
-complement = {'A': 'T', 'T': 'A', 'G': 'C',  'C': 'G',
-              'R': 'Y', 'Y': 'R', 'S': 'S',  'W': 'W',
-              'K': 'M', 'M': 'K', 'B': 'V', 'V': 'B',
-              'D': 'H', 'H': 'D', 'N': 'N'}
 
 
 def prepare_extracted_region(sequences: DNAFASTAFormat, 
@@ -31,6 +27,7 @@ def prepare_extracted_region(sequences: DNAFASTAFormat,
     rev_pos:int=None,
     reverse_complement_rev:bool=True,
     reverse_complement_result:bool=False,
+    trim_primers:bool=False,
     chunk_size:int=10000, 
     debug:bool=False, 
     n_workers:int=1,
@@ -84,6 +81,10 @@ def prepare_extracted_region(sequences: DNAFASTAFormat,
         raise ValueError('Primers must be supplied in pairs. '
                          'Please supply both a forward and a '
                          'reverse position for the region.')
+    if pd.isnull([fwd_primer, rev_primer]).any() & trim_primers:
+        raise ValueError('A forward and reverse primer must be'
+                         ' supplied to trim the primers from the'
+                         ' extracted region.')
 
 
     # Sets up the client
@@ -91,16 +92,26 @@ def prepare_extracted_region(sequences: DNAFASTAFormat,
                        n_workers=n_workers, address=client_address)
 
     # Reverse complements the reverse primer
-    if reverse_complement_rev:
+    if reverse_complement_rev &  ~pd.isnull(rev_primer):
         rev_primer = str(DNA(rev_primer).reverse_complement())
 
     # Reads in the sequences
     sequences = sequences.view(DNAIterator)
     seq_blocks = [dask.delayed(_block_seqs)(seq)
                   for seq in _chunks(sequences, int((chunk_size)))]
+
+    # Trims primers, if necessary
+    if trim_primers:
+        clean_seqs = [
+            dask.delayed(_trim_primers)(seqs, fwd_primer, rev_primer)
+            for seqs in seq_blocks
+            ]
+    else:
+        clean_seqs = seq_blocks
+
     # Makes the fake extraction position based on the trim length
     fragment = [dask.delayed(_artifical_trim)(seq, trim_length)
-                for seq in seq_blocks]
+                for seq in clean_seqs]
     # Prepares the amplicon for collapsing
     condensed = dd.from_delayed([
         dask.delayed(_condense_seqs)(seq) for seq in fragment],
@@ -138,7 +149,6 @@ def _block_seqs(seqs, degen_thresh=10):
     """
     s2 = pd.concat([_expand_degenerate_gen(seq, degen_thresh=degen_thresh) 
                     for seq in seqs]).astype(str)
-
     s2.index.set_names('seq-name', inplace=True)
     s2.index = s2.index.astype(str)
     s2.name = 'sequence'
@@ -261,3 +271,39 @@ def _split_ids(ids):
     kmers = kmers.melt(id_vars='kmer', value_name='seq-name')
     kmers.drop(columns=['variable'], inplace=True)
     return kmers.dropna()
+
+
+def _trim_primers(sequences, fwd_primer, rev_primer):
+    """
+    Trims off primers if they're still in the alignment.
+
+    This is mostly for primer-based extraction with trim alignment.
+    """
+    # Expands the degenerate primers
+    for ori_, exp_ in degen_sub2.items():
+        fwd_primer = fwd_primer.replace(ori_, exp_)
+        rev_primer = rev_primer.replace(ori_, exp_)
+
+    def _find_positions(seq, primer):
+        match = re.search(primer, seq)
+        return pd.Series({'start': match.start(), 'end': match.end()})
+
+    fwd_span = sequences['sequence'].apply(_find_positions, primer=fwd_primer)
+    rev_span = sequences['sequence'].apply(_find_positions, primer=rev_primer)
+
+    combine = pd.DataFrame({'sequence': sequences['sequence'], 
+                            'left': fwd_span['end'],
+                            'right': rev_span['start'],
+                            })
+    trimmed = sequences.copy()
+    trimmed['sequence'] = combine.apply(
+        lambda x: x['sequence'][x['left']:x['right']], 
+        axis=1
+        )
+
+    return trimmed.astype(object)
+
+
+
+
+
