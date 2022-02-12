@@ -1,5 +1,13 @@
+import copy
+import re
+
+import numpy as np
 import pandas as pd
+from skbio import DNA
+
 from qiime2 import Metadata
+
+from q2_sidle._utils import degen, degenerate_map
 
 def sidle_reconstruction(ctx, 
                          region, 
@@ -146,11 +154,15 @@ def map_alignment_positions(ctx,
 
 def find_and_prepare_regional_seqs(ctx,
                                    alignment,
-                                   sequences,
                                    region,
+                                   amplicons=None,
+                                   fwd_primer=None,
+                                   rev_primer=None,
+                                   length=None,
                                    subset_size=0.1,
                                    subset_seed=None,
                                    add_fragments=False,
+                                   reverse_complement_rev_primer=True,
                                    chunk_size=10000, 
                                    debug=False, 
                                    n_workers=1,
@@ -164,70 +176,95 @@ def find_and_prepare_regional_seqs(ctx,
     filter_seqs = ctx.get_action('rescript', 'filter_seqs_length')
     prep_seqs = ctx.get_action('sidle', 'prepare_extracted_region')
 
-    rep_seq_lens = \
-        sequences.view(pd.Series).astype(str).apply(lambda x: len(x))
-    rep_seq_lens = rep_seq_lens.value_counts()
-    if len(rep_seq_lens.index) > 1:
-        raise ValueError('The representative sequences are of multiple '
-                         'lengths. Please trim the representative sequences'
-                         ' to a consistent length before using them for '
-                         'extraction.')
-    else:
-        length = rep_seq_lens.index[0]
+    if pd.isnull([amplicons, fwd_primer, rev_primer, length]).all():
+        raise ValueError('You must provide sequences, or a forward'
+                         ' and reverse primer pair.')
+    elif (pd.isnull([fwd_primer, rev_primer, length]).sum() in {0, 3}) == False:
+        raise ValueError("You must either specify both a forward "
+                         "primer and a reverse primer, or skip "
+                         "the primer pair.")
+    elif pd.isnull(amplicons) == pd.isnull(fwd_primer):
+        raise ValueError('This function accepts a pair of primers and length'
+                         ' or a set of references sequences. '
+                         'Please only provide one.')
 
-    print('Subsampling reference alignment')
-    if subset_seed is None:
-        subset_seed = np.random.randint(0, 9999, 1)
-    small_align, = subsample_alignment(sequences=alignment,
-                                       random_seed=subset_seed,
-                                       subsample_size=subset_size,
-                                       )
+    # Determines if we should use the amplicons or if we should just trim the primers
+    trim_primers = pd.isnull(amplicons)
 
-    print('Aligning representative sequences to reference')
-    expanded, = expand_alignment(alignment=small_align,
-                                 sequences=sequences,
-                                 addfragments=add_fragments,
-                                 n_threads=n_workers,
+    if (trim_primers == False):
+        rep_seq_lens = \
+            amplicons.view(pd.Series).astype(str).apply(lambda x: len(x))
+        rep_seq_lens = rep_seq_lens.value_counts()
+        if len(rep_seq_lens.index) > 1:
+            raise ValueError('The representative sequences are of multiple '
+                             'lengths. Please trim the representative sequences'
+                             ' to a consistent length before using them for '
+                             'extraction.')
+        else:
+            length = rep_seq_lens.index[0]
+
+        print('Subsampling reference alignment')
+        if subset_seed is None:
+            subset_seed = np.random.randint(0, 9999, 1)
+        small_align, = subsample_alignment(sequences=alignment,
+                                           random_seed=subset_seed,
+                                           subsample_size=subset_size,
+                                           )
+
+        print('Aligning representative sequences to reference')
+        expanded, = expand_alignment(alignment=small_align,
+                                     sequences=amplicons,
+                                     addfragments=add_fragments,
+                                     n_threads=n_workers,
+                                     )
+     
+        print('Finding alignment positions')
+        span_summary, = get_span(alignment=expanded, 
+                                 representative_sequences=amplicons, 
+                                 region_name=region
                                  )
- 
-    print('Finding alignment positions')
-    span_summary, = get_span(alignment=expanded, 
-                             representative_sequences=sequences, 
-                             region_name=region
-                             )
-    print(span_summary.view(Metadata).to_dataframe().values)
-    span2 =  span_summary.view(Metadata).to_dataframe().astype(int)
-    [[left, right]] = span2.values
-    print(left, right)
+        span2 =  span_summary.view(Metadata).to_dataframe().astype(int)
+        [[left, right]] = span2.values
 
-    print('Extracting and degapping reference sequences')
-    sub_ref_align, = extract_positions(aligned_sequences=alignment,
-                                       position_start=left,
-                                       position_end=right,
+        print('Extracting and degapping reference sequences')
+        sub_ref_align, = extract_positions(aligned_sequences=alignment,
+                                           position_start=left,
+                                           position_end=right,
+                                           )
+    else:
+        if reverse_complement_rev_primer:
+            rev_primer = str(DNA(rev_primer).reverse_complement())
 
-                                       )
-    sub_ref_seq, = degap_seqs(aligned_sequences=sub_ref_align
-                              )
-    sub_ref_len, sub_ref_discard = filter_seqs(sequences=sub_ref_seq, 
-                                               global_min=int(length * 0.9), 
-                                               global_max=length+1,
-                                               )
+        sub_ref_align, = extract_positions(aligned_sequences=alignment,
+                                           primer_fwd=fwd_primer,
+                                           primer_rev=rev_primer,
+                                           )
+        [left, right] = [None, None]
+
+    sub_ref_seq, = degap_seqs(aligned_sequences=sub_ref_align)
+    sub_ref_len, sub_ref_discard = \
+        filter_seqs(sequences=sub_ref_seq, 
+                    global_min=int(np.floor(length * 0.75)), 
+                   )
 
     print('Preparing regional sidle database')
-    kmer_seqs, kmer_map = prep_seqs(sequences=sub_ref_len,
-                                    trim_length=length,
-                                    region=region,
-                                    fwd_primer=str(left),
-                                    rev_primer=str(right),
-                                    reverse_complement_rev=False,
-                                    chunk_size=chunk_size,
-                                    n_workers=n_workers,
-                                    client_address=client_address,
-                                    debug=debug,
-                                    )
+    kmer_seqs, kmer_map = \
+        prep_seqs(sequences=sub_ref_len,
+                 trim_length=length,
+                 region=region,
+                 fwd_primer=fwd_primer,
+                 rev_primer=rev_primer,
+                 fwd_pos=left,
+                 rev_pos=right,
+                 trim_primers=trim_primers,
+                 reverse_complement_rev=reverse_complement_rev_primer,
+                 chunk_size=chunk_size,
+                 n_workers=n_workers,
+                 client_address=client_address,
+                 debug=debug,
+                 )
 
-    output_arts = (small_align, expanded, span_summary,
-                   kmer_seqs, kmer_map)
+    output_arts = (kmer_seqs, kmer_map)
 
     return output_arts
 

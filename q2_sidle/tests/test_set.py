@@ -105,7 +105,7 @@ region2_db_map = Artifact.import_data('FeatureData[KmerMap]', pd.DataFrame(
                    ]),
     index=pd.Index(['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 'seq6'],
                     name='db-seq'),
-    columns=['seq-name', 'kmer', 'region', 'fwd-primer', 'rev-primer', 'fwd-pos', 'rev-pos',  'kmer-lengt28h'],
+    columns=['seq-name', 'kmer', 'region', 'fwd-primer', 'rev-primer', 'fwd-pos', 'rev-pos',  'kmer-length'],
     ))
 region1_rep_seqs = Artifact.import_data('FeatureData[Sequence]', pd.Series({
     'asv01': DNA('GCGAAGCGGCTCAGG', metadata={'id': 'asv01'}),

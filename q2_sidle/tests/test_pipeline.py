@@ -34,18 +34,19 @@ class PipelineTest(TestCase):
         self.seq_map = ts.seq_map
         self.database_summary = ts.db_summary
         self.extra_alignment = ts.extra_alignment
-        self.ori_alignment = Artifact.import_data('FeatureData[AlignedSequence]', pd.Series(
-            data=[
-                skbio.DNA('-----AAATCATGCGAAGCGGCTCAGGATGATGATGGGTGAGTCACCTCGTAAGAGAGGCTGAATCCATGACGTG---ACCAGC', metadata={'id': 'seq1'}),
-                skbio.DNA('-----AAATCATGCGAAGCGGCTCAGGATGATGATGGGTGAGTCACCTCGTCAGAGTTTCTGAATCCATGACGTG---ACCAGC', metadata={'id': 'seq2'}),
-                skbio.DNA('TATGGTACTCATWTCCGCGTTGGAGTTATGATGATGGGGTGA-CACCTCGTTCCAGTTCCGCGCTTCATGACGTGCTGACC---', metadata={'id': 'seq3'}),
-                skbio.DNA('------------------------------AAGGCGGGTGAG-CACCTCGTCCCGGAGACGAGAGGCATGACGTG---ATCCGT', metadata={'id': 'seq4'}),
-                skbio.DNA('-AGGCTAGTCATCGTTTATGTATGCCCATGATGATGGGGTGAGCACCTCGTGTGGATGTAGAGCCACCTGACGTGC--ACCTG-', metadata={'id': 'seq5'}),
-                skbio.DNA('-AGGCTAGTCATCGTTTATGTATGCCCATGATGATGGGGTGAGCACCTCGTGAAAATGTAGAGCCACCTGACGTGC--ACC---', metadata={'id': 'seq6'}),
-                ],
-            index=pd.Index(['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 'seq6'],
-                            dtype='object')
-            )
+        self.ori_alignment = \
+            Artifact.import_data('FeatureData[AlignedSequence]', pd.Series(
+                data=[
+                    skbio.DNA('-----AAATCATGCGAAGCGGCTCAGGATGATGATGGGTGAGTCACCTCGTAAGAGAGGCTGAATCCATGACGTG---ACCAGC', metadata={'id': 'seq1'}),
+                    skbio.DNA('-----AAATCATGCGAAGCGGCTCAGGATGATGATGGGTGAGTCACCTCGTCAGAGTTTCTGAATCCATGACGTG---ACCAGC', metadata={'id': 'seq2'}),
+                    skbio.DNA('TATGGTACTCATWTCCGCGTTGGAGTTATGATGATGGGGTGA-CACCTCGTTCCAGTTCCGCGCTTCATGACGTGCTGACC---', metadata={'id': 'seq3'}),
+                    skbio.DNA('------------------------------AAGGCGGGTGAG-CACCTCGTCCCGGAGACGAGAGGCATGACGTG---ATCCGT', metadata={'id': 'seq4'}),
+                    skbio.DNA('-AGGCTAGTCATCGTTTATGTATGCCCATGATGATGGGGTGAGCACCTCGTGTGGATGTAGAGCCACCTGACGTGC--ACCTG-', metadata={'id': 'seq5'}),
+                    skbio.DNA('-AGGCTAGTCATCGTTTATGTATGCCCATGATGATGGGGTGAGCACCTCGTGAAAATGTAGAGCCACCTGACGTGC--ACC---', metadata={'id': 'seq6'}),
+                    ],
+                index=pd.Index(['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 'seq6'],
+                                dtype='object')
+                )
             )
         self.primerless_seqs = Artifact.import_data('FeatureData[Sequence]', pd.Series({
             'asv01': skbio.DNA('GCGAAGCGGCTCAGG', metadata={'id': 'asv01'}),
@@ -60,6 +61,13 @@ class PipelineTest(TestCase):
             'asv10': skbio.DNA('TGAGTWWGGGAGGGA', metadata={'id': 'asv10'}),
             })
             )
+        self.test_seq_short = Artifact.import_data(
+            'FeatureData[Sequence]', 
+            pd.Series({
+                'asv06': skbio.DNA('AGAGAGGCTGAATCC', metadata={'id': 'asv06'}),
+                'asv07': skbio.DNA('AGAGTTTCTGAATCC', metadata={'id': 'asv07'}),
+                'asv08': skbio.DNA('CCGGAGACGAGAGGC', metadata={'id': 'asv08'}),
+            }))
 
     # def test_sidle_reconstruction(self):
     #     mapping, summary, counts, taxonomy  = sidle.sidle_reconstruction(
@@ -90,7 +98,7 @@ class PipelineTest(TestCase):
     #     pdt.assert_series_equal(self.taxonomy.view(pd.Series),
     #                             taxonomy.view(pd.Series))
 
-    # def test_map_alignment_positions(self):
+    def test_map_alignment_positions(self):
     #     known = pd.DataFrame(
     #         data=np.vstack([
     #             np.hstack([np.array([12] * 5), np.array([52] * 3), 0, 28]),
@@ -121,7 +129,7 @@ class PipelineTest(TestCase):
     #     pdt.assert_frame_equal(known.to_dataframe(), 
     #                            starts.view(Metadata).to_dataframe())
 
-    def test_find_and_prepare_regional_seqs(self):
+    def test_find_and_prepare_regional_seqs_no_primers(self):
         test_seqs = Artifact.import_data('FeatureData[Sequence]', pd.Series({
                 'asv06': skbio.DNA('AGAGAGGCTGAATCC', metadata={'id': 'asv06'}),
                 'asv07': skbio.DNA('AGAGTTTCTGAATCC', metadata={'id': 'asv07'}),
@@ -135,39 +143,138 @@ class PipelineTest(TestCase):
         extra_alignment = self.extra_alignment.view(pd.Series)
         extra_alignment.drop(['asv01', 'asv02', 'asv03', 'asv04', 'asv05',
                              'asv09', 'asv10'], inplace=True)
+        kmer_map = pd.DataFrame(
+            data=np.array([['seq1', 'seq1', 'Gotham', np.nan, np.nan, 53., 67., 15],
+                           ['seq2', 'seq2', 'Gotham', np.nan, np.nan, 53, 67, 15],
+                           ['seq3', 'seq3', 'Gotham', np.nan, np.nan, 53, 67, 15],
+                           ['seq4', 'seq4', 'Gotham', np.nan, np.nan, 53, 67, 15],
+                           ['seq5', 'seq5', 'Gotham', np.nan, np.nan, 53, 67, 15],
+                           ['seq6', 'seq6', 'Gotham', np.nan, np.nan, 53, 67, 15],
+                            ], dtype=object),
+            index=pd.Index(['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 'seq6'],
+                            name='db-seq'),
+            columns=['seq-name', 'kmer', 'region', 'fwd-primer', 'rev-primer', 
+                     'fwd-pos', 'rev-pos', 'kmer-length'],
+            )
+        kmer_map[['fwd-pos', 'rev-pos']] = \
+            kmer_map[['fwd-pos', 'rev-pos']].astype(float)
+        kmer_map['kmer-length'] = kmer_map['kmer-length'].astype(int)
         pipeline_res = \
             sidle.find_and_prepare_regional_seqs(alignment=self.ori_alignment,
-                                                 sequences=test_seqs,
+                                                 amplicons=self.test_seq_short,
                                                  region='Gotham',
                                                  debug=True,
                                                  subset_size=0.95,
                                                  subset_seed=5,
                                                  add_fragments=True,
                                                  )
-        # print(pipeline_res)
-        pdt.assert_series_equal(
-            self.ori_alignment.view(pd.Series).astype(str),
-            pipeline_res.sub_alignment.view(pd.Series).astype(str)
-            )
-        pdt.assert_series_equal(
-            extra_alignment.astype(str), 
-            pipeline_res.expanded_sub_alignment.view(pd.Series).astype(str),
-            )
-        pdt.assert_frame_equal(
-            known_span_summary, 
-            pipeline_res.span_summary.view(Metadata).to_dataframe()
-            )
         pdt.assert_series_equal(
             self.kmer_seqs2.view(pd.Series).astype(str),
             pipeline_res.collapsed_kmers.view(pd.Series).astype(str)
             )
+        kmer_res = pipeline_res.kmer_map.view(pd.DataFrame)
+        pdt.assert_index_equal(kmer_map.columns, 
+                               kmer_res.columns)
         pdt.assert_frame_equal(
-            self.kmer_map2.view(pd.DataFrame),
-            pipeline_res.kmer_map.view(pd.DataFrame)
+            kmer_map,
+            kmer_res
             )
 
+    def test_find_and_prepare_regional_seqs_primers(self):
+        known = self.kmer_map2.view(pd.DataFrame).copy()
+        known['fwd-pos'] = np.nan
+        known['rev-pos'] = np.nan
 
+        pipeline_res = \
+            sidle.find_and_prepare_regional_seqs(alignment=self.ori_alignment,
+                                                 region='Gotham',
+                                                 fwd_primer='CACCTCGTN',
+                                                 rev_primer='MTGACGTG',
+                                                 length=15,
+                                                 debug=True,
+                                                 subset_size=0.95,
+                                                 subset_seed=5,
+                                                 add_fragments=True,
+                                                 # reverse_complement_rev_primer=False,
+                                                 )
+        pdt.assert_series_equal(
+            self.kmer_seqs2.view(pd.Series).astype(str),
+            pipeline_res.collapsed_kmers.view(pd.Series).astype(str)
+            )
+        pdt.assert_frame_equal(known, pipeline_res.kmer_map.view(pd.DataFrame))
 
+    def test_find_and_prepare_regional_seqs_all_error(self):
+        with self.assertRaises(ValueError) as err:
+            sidle.find_and_prepare_regional_seqs(alignment=self.ori_alignment,
+                                                 amplicons=self.test_seq_short,
+                                                 region='Gotham',
+                                                 fwd_primer='CACCTCGTN',
+                                                 rev_primer='MTGACGTG',
+                                                 length=15,
+                                                 debug=True,
+                                                 subset_size=0.95,
+                                                 subset_seed=5,
+                                                 add_fragments=True,
+                                                 )
+        self.assertEqual(str(err.exception),
+                         ('This function accepts a pair of primers and length'
+                         ' or a set of references sequences. '
+                         'Please only provide one.')
+                        )
+
+    def test_find_and_prepare_regional_seqs_needs_length(self):
+        with self.assertRaises(ValueError) as err:
+            sidle.find_and_prepare_regional_seqs(alignment=self.ori_alignment,
+                                                 region='Gotham',
+                                                 fwd_primer='CACCTCGTN',
+                                                 rev_primer='MTGACGTG',
+                                                 debug=True,
+                                                 subset_size=0.95,
+                                                 subset_seed=5,
+                                                 add_fragments=True,
+                                                 )
+        self.assertEqual(str(err.exception),
+                         ("You must either specify both a forward primer and "
+                            "a reverse primer, or skip the primer pair.")
+                         )
+
+    def test_find_and_prepare_regional_seqs_no_input_error(self):
+        with self.assertRaises(ValueError) as err:
+            sidle.find_and_prepare_regional_seqs(alignment=self.ori_alignment,
+                                                 region='Gotham',
+                                                 debug=True,
+                                                 subset_size=0.95,
+                                                 subset_seed=5,
+                                                 add_fragments=True,
+                                                 )
+        self.assertEqual(str(err.exception),
+                         ('You must provide sequences, or a forward'
+                         ' and reverse primer pair.')
+                         )
+
+    def test_find_and_prepare_regional_seqs_var_length_error(self):
+        test_seq_short = Artifact.import_data(
+            'FeatureData[Sequence]', 
+            pd.Series({
+                'asv06': skbio.DNA('AGAGAGGCTGAATCCAAA', metadata={'id': 'asv06'}),
+                'asv07': skbio.DNA('AGAGTTTCTGAATCC', metadata={'id': 'asv07'}),
+                'asv08': skbio.DNA('CCGGAGACGAGAGGC', metadata={'id': 'asv08'}),
+            }))
+        with self.assertRaises(ValueError) as err:
+            sidle.find_and_prepare_regional_seqs(alignment=self.ori_alignment,
+                                                 amplicons=test_seq_short,
+                                                 region='Gotham',
+                                                 debug=True,
+                                                 subset_size=0.95,
+                                                 subset_seed=5,
+                                                 add_fragments=True,
+                                                 )
+        self.assertEqual(str(err.exception),
+                         ('The representative sequences are of multiple '
+                          'lengths. Please trim the representative sequences'
+                          ' to a consistent length before using them for '
+                          'extraction.')
+                         )
 
 
 if __name__ == '__main__':
