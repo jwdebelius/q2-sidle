@@ -37,21 +37,6 @@ class PluginSetupTest(TestCase):
         format = KmerMapFormat(filepath, mode='r')
         format.validate()
 
-    def test_kmer_map_format_validate_column_fail(self):
-        filepath = os.path.join(self.base_dir, 'kmer-map-col-fail.tsv')
-        format = KmerMapFormat(filepath, mode='r')
-        with self.assertRaises(ValidationError) as err:
-            format.validate()
-        self.assertEqual(str(err.exception), 
-                         'The KmerMap does not contain the correct columns')
-
-    def test_kmer_map_format_validate_column_kmer_fail(self):
-        filepath = os.path.join(self.base_dir, 'kmer-map-kmer-fail.tsv')
-        format = KmerMapFormat(filepath, mode='r')
-        with self.assertRaises(ValidationError) as err:
-            format.validate()
-        self.assertEqual(str(err.exception), 'The kmer-length column must be numeric')
-
     def test_kmer_map_dir_format_validate_pass(self):
         shutil.copy(os.path.join(self.base_dir, 'kmer-map.tsv'), self.tmp)
         format = KmerMapDirFmt(self.tmp, mode='r')
