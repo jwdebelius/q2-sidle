@@ -69,65 +69,65 @@ class PipelineTest(TestCase):
                 'asv08': skbio.DNA('CCGGAGACGAGAGGC', metadata={'id': 'asv08'}),
             }))
 
-    # def test_sidle_reconstruction(self):
-    #     mapping, summary, counts, taxonomy  = sidle.sidle_reconstruction(
-    #         region=['Bludhaven', 'Gotham'],
-    #         kmer_map=[self.kmer_map1, self.kmer_map2],
-    #         regional_alignment=[self.align1, self.align2],
-    #         regional_table=[self.table1, self.table2],
-    #         reference_taxonomy=self.taxonomy,
-    #         database='greengenes',
-    #         define_missing='ignore',
-    #         min_counts=10,
-    #         debug=True
-    #         )
-    #     pdt.assert_frame_equal(mapping.view(pd.DataFrame), 
-    #                            self.seq_map.view(pd.DataFrame))
-    #     pdt.assert_frame_equal(summary.view(pd.DataFrame),
-    #                            self.database_summary.view(pd.DataFrame))
-    #     pdt.assert_frame_equal(
-    #         counts.view(pd.DataFrame),
-    #         pd.DataFrame( 
-    #             data=np.array([[100.,  50,   0,  50,  50, 50],
-    #                            [100.,  25, 100,  25,  25, 25],
-    #                            [  0., 100, 100,   0,  50, 50]]),
-    #             index=pd.Index(['sample1', 'sample2', 'sample3']),
-    #             columns=['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 'seq6']
-    #         )
-    #     )
-    #     pdt.assert_series_equal(self.taxonomy.view(pd.Series),
-    #                             taxonomy.view(pd.Series))
+    def test_sidle_reconstruction(self):
+        mapping, summary, counts, taxonomy  = sidle.sidle_reconstruction(
+            region=['Bludhaven', 'Gotham'],
+            kmer_map=[self.kmer_map1, self.kmer_map2],
+            regional_alignment=[self.align1, self.align2],
+            regional_table=[self.table1, self.table2],
+            reference_taxonomy=self.taxonomy,
+            database='greengenes',
+            define_missing='ignore',
+            min_counts=10,
+            debug=True
+            )
+        pdt.assert_frame_equal(mapping.view(pd.DataFrame), 
+                               self.seq_map.view(pd.DataFrame))
+        pdt.assert_frame_equal(summary.view(pd.DataFrame),
+                               self.database_summary.view(pd.DataFrame))
+        pdt.assert_frame_equal(
+            counts.view(pd.DataFrame),
+            pd.DataFrame( 
+                data=np.array([[100.,  50,   0,  50,  50, 50],
+                               [100.,  25, 100,  25,  25, 25],
+                               [  0., 100, 100,   0,  50, 50]]),
+                index=pd.Index(['sample1', 'sample2', 'sample3']),
+                columns=['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 'seq6']
+            )
+        )
+        pdt.assert_series_equal(self.taxonomy.view(pd.Series),
+                                taxonomy.view(pd.Series))
 
     def test_map_alignment_positions(self):
-    #     known = pd.DataFrame(
-    #         data=np.vstack([
-    #             np.hstack([np.array([12] * 5), np.array([52] * 3), 0, 28]),
-    #             np.array([101.] * 10),
-    #             ]).T,
-    #         columns=['starting-position', 'sequence-counts'],
-    #         index=pd.Index(['asv01', 'asv02', 'asv03', 'asv04', 'asv05', 
-    #                         'asv06', 'asv07', 'asv08', 'asv09', 'asv10'],
-    #                        name='feature-id'),
-    #         )
-    #     known['starting-position'] = \
-    #         known['starting-position'].astype(int).astype(str)
-    #     known['direction'] = 'fwd'
-    #     known = Metadata(known)
-    #     expanded, starts, viz_ = \
-    #     sidle.map_alignment_positions(
-    #         alignment=self.ori_alignment,
-    #         sequences=self.primerless_seqs,
-    #         direction='fwd',
-    #         add_fragments=True, # Improves testing behavior
-    #         )
-    #     self.assertEqual(str(expanded.type), 'FeatureData[AlignedSequence]')
-    #     self.assertEqual(str(starts.type), 'FeatureData[AlignmentPosSummary]')
-    #     self.assertTrue(isinstance(viz_, Visualization))
+        known = pd.DataFrame(
+            data=np.vstack([
+                np.hstack([np.array([12] * 5), np.array([52] * 3), 0, 28]),
+                np.array([101.] * 10),
+                ]).T,
+            columns=['starting-position', 'sequence-counts'],
+            index=pd.Index(['asv01', 'asv02', 'asv03', 'asv04', 'asv05', 
+                            'asv06', 'asv07', 'asv08', 'asv09', 'asv10'],
+                           name='feature-id'),
+            )
+        known['starting-position'] = \
+            known['starting-position'].astype(int).astype(str)
+        known['direction'] = 'fwd'
+        known = Metadata(known)
+        expanded, starts, viz_ = \
+        sidle.map_alignment_positions(
+            alignment=self.ori_alignment,
+            sequences=self.primerless_seqs,
+            direction='fwd',
+            add_fragments=True, # Improves testing behavior
+            )
+        self.assertEqual(str(expanded.type), 'FeatureData[AlignedSequence]')
+        self.assertEqual(str(starts.type), 'FeatureData[AlignmentPosSummary]')
+        self.assertTrue(isinstance(viz_, Visualization))
 
-    #     pdt.assert_series_equal(self.extra_alignment.view(pd.Series).astype(str),
-    #                            expanded.view(pd.Series).astype(str))
-    #     pdt.assert_frame_equal(known.to_dataframe(), 
-    #                            starts.view(Metadata).to_dataframe())
+        pdt.assert_series_equal(self.extra_alignment.view(pd.Series).astype(str),
+                               expanded.view(pd.Series).astype(str))
+        pdt.assert_frame_equal(known.to_dataframe(), 
+                               starts.view(Metadata).to_dataframe())
 
     def test_find_and_prepare_regional_seqs_no_primers(self):
         test_seqs = Artifact.import_data('FeatureData[Sequence]', pd.Series({
