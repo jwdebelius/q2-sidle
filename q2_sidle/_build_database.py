@@ -212,7 +212,8 @@ def reconstruct_database(
         [dask.delayed(_filter_to_defined)(kmer, combined.index)
          for kmer in kmer_map],
          meta=[('seq-name', 'str'), ('region', 'str'), 
-               ('fwd-primer', 'str'), ('kmer-length', int)]
+               ('fwd-primer', 'str'), ('fwd-pos', float), ('rev-pos', float), 
+               ('kmer-length', int)]
     )
     tidy_db = tidy_db.compute()
     tidy_db['clean_name'] = combined
