@@ -175,16 +175,16 @@ taxonomy_gg = pd.Series(
 taxonomy =  Artifact.import_data('FeatureData[Taxonomy]', taxonomy_gg)
 
 seq_map = pd.DataFrame(
-            data=np.array([['seq1', 0, 'WANTCAT', 1, 'CACCTCGTN', 15],
-                           ['seq2', 0, 'WANTCAT', 1, 'CACCTCGTN', 15],
-                           ['seq3', 0, 'WANTCAT', 1, 'CACCTCGTN', 15],
-                           ['seq4', 1, 'CACCTCGTN', 1, 'CACCTCGTN', 15],
-                           ['seq5', 0, 'WANTCAT', 1, 'CACCTCGTN', 15],
-                           ['seq6', 0, 'WANTCAT', 1, 'CACCTCGTN', 15],
+            data=np.array([['seq1', 0, 'WANTCAT', 13,  1, 'CACCTCGTN', 53, 15],
+                           ['seq2', 0, 'WANTCAT', 13, 1, 'CACCTCGTN', 53, 15],
+                           ['seq3', 0, 'WANTCAT', 13, 1, 'CACCTCGTN', 53, 15],
+                           ['seq4', 1, 'CACCTCGTN', 53, 1, 'CACCTCGTN', 53, 15],
+                           ['seq5', 0, 'WANTCAT', 13, 1, 'CACCTCGTN', 53, 15],
+                           ['seq6', 0, 'WANTCAT', 13, 1, 'CACCTCGTN', 53, 15],
                            ]),
             index=pd.Index(['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 'seq6'], name='db-seq'),
-            columns=['clean_name', 'first-region', 'first-fwd-primer', 
-                     'last-region', 'last-fwd-primer', 'last-kmer-length']
+            columns=['clean_name', 'first-region', 'first-fwd-primer', 'first-fwd-pos',
+                     'last-region', 'last-fwd-primer', 'last-fwd-pos', 'last-kmer-length']
             )
 seq_map = Artifact.import_data('FeatureData[SidleReconstruction]', seq_map)
     

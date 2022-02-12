@@ -21,8 +21,8 @@ from q2_sidle._utils import (degen_reps,
 
 def reconstruct_database(
     region: str,
-    regional_alignment: pd.DataFrame,
     kmer_map: Delayed,
+    regional_alignment: pd.DataFrame=None,
     count_degenerates: bool=True,
     block_size: int=10000,
     debug: bool=False, 
@@ -62,26 +62,31 @@ def reconstruct_database(
     region_order, region_names, num_regions = _check_regions(region)
     
     # Imports the alignment maps and gets the kmers that were aligned
-    align_map = pd.concat(
-        axis=0, 
-        sort=False, 
-        objs=regional_alignment)
-    align_map.drop_duplicates(['asv', 'kmer'], inplace=True)
-    align_map.replace({'region': region_order}, inplace=True)
-    aligned_kmers = _get_unique_kmers(align_map['kmer'])
+    if regional_alignment is not None:
+        align_map = pd.concat(
+            axis=0, 
+            sort=False, 
+            objs=regional_alignment)
+        align_map.drop_duplicates(['asv', 'kmer'], inplace=True)
+        align_map.replace({'region': region_order}, inplace=True)
+        aligned_kmers = _get_unique_kmers(align_map['kmer'])
+    else:
+        aligned_kmers = None
     print('aligment map loaded')
     
-    ### Sets up the kmer database
+    ## Sets up the kmer database
     # Pulls out the kmers that are of interest based on their aligned 
     # sequences
     kmer_alignments = [
         dask.delayed(_filter_to_aligned)(kmer, aligned_kmers) 
         for kmer in kmer_map
     ]
+
     # Gets the full list of sequences to be aligned and subsets the kmer map 
     # to retain only these sequences
-    db_seqs = dask.compute(*[_pull_unique(df) for df in kmer_alignments])
+    db_seqs = [_pull_unique(df) for df in kmer_alignments]
     db_seqs = np.unique(np.hstack(dask.compute(*db_seqs)))
+
     print('database kmers identified')
     mapped_kmer = dd.from_delayed(
         dfs=[dask.delayed(_build_region_db)(df, db_seqs) 
@@ -118,7 +123,6 @@ def reconstruct_database(
     mapped_kmer['kmer'] = mapped_kmer['kmer'].apply(
         _check_db_list, meta=('kmer', 'str'), ref_seqs=set(db_seqs)
     )
-
 
     region_db = mapped_kmer.groupby('composite')['kmer'].apply(
         _get_regional_seqs,
@@ -174,7 +178,7 @@ def reconstruct_database(
         )
     print('round 2 tidied')
     
-    # Pulls out the remaining sequences and preps them to be filtered
+    # # Pulls out the remaining sequences and preps them to be filtered
     print('tidying round 3')
     unkempt = region_db2.loc[~region_db2['db-seq'].isin(tidy_seqs_no2)]
     unkempt = unkempt.groupby('db-seq').apply(
@@ -212,7 +216,7 @@ def reconstruct_database(
         [dask.delayed(_filter_to_defined)(kmer, combined.index)
          for kmer in kmer_map],
          meta=[('seq-name', 'str'), ('region', 'str'), 
-               ('fwd-primer', 'str'), ('fwd-pos', float), ('rev-pos', float), 
+               ('fwd-primer', 'str'), ('fwd-pos', float),
                ('kmer-length', int)]
     )
     tidy_db = tidy_db.compute()
@@ -220,9 +224,9 @@ def reconstruct_database(
     tidy_db['region'] = tidy_db['region'].replace(region_order)
     tidy_db.sort_values(['db-seq', 'region'], ascending=True, inplace=True)
     first_= tidy_db.groupby('db-seq', sort=False).first()
-    first_fwd = first_[['region', 'fwd-primer']]
+    first_fwd = first_[['region', 'fwd-primer', 'fwd-pos']]
     last_fwd = tidy_db.groupby('db-seq', sort=False).last()
-    last_fwd = last_fwd[['region', 'fwd-primer', 'kmer-length']]
+    last_fwd = last_fwd[['region', 'fwd-primer', 'fwd-pos', 'kmer-length']]
 
     reconstruction = pd.concat(axis=1, objs=[
         first_['clean_name'],
@@ -235,10 +239,13 @@ def reconstruct_database(
                                 count_degenerates, 
                                 kmer='seq-name')
     
-    aligned_seqs = _map_aligned_asvs(align_map, combined)
-    db_summary['mapped-asvs'] = aligned_seqs.groupby('clean_name').apply(
-        lambda x: '|'.join(x)
-        )
+    if align_map is not None:
+        aligned_seqs = _map_aligned_asvs(align_map, combined)
+        db_summary['mapped-asvs'] = aligned_seqs.groupby('clean_name').apply(
+            lambda x: '|'.join(x)
+            )
+    else:
+        db_summary['mapped-asvs'] = np.nan
     db_summary.index.set_names('feature-id', inplace=True)
 
     summary = Metadata(db_summary)
@@ -248,7 +255,7 @@ def reconstruct_database(
 
 
 def _build_region_db(df, kmers):
-    df = df.loc[df['db-seq'].isin(kmers)].copy()    
+    df = df.loc[df['db-seq'].isin(kmers)].copy()  
     return df[['db-seq', 'region', 'kmer']]
 
 
@@ -264,7 +271,8 @@ def _check_db_list(x, ref_seqs):
 
 def _check_intersection_delayed(df, matched=set('X')):
     """
-    Identifies the overlap in sequences and checks the quality of updated kmers
+    Identifies the overlap in sequences and checks the quality of updated 
+    kmers
     """
     # Gets the combined, cleaned kmers
     shared_kmers = df.groupby('db-seq').apply(
@@ -422,30 +430,25 @@ def _detangle_names(long_):
     return new_name
 
 
-def _filter_to_aligned(df, aligned_kmers):
+def _filter_to_aligned(df, aligned_kmers=None):
     """
     Filters a delayed datafrme to the aligned dataset
     """
-    df =  df.loc[df.index.isin(aligned_kmers)].copy()
+    if aligned_kmers is not None:
+        df =  df.loc[df.index.isin(aligned_kmers)].copy()
+    else:
+        df = df.copy()
     return df.reset_index()[['db-seq', 'region', 'kmer']]
 
 
-def _filter_to_defined(df, defined):
+def _filter_to_defined(df, defined=None):
     """
     Filters to defined sequences
     """
     df = df.loc[df.index.isin(defined)].copy()
     df.reset_index('db-seq', inplace=True)
-    df.drop(columns=['kmer', 'rev-primer'], inplace=True)
-
+    df.drop(columns=['kmer', 'rev-primer', 'rev-pos'], inplace=True)
     return df.set_index('db-seq')
-
-
-def _get_clean(df):
-    clean_kmers = \
-        df.groupby(['db-seq', 'region'])['value'].apply(
-            lambda x: "|".join(x.values))
-    return clean_kmers.reset_index()
 
 
 def _get_regional_seqs(x):
@@ -481,6 +484,7 @@ def _map_aligned_asvs(align_map, seq_map):
     aligned_asvs.drop_duplicates(['clean_name', 'asv'], inplace=True)
 
     return aligned_asvs.set_index('clean_name')['asv']
+
 
 @dask.delayed
 def _pull_unique(df):

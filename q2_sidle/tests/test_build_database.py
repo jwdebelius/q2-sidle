@@ -158,30 +158,30 @@ class DatabaseMapTest(TestCase):
             )
         
         self.untangled = pd.DataFrame.from_dict(orient='index', data={
-            'seq00': {'clean_name': 'seq00', 'first-region': 0, 'first-fwd-primer': 'WANTCAT', 'last-region': 1, 'last-fwd-primer': 'CACCTCGTN', 'last-kmer-length': 75},
-            'seq01': {'clean_name': 'seq01', 'first-region': 0, 'first-fwd-primer': 'WANTCAT', 'last-region': 1, 'last-fwd-primer': 'CACCTCGTN', 'last-kmer-length': 75},
-            'seq02': {'clean_name': 'seq02', 'first-region': 0, 'first-fwd-primer': 'WANTCAT', 'last-region': 1, 'last-fwd-primer': 'CACCTCGTN', 'last-kmer-length': 75},
-            'seq03': {'clean_name': 'seq03', 'first-region': 0, 'first-fwd-primer': 'WANTCAT', 'last-region': 1, 'last-fwd-primer': 'CACCTCGTN', 'last-kmer-length': 75},
-            'seq04': {'clean_name': 'seq04', 'first-region': 0, 'first-fwd-primer': 'WANTCAT', 'last-region': 1, 'last-fwd-primer': 'CACCTCGTN', 'last-kmer-length': 75},
-            'seq05': {'clean_name': 'seq05', 'first-region': 0, 'first-fwd-primer': 'WANTCAT', 'last-region': 1, 'last-fwd-primer': 'CACCTCGTN', 'last-kmer-length': 75},
-            'seq06': {'clean_name': 'seq06', 'first-region': 0, 'first-fwd-primer': 'WANTCAT', 'last-region': 1, 'last-fwd-primer': 'CACCTCGTN', 'last-kmer-length': 75},
-            'seq07': {'clean_name': 'seq07', 'first-region': 0, 'first-fwd-primer': 'WANTCAT', 'last-region': 0, 'last-fwd-primer': 'WANTCAT', 'last-kmer-length': 50},
-            'seq08': {'clean_name': 'seq08', 'first-region': 0, 'first-fwd-primer': 'WANTCAT', 'last-region': 0, 'last-fwd-primer': 'WANTCAT', 'last-kmer-length': 50},
-            'seq09': {'clean_name': 'seq09', 'first-region': 0, 'first-fwd-primer': 'WANTCAT', 'last-region': 1, 'last-fwd-primer': 'CACCTCGTN', 'last-kmer-length': 75},
-            'seq10': {'clean_name': 'seq10|seq11','first-region': 0, 'first-fwd-primer': 'WANTCAT', 'last-region': 1, 'last-fwd-primer': 'CACCTCGTN', 'last-kmer-length': 75},
-            'seq11': {'clean_name': 'seq10|seq11', 'first-region': 0, 'first-fwd-primer': 'WANTCAT', 'last-region': 1, 'last-fwd-primer': 'CACCTCGTN', 'last-kmer-length': 75},
-            'seq12': {'clean_name': 'seq12', 'first-region': 0, 'first-fwd-primer': 'WANTCAT', 'last-region': 1, 'last-fwd-primer': 'CACCTCGTN', 'last-kmer-length': 75},
-            'seq13': {'clean_name': 'seq13', 'first-region': 0, 'first-fwd-primer': 'WANTCAT', 'last-region': 1, 'last-fwd-primer': 'CACCTCGTN', 'last-kmer-length': 75},
-            'seq14': {'clean_name': 'seq14', 'first-region': 0, 'first-fwd-primer': 'WANTCAT', 'last-region': 1, 'last-fwd-primer': 'CACCTCGTN', 'last-kmer-length': 75},
-            'seq15': {'clean_name': 'seq15', 'first-region': 1, 'first-fwd-primer': 'CACCTCGTN', 'last-region': 1, 'last-fwd-primer': 'CACCTCGTN', 'last-kmer-length': 75},
-            'seq16': {'clean_name': 'seq16', 'first-region': 0, 'first-fwd-primer': 'WANTCAT', 'last-region': 1, 'last-fwd-primer': 'CACCTCGTN', 'last-kmer-length': 75},
-            'seq17': {'clean_name': 'seq17', 'first-region': 0, 'first-fwd-primer': 'WANTCAT', 'last-region': 1, 'last-fwd-primer': 'CACCTCGTN', 'last-kmer-length': 75},
-            'seq18': {'clean_name': 'seq18', 'first-region': 0, 'first-fwd-primer': 'WANTCAT', 'last-region': 0, 'last-fwd-primer': 'WANTCAT', 'last-kmer-length': 50},
-            'seq19': {'clean_name': 'seq19|seq20', 'first-region': 0, 'first-fwd-primer': 'WANTCAT', 'last-region': 0, 'last-fwd-primer': 'WANTCAT', 'last-kmer-length': 50},
-            'seq20': {'clean_name': 'seq19|seq20', 'first-region': 0, 'first-fwd-primer': 'WANTCAT', 'last-region': 0, 'last-fwd-primer': 'WANTCAT', 'last-kmer-length': 50},
-            'seq21': {'clean_name': 'seq21', 'first-region': 0,  'first-fwd-primer': 'WANTCAT', 'last-region': 1, 'last-fwd-primer': 'CACCTCGTN', 'last-kmer-length': 75},
-            'seq22': {'clean_name': 'seq22', 'first-region': 1, 'first-fwd-primer': 'CACCTCGTN', 'last-region': 2, 'last-fwd-primer': 'AACACA', 'last-kmer-length': 25},
-            'seq23': {'clean_name': 'seq23', 'first-region': 1, 'first-fwd-primer': 'CACCTCGTN', 'last-region': 1, 'last-fwd-primer': 'CACCTCGTN', 'last-kmer-length': 75},
+            'seq00': {'clean_name': 'seq00', 'first-region': 0, 'first-fwd-primer': 'WANTCAT', 'first-fwd-pos': np.nan, 'last-region': 1, 'last-fwd-primer': 'CACCTCGTN', 'last-fwd-pos': np.nan, 'last-kmer-length': 75},
+            'seq01': {'clean_name': 'seq01', 'first-region': 0, 'first-fwd-primer': 'WANTCAT', 'first-fwd-pos': np.nan, 'last-region': 1, 'last-fwd-primer': 'CACCTCGTN', 'last-fwd-pos': np.nan, 'last-kmer-length': 75},
+            'seq02': {'clean_name': 'seq02', 'first-region': 0, 'first-fwd-primer': 'WANTCAT', 'first-fwd-pos': np.nan, 'last-region': 1, 'last-fwd-primer': 'CACCTCGTN', 'last-fwd-pos': np.nan, 'last-kmer-length': 75},
+            'seq03': {'clean_name': 'seq03', 'first-region': 0, 'first-fwd-primer': 'WANTCAT', 'first-fwd-pos': np.nan, 'last-region': 1, 'last-fwd-primer': 'CACCTCGTN', 'last-fwd-pos': np.nan, 'last-kmer-length': 75},
+            'seq04': {'clean_name': 'seq04', 'first-region': 0, 'first-fwd-primer': 'WANTCAT', 'first-fwd-pos': np.nan, 'last-region': 1, 'last-fwd-primer': 'CACCTCGTN', 'last-fwd-pos': np.nan, 'last-kmer-length': 75},
+            'seq05': {'clean_name': 'seq05', 'first-region': 0, 'first-fwd-primer': 'WANTCAT', 'first-fwd-pos': np.nan, 'last-region': 1, 'last-fwd-primer': 'CACCTCGTN', 'last-fwd-pos': np.nan, 'last-kmer-length': 75},
+            'seq06': {'clean_name': 'seq06', 'first-region': 0, 'first-fwd-primer': 'WANTCAT', 'first-fwd-pos': np.nan, 'last-region': 1, 'last-fwd-primer': 'CACCTCGTN', 'last-fwd-pos': np.nan, 'last-kmer-length': 75},
+            'seq07': {'clean_name': 'seq07', 'first-region': 0, 'first-fwd-primer': 'WANTCAT', 'first-fwd-pos': np.nan, 'last-region': 0, 'last-fwd-primer': 'WANTCAT', 'last-fwd-pos': np.nan, 'last-kmer-length': 50},
+            'seq08': {'clean_name': 'seq08', 'first-region': 0, 'first-fwd-primer': 'WANTCAT', 'first-fwd-pos': np.nan, 'last-region': 0, 'last-fwd-primer': 'WANTCAT', 'last-fwd-pos': np.nan, 'last-kmer-length': 50},
+            'seq09': {'clean_name': 'seq09', 'first-region': 0, 'first-fwd-primer': 'WANTCAT', 'first-fwd-pos': np.nan, 'last-region': 1, 'last-fwd-primer': 'CACCTCGTN', 'last-fwd-pos': np.nan, 'last-kmer-length': 75},
+            'seq10': {'clean_name': 'seq10|seq11','first-region': 0, 'first-fwd-primer': 'WANTCAT', 'first-fwd-pos': np.nan, 'last-region': 1, 'last-fwd-primer': 'CACCTCGTN', 'last-fwd-pos': np.nan, 'last-kmer-length': 75},
+            'seq11': {'clean_name': 'seq10|seq11', 'first-region': 0, 'first-fwd-primer': 'WANTCAT', 'first-fwd-pos': np.nan, 'last-region': 1, 'last-fwd-primer': 'CACCTCGTN', 'last-fwd-pos': np.nan, 'last-kmer-length': 75},
+            'seq12': {'clean_name': 'seq12', 'first-region': 0, 'first-fwd-primer': 'WANTCAT', 'first-fwd-pos': np.nan, 'last-region': 1, 'last-fwd-primer': 'CACCTCGTN', 'last-fwd-pos': np.nan, 'last-kmer-length': 75},
+            'seq13': {'clean_name': 'seq13', 'first-region': 0, 'first-fwd-primer': 'WANTCAT', 'first-fwd-pos': np.nan, 'last-region': 1, 'last-fwd-primer': 'CACCTCGTN', 'last-fwd-pos': np.nan, 'last-kmer-length': 75},
+            'seq14': {'clean_name': 'seq14', 'first-region': 0, 'first-fwd-primer': 'WANTCAT', 'first-fwd-pos': np.nan, 'last-region': 1, 'last-fwd-primer': 'CACCTCGTN', 'last-fwd-pos': np.nan, 'last-kmer-length': 75},
+            'seq15': {'clean_name': 'seq15', 'first-region': 1, 'first-fwd-primer': 'CACCTCGTN', 'last-region': 1, 'last-fwd-primer': 'CACCTCGTN', 'last-fwd-pos': np.nan, 'last-kmer-length': 75},
+            'seq16': {'clean_name': 'seq16', 'first-region': 0, 'first-fwd-primer': 'WANTCAT', 'first-fwd-pos': np.nan, 'last-region': 1, 'last-fwd-primer': 'CACCTCGTN', 'last-fwd-pos': np.nan, 'last-kmer-length': 75},
+            'seq17': {'clean_name': 'seq17', 'first-region': 0, 'first-fwd-primer': 'WANTCAT', 'first-fwd-pos': np.nan, 'last-region': 1, 'last-fwd-primer': 'CACCTCGTN', 'last-fwd-pos': np.nan, 'last-kmer-length': 75},
+            'seq18': {'clean_name': 'seq18', 'first-region': 0, 'first-fwd-primer': 'WANTCAT', 'first-fwd-pos': np.nan, 'last-region': 0, 'last-fwd-primer': 'WANTCAT', 'last-fwd-pos': np.nan, 'last-kmer-length': 50},
+            'seq19': {'clean_name': 'seq19|seq20', 'first-region': 0, 'first-fwd-primer': 'WANTCAT', 'first-fwd-pos': np.nan, 'last-region': 0, 'last-fwd-primer': 'WANTCAT', 'last-fwd-pos': np.nan, 'last-kmer-length': 50},
+            'seq20': {'clean_name': 'seq19|seq20', 'first-region': 0, 'first-fwd-primer': 'WANTCAT', 'first-fwd-pos': np.nan, 'last-region': 0, 'last-fwd-primer': 'WANTCAT', 'last-fwd-pos': np.nan, 'last-kmer-length': 50},
+            'seq21': {'clean_name': 'seq21', 'first-region': 0,  'first-fwd-primer': 'WANTCAT', 'first-fwd-pos': np.nan, 'last-region': 1, 'last-fwd-primer': 'CACCTCGTN', 'last-fwd-pos': np.nan, 'last-kmer-length': 75},
+            'seq22': {'clean_name': 'seq22', 'first-region': 1, 'first-fwd-primer': 'CACCTCGTN', 'first-fwd-pos': np.nan, 'last-region': 2, 'last-fwd-primer': 'AACACA', 'last-fwd-pos': np.nan, 'last-kmer-length': 25},
+            'seq23': {'clean_name': 'seq23', 'first-region': 1, 'first-fwd-primer': 'CACCTCGTN', 'first-fwd-pos': np.nan, 'last-region': 1, 'last-fwd-primer': 'CACCTCGTN', 'last-fwd-pos': np.nan, 'last-kmer-length': 75},
             })
         self.untangled.index.set_names('db-seq', inplace=True)
 
@@ -360,37 +360,37 @@ class DatabaseMapTest(TestCase):
         test = _clean_kmer_list('robin@0001|robin@002|batman@001')
         self.assertEqual(test, 'batman|robin')
 
-    def test_count_mapping_degen(self):
-        known = pd.DataFrame.from_dict(orient='index', data={
-            'seq05': {'num-regions': 2., 
-                      'total-kmers-mapped': 3., 
-                      'mean-kmer-per-region': 1.5,
-                      'stdv-kmer-per-region': np.std([2, 3], ddof=1),
-                      },
-            'seq06': {'num-regions': 2, 
-                      'total-kmers-mapped': 2,
-                      'mean-kmer-per-region': 1,
-                      'stdv-kmer-per-region': 0},
-            })
-        known.index.set_names('clean_name', inplace=True)
-        test = _count_mapping(self.pair, count_degen=True)
-        pdt.assert_frame_equal(test, known)
+    # def test_count_mapping_degen(self):
+    #     known = pd.DataFrame.from_dict(orient='index', data={
+    #         'seq05': {'num-regions': 2., 
+    #                   'total-kmers-mapped': 3., 
+    #                   'mean-kmer-per-region': 1.5,
+    #                   'stdv-kmer-per-region': np.std([2, 3], ddof=1),
+    #                   },
+    #         'seq06': {'num-regions': 2, 
+    #                   'total-kmers-mapped': 2,
+    #                   'mean-kmer-per-region': 1,
+    #                   'stdv-kmer-per-region': 0},
+    #         })
+    #     known.index.set_names('clean_name', inplace=True)
+    #     test = _count_mapping(self.pair, count_degen=True)
+    #     pdt.assert_frame_equal(test, known)
 
-    def test_count_mapping_no_degen(self):
-        known = pd.DataFrame.from_dict(orient='index', data={
-            'seq05': {'num-regions': 2., 
-                      'total-kmers-mapped': 2., 
-                      'mean-kmer-per-region': 1.,
-                      'stdv-kmer-per-region': 0.,
-                      },
-            'seq06': {'num-regions': 2, 
-                      'total-kmers-mapped': 2,
-                      'mean-kmer-per-region': 1,
-                      'stdv-kmer-per-region': 0},
-            })
-        known.index.set_names('clean_name', inplace=True)
-        test = _count_mapping(self.pair, count_degen=False)
-        pdt.assert_frame_equal(test, known)
+    # def test_count_mapping_no_degen(self):
+    #     known = pd.DataFrame.from_dict(orient='index', data={
+    #         'seq05': {'num-regions': 2., 
+    #                   'total-kmers-mapped': 2., 
+    #                   'mean-kmer-per-region': 1.,
+    #                   'stdv-kmer-per-region': 0.,
+    #                   },
+    #         'seq06': {'num-regions': 2, 
+    #                   'total-kmers-mapped': 2,
+    #                   'mean-kmer-per-region': 1,
+    #                   'stdv-kmer-per-region': 0},
+    #         })
+    #     known.index.set_names('clean_name', inplace=True)
+    #     test = _count_mapping(self.pair, count_degen=False)
+    #     pdt.assert_frame_equal(test, known)
 
     def test_define_shared(self):
         known = 'robin'
@@ -469,7 +469,7 @@ class DatabaseMapTest(TestCase):
         test = _detangle_names(long_) 
         pdt.assert_series_equal(known, test)
 
-    def test_filter_to_aligned(self):
+    def test_filter_to_aligned_with_kmers(self):
         kmers = ['seq1', 'seq2', 'seq3']
         known = pd.DataFrame(
             data=np.array([['Bludhaven', 'seq1|seq2'],
@@ -484,14 +484,32 @@ class DatabaseMapTest(TestCase):
         test = _filter_to_aligned(self.kmers_df[0], kmers)
         pdt.assert_frame_equal(known, test)
 
+    def test_filter_to_aligned_no_kmers(self):
+        known = pd.DataFrame(
+            data=np.array([['Bludhaven', 'seq1|seq2'],
+                           ['Bludhaven', 'seq1|seq2'],
+                           ['Bludhaven', 'seq3@0001'],
+                           ['Bludhaven', 'seq3@0002'],
+                           ['Bludhaven', 'seq5'],
+                           ['Bludhaven', 'seq6'],
+                           ]),
+            index=pd.Index(['seq1', 'seq2', 'seq3', 'seq3', 'seq5', 'seq6'], 
+                           name='db-seq'),
+            columns=['region', 'kmer']
+            ).reset_index()
+        test = _filter_to_aligned(self.kmers_df[0])
+        pdt.assert_frame_equal(known, test)
+
     def filter_to_defined(self):
         defined = ['seq1', 'seq2', 'seq4']
         known = pd.DataFrame.from_dict(orient='index', data={
             'seq1': {'region': 'Bludhaven', 
                      'fwd-primer': 'WANTCAT', 
+                     'fwd-pos': 13,
                      'kmer-length': 15},
             'seq2': {'region': 'Bludhaven', 
                      'fwd-primer': 'WANTCAT', 
+                     'fwd-pos': 13,
                      'kmer-length': 15},
             })
         test = _filter_to_defined(self.kmers_df[0], defined)
@@ -504,45 +522,45 @@ class DatabaseMapTest(TestCase):
         test = _get_unique_kmers(test)
         npt.assert_array_equal(test, known)
 
-    def test_get_regional_seqs(self):
-        x = pd.Series(['robin|redhood', 
-                       'robin|spoiler|batgirl',
-                       'robin',
-                       ])
-        known = 'batgirl|redhood|robin|spoiler'
-        test = _get_regional_seqs(x)
-        self.assertEqual(test, known)
+    # def test_get_regional_seqs(self):
+    #     x = pd.Series(['robin|redhood', 
+    #                    'robin|spoiler|batgirl',
+    #                    'robin',
+    #                    ])
+    #     known = 'batgirl|redhood|robin|spoiler'
+    #     test = _get_regional_seqs(x)
+    #     self.assertEqual(test, known)
 
-    def test_map_aligned_kmers(self):
-        seq_map = self.untangled['clean_name'].copy()
-        known = pd.DataFrame(
-           np.array([['seq00', 'asv_aa'],
-                     ['seq01', 'asv_ab'],
-                     ['seq02', 'asv_ab'],
-                     ['seq03', 'asv_ac'],
-                     ['seq04', 'asv_ad'],
-                     ['seq04', 'asv_ae'],
-                     ['seq05', 'asv_af'],
-                     ['seq06', 'asv_ag'],
-                     ['seq07', 'asv_ah'],
-                     ['seq08', 'asv_ai'],
-                     ['seq09', 'asv_ai'],
-                     ['seq10|seq11', 'asv_aj'],
-                     ['seq10|seq11', 'asv_ak'],
-                     ['seq12', 'asv_al'],
-                     ['seq13', 'asv_al'],
-                     ['seq14', 'asv_al'],
-                     ['seq16', 'asv_ao'],
-                     ['seq17', 'asv_ap'],
-                     ['seq18', 'asv_ap'],
-                     ['seq19|seq20', 'asv_aq'],
-                     ['seq21', 'asv_ar']], dtype=str),
-           columns=['clean_name', 'asv']
-           )
-        known = known.set_index('clean_name')['asv']
-        test = _map_aligned_asvs(self.align0, self.untangled['clean_name'])
-        test.sort_index(inplace=True)
-        pdt.assert_series_equal(known, test)
+    # def test_map_aligned_kmers(self):
+    #     seq_map = self.untangled['clean_name'].copy()
+    #     known = pd.DataFrame(
+    #        np.array([['seq00', 'asv_aa'],
+    #                  ['seq01', 'asv_ab'],
+    #                  ['seq02', 'asv_ab'],
+    #                  ['seq03', 'asv_ac'],
+    #                  ['seq04', 'asv_ad'],
+    #                  ['seq04', 'asv_ae'],
+    #                  ['seq05', 'asv_af'],
+    #                  ['seq06', 'asv_ag'],
+    #                  ['seq07', 'asv_ah'],
+    #                  ['seq08', 'asv_ai'],
+    #                  ['seq09', 'asv_ai'],
+    #                  ['seq10|seq11', 'asv_aj'],
+    #                  ['seq10|seq11', 'asv_ak'],
+    #                  ['seq12', 'asv_al'],
+    #                  ['seq13', 'asv_al'],
+    #                  ['seq14', 'asv_al'],
+    #                  ['seq16', 'asv_ao'],
+    #                  ['seq17', 'asv_ap'],
+    #                  ['seq18', 'asv_ap'],
+    #                  ['seq19|seq20', 'asv_aq'],
+    #                  ['seq21', 'asv_ar']], dtype=str),
+    #        columns=['clean_name', 'asv']
+    #        )
+    #     known = known.set_index('clean_name')['asv']
+    #     test = _map_aligned_asvs(self.align0, self.untangled['clean_name'])
+    #     test.sort_index(inplace=True)
+    #     pdt.assert_series_equal(known, test)
 
     def test_pull_unique(self):
         known = np.array(['seq1', 'seq2', 'seq3', 'seq5', 'seq6'])
