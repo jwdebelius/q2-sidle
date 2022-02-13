@@ -8,7 +8,7 @@ from skbio.alignment import local_pairwise_align_ssw
 
 from qiime2 import Metadata
 from q2_feature_classifier._cutter import (_local_aln)
-from q2_sidle._utils import (degen_sub,
+from q2_sidle._utils import (degen_sub2,
                              _check_regions,
                             )
 
@@ -39,23 +39,6 @@ def reconstruct_fragment_rep_seqs(
         region labels must match between the kmer map and the alignment map.
     aligned_sequences: Series
         The aligned representative sequences for the data
-    trim_to_fragment: bool, optional
-        During alignmnt, if multiple sequences are mapped to the same region
-        with one having shorter fragments, when `trim_to_fragment` is true,
-        the alignmnent will be handled using that shorter sequence. When 
-        False, the fragment will be reconstructed using the full length
-        sequences for the joined table.
-    gap_handling: str {'keep_nt', 'drop'}
-        Whether gaps in the middle of alignments should inheriet the defined
-        sequence or simply drop out.
-    primer_mismatch: int, optional
-        The number of mismatches between the primer and sequence allowed.
-    debug: bool
-        Whether the function should be run in debug mode (without a client)
-        or not. `debug` superceeds all options
-    n_workers: int, optional
-        The number of jobs to initiate. When `n_workers` is 0, the cluster 
-        will be able to access all avalaibel resources.
 
     Returns
     -------
@@ -73,115 +56,60 @@ def reconstruct_fragment_rep_seqs(
     # Filters down to only clusters that include multiple sequences 
     multiple_mapped = reconstruction_summary['num_seqs_mapped'] > 1
     multiple_mapped = multiple_mapped.index[multiple_mapped].values
-    reconstruction_map = \
+    sub_map = \
         reconstruction_map.loc[reconstruction_map['clean_name'].isin(
             multiple_mapped)].copy()
 
-    # print(aligned_sequences)
-    reconstruction_map['sequence'] = \
-        aligned_sequences.loc[reconstruction_map.index]
-    reconstruction_map.reset_index(inplace=True)
-    reconstruction_map.sort_values(['clean_name', 'first-region'], 
-                                   inplace=True)
-
-    # # print(reconstruction_map)
-
-    # Calculates and degaps the concensus sequence for the region using skbio
-    # to calculate the concensus and then fiters the concensus down to a 
-    # single sequence
-    concensus_map = pd.concat(axis=1, objs=[
-        reconstruction_map.groupby('clean_name', sort=False)['sequence'].apply(
-            _group_concensus),
-        reconstruction_map.groupby('clean_name', sort=False)[
-        'first-fwd-primer'].first(),
-        reconstruction_map.sort_values('last-region').groupby('clean_name', 
-            sort=False)[['last-fwd-primer', 'last-kmer-length']].last()
+    target_seqs = aligned_sequences.loc[sub_map.index].copy()
+ 
+    ### Gets primer positions in the alignment
+    # Finds primer sequences and positions if the sequence positions haven't
+    # been identified
+    first_ = sub_map[['first-fwd-pos', 'first-fwd-primer']].copy()
+    last_ = sub_map[['last-fwd-pos', 'last-fwd-primer']].copy()
+    primers = pd.concat(axis=0, objs=[
+        primer.rename(columns={c: c.split('-')[-1] for c in primer.columns})
+        for primer in [first_, last_]
         ])
+    primers.drop_duplicates(inplace=True)
+    primers.sort_values(by=['pos'], ascending=False, inplace=True)
+    primers.drop_duplicates('primer', inplace=True)
+    primers = primers.reset_index().set_index('primer')
 
-    # Determines the positions for each of the primer regions. We first look
-    # for an exact match using regex
-    fwd_rep = {primer: _expand_primer(primer, None) 
-               for primer in concensus_map['first-fwd-primer'].unique()}
-    rev_rep = {primer: _expand_primer(primer, None) 
-               for primer in concensus_map['last-fwd-primer'].unique()}
-    concensus_map['f_exact'] = \
-        concensus_map['first-fwd-primer'].replace(fwd_rep)
-    concensus_map['r_exact'] = \
-        concensus_map['last-fwd-primer'].replace(rev_rep)
+    # Finds the primer position in the alignment
+    for primer, [seq_name, pos] in primers.iterrows():
+        if pd.isnull(pos):
+            seq_ = target_seqs.loc[seq_name]
+            pos = _find_approx_forward([seq_, primer])
+            primers.loc[primer, 'pos'] = pos
+    pos_map = primers['pos'].to_dict()
+    print(pos_map)
 
-    # Finds sequences with exact matches
-    concensus_map['start'] = \
-        concensus_map[['sequence', 'f_exact']].astype(str).apply(
-        _find_exact_forward, axis=1
-    )
-    concensus_map['end'] = \
-        concensus_map[['sequence', 'r_exact']].astype(str).apply(
-        _find_exact_forward, axis=1
-    )
+    # Sets the position for all the primers and finds the span positions
+    miss_1st = sub_map['first-fwd-pos'].isna()
+    miss_end = sub_map['last-fwd-pos'].isna()
 
-    # Finds fuzzy matches. We assume that since we know sequences from this
-    # concensus were amplified using this primer that we let the fuzzy
-    # match go
-    missing_start = concensus_map['start'].isna()
-    concensus_map.loc[missing_start, 'start'] = \
-        concensus_map.loc[missing_start, ['sequence', 'first-fwd-primer']
-        ].apply(_find_approx_forward, axis=1)
-    missing_end = concensus_map['end'].isna()
-    concensus_map.loc[missing_start, 'end'] = \
-        concensus_map.loc[missing_start, ['sequence', 'last-fwd-primer']
-        ].apply(_find_approx_forward, axis=1)
-    concensus_map['end'] = \
-        concensus_map[['end', 'last-kmer-length']].sum(axis=1)
+    sub_map.loc[miss_1st, 'first-fwd-pos'] = \
+        sub_map.loc[miss_1st, 'first-fwd-primer'].replace(pos_map)
+    sub_map.loc[miss_end, 'last-fwd-pos'] = \
+        sub_map.loc[miss_end, 'last-fwd-primer'].replace(pos_map)
 
-    concensus_map[['start', 'end']] = \
-        concensus_map[['start', 'end']].astype(int)
-    
-    # Gets that fragment based on the most extreme forward and reverse 
-    # positions in the amplified regions
-    concensus_sub = concensus_map.apply(
-        lambda x: DNA(x['sequence'][x['start']:x['end']]), axis=1)
+    sub_map['start'] = sub_map['first-fwd-pos']
+    sub_map['end'] = sub_map['last-fwd-pos'] + sub_map['last-kmer-length']
+
+    # Extracts the fragments
+    sub_map['seq'] = target_seqs
+
+    concensus = pd.DataFrame({
+        'seq': sub_map.groupby('clean_name')['seq'].apply(_group_concensus),
+        'start': sub_map.groupby('clean_name')['start'].min(),
+        'end': sub_map.groupby('clean_name')['end'].max(),
+        })
+    concensus_sub = concensus.apply(
+        lambda x: x['seq'][x['start']:x['end']], axis=1
+        )
 
     return concensus_sub
-
-
-def _expand_primer(primer, error=None):
-    """
-    Expands degenerates in a primer to allow alignment
-    """
-    if error is not None:
-        new_ = '((?<=(%s)))((%s){e<=%s})' % (primer[0], primer[1:], error)
-    else:
-        new_ = primer
-    for bp, rep in degen_sub.items():
-        if bp in {'A', 'T', 'G', 'C'}:
-            continue
-        new_ = new_.replace(bp, '[%s]' % rep)
-
-    return new_
-
-
-def _find_exact_forward(args):
-    """
-    Finds the exact match for a forward primer
-    """
-    [sequence, primer] = args.values.flatten()
-    match = re.search(primer, sequence)
-    if match is None:
-        return np.nan
-    else:
-        return match.span()[1]
-    
-
-def _find_exact_reverse(args):
-    """
-    Finds the exact match for a reverse primer
-    """
-    [sequence, primer] = args.values.flatten()
-    match = re.search(primer, sequence)
-    if match is None:
-        return np.nan
-    else:
-        return match.span()[0]
 
 
 def _find_approx_forward(args):
@@ -192,16 +120,6 @@ def _find_approx_forward(args):
     primer = DNA(primer)
     align_ = _local_aln(sequence, primer)
     return align_[2][0][1] + 1
-
-
-def _find_approx_reverse(args):
-    """
-    Finds an approximate match for a reverse primer
-    """
-    [sequence, primer] = args
-    primer = DNA(primer)
-    align_ = _local_aln(sequence, primer)
-    return align_[2][0][0]
 
 
 def _group_concensus(seqs):
