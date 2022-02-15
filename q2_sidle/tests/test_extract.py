@@ -120,7 +120,7 @@ class ExtractTest(TestCase):
         test_map = test_map[self.col_order]
         test_map['kmer-length'] =  test_map['kmer-length'].astype(int)
         test_map[['fwd-pos', 'rev-pos']] = \
-            test_map[['fwd-pos', 'rev-pos']].astype(float)
+            test_map[['fwd-pos', 'rev-pos']].astype(int)
         pdt.assert_frame_equal(test_map,  
                               self.region1_map.view(pd.DataFrame))
 
@@ -177,7 +177,7 @@ class ExtractTest(TestCase):
         test_map = test_map[self.col_order]
         test_map['kmer-length'] =  test_map['kmer-length'].astype(int)
         test_map[['fwd-pos', 'rev-pos']] = \
-            test_map[['fwd-pos', 'rev-pos']].astype(float)
+            test_map[['fwd-pos', 'rev-pos']].astype(int)
         pdt.assert_frame_equal(test_map,  
                               self.region1_map.view(pd.DataFrame))
 
@@ -319,7 +319,7 @@ class ExtractTest(TestCase):
                      'fwd-primer', 'rev-primer', 'fwd-pos', 'rev-pos',
                      'kmer-length']]
         test[['fwd-pos', 'rev-pos']] = \
-            test[['fwd-pos', 'rev-pos']].astype(float)
+            test[['fwd-pos', 'rev-pos']].astype(int)
         test.set_index('db-seq', inplace=True)
         pdt.assert_frame_equal(test.sort_index(), 
                                self.region1_map.view(pd.DataFrame))
