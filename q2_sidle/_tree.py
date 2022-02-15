@@ -17,6 +17,7 @@ def reconstruct_fragment_rep_seqs(
     reconstruction_map: pd.DataFrame, 
     reconstruction_summary:pd.DataFrame,
     aligned_sequences:pd.Series,
+    # num_search: int=10,
     ) -> pd.Series:
     """
     Assembles fragments from assemblies that include multiple sequences
@@ -47,6 +48,8 @@ def reconstruct_fragment_rep_seqs(
         sequence alignment
 
     """
+    # Temp arg TODO: Move into pluginb setup
+
     # Gets the total number of database sequences mapped in the summary
     reconstruction_summary['num_seqs_mapped'] = \
         pd.Series({i: i.count("|") + 1 for i in reconstruction_summary.index})
@@ -61,43 +64,50 @@ def reconstruct_fragment_rep_seqs(
             multiple_mapped)].copy()
 
     target_seqs = aligned_sequences.loc[sub_map.index].copy()
- 
-    ### Gets primer positions in the alignment
-    # Finds primer sequences and positions if the sequence positions haven't
-    # been identified
-    first_ = sub_map[['first-fwd-pos', 'first-fwd-primer']].copy()
-    last_ = sub_map[['last-fwd-pos', 'last-fwd-primer']].copy()
-    primers = pd.concat(axis=0, objs=[
-        primer.rename(columns={c: c.split('-')[-1] for c in primer.columns})
-        for primer in [first_, last_]
-        ])
-    primers.drop_duplicates(inplace=True)
-    primers.sort_values(by=['pos'], ascending=False, inplace=True)
-    primers.drop_duplicates('primer', inplace=True)
-    primers = primers.reset_index().set_index('primer')
 
-    # Finds the primer position in the alignment
-    for primer, [seq_name, pos] in primers.iterrows():
-        if pd.isnull(pos):
-            seq_ = target_seqs.loc[seq_name]
-            pos = _find_approx_forward([seq_, primer])
-            primers.loc[primer, 'pos'] = pos
-    pos_map = primers['pos'].to_dict()
-    print(pos_map)
+    num_search = int(np.max([10, np.ceil(len(target_seqs) * 0.1)]))
 
-    # Sets the position for all the primers and finds the span positions
-    miss_1st = sub_map['first-fwd-pos'].isna()
-    miss_end = sub_map['last-fwd-pos'].isna()
 
-    sub_map.loc[miss_1st, 'first-fwd-pos'] = \
-        sub_map.loc[miss_1st, 'first-fwd-primer'].replace(pos_map)
-    sub_map.loc[miss_end, 'last-fwd-pos'] = \
-        sub_map.loc[miss_end, 'last-fwd-primer'].replace(pos_map)
+    # If the positions are already defined, life is fantastic. Otherwise, 
+    # we need to find them.
+    no_pos = pd.isnull(sub_map[['first-fwd-pos', 'last-fwd-pos']])
 
-    sub_map['start'] = sub_map['first-fwd-pos']
-    sub_map['end'] = sub_map['last-fwd-pos'] + sub_map['last-kmer-length']
+    ### We don't need to map any positions. Whoo!
+    if (no_pos == False).all().all():
+        sub_map['start'] = sub_map['first-fwd-pos']
+        sub_map['end'] = sub_map['last-fwd-pos'] + sub_map['last-kmer-length']
+
+    ### We need to map all the positions
+    else:
+        # Gets the primers to map
+        primer_seqs = pd.concat(axis=0, objs=[
+            sub_map['first-fwd-primer'], sub_map['last-fwd-primer']
+            ])
+        primer_seqs.index.set_names('db-seq', inplace=True)
+        primer_seqs.name = 'primer'
+        primer_seqs = primer_seqs.reset_index()
+        primer_seqs.drop_duplicates(inplace=True)
+
+        # Extracts the primer positions from the alignment
+        primer_pos = dict()
+        for primer, sub_ids in primer_seqs.groupby('primer')['db-seq']:
+            # Extracts the sequences and the primer
+            exp_primer = _expand_primer(primer)
+            sub_seqs = target_seqs[sub_ids[:num_search]].astype(str).copy()
+
+            # Checks for an exact match
+            exact_match = \
+                sub_seqs.apply(_find_exact_forward, primer=exp_primer)
+            position = exact_match.dropna().unique()[0]
+            primer_pos[primer] = position
+
+        # Updates the data map with the positions
+        sub_map['start'] = sub_map['first-fwd-primer'].replace(primer_pos)
+        sub_map['end'] = sub_map['last-fwd-primer'].replace(primer_pos) + \
+            sub_map['last-kmer-length']
 
     # Extracts the fragments
+    sub_map[['start', 'end']] = sub_map[['start', 'end']].astype(int)
     sub_map['seq'] = target_seqs
 
     concensus = pd.DataFrame({
@@ -105,12 +115,38 @@ def reconstruct_fragment_rep_seqs(
         'start': sub_map.groupby('clean_name')['start'].min(),
         'end': sub_map.groupby('clean_name')['end'].max(),
         })
-    concensus_sub = concensus.apply(
-        lambda x: x['seq'][x['start']:x['end']], axis=1
-        )
+    concensus['fragment'] = \
+        concensus.apply(lambda x: x['seq'][x['start']:x['end']], axis=1)
+
+    concensus_sub = pd.Series({
+        name: DNA(str(seq), metadata={'id': name})
+        for name, seq in concensus['fragment'].items()
+        })
+    concensus_sub.index.set_names('clean_name', inplace=True)
 
     return concensus_sub
 
+
+def _expand_primer(primer):
+    """
+    Expands degenerates in a primer to allow alignment
+    """
+    for bp, rep in degen_sub2.items():
+        primer = primer.replace(bp, rep)
+
+    return primer
+
+
+def _find_exact_forward(sequence, primer):
+    """
+    Finds the exact match for a forward primer
+    """
+    exp = _expand_primer(primer)
+    match = re.search(exp, sequence)
+    if match is None:
+        return np.nan
+    else:
+        return match.span()[1]
 
 def _find_approx_forward(args):
     """

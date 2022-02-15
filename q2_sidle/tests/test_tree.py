@@ -13,6 +13,8 @@ from qiime2 import Artifact, Metadata
 from q2_types.feature_data import DNAIterator, DNAFASTAFormat
 
 from q2_sidle._tree import (reconstruct_fragment_rep_seqs,
+                            _expand_primer,
+                            _find_exact_forward,
                             _find_approx_forward,
                             _group_concensus,
                             )
@@ -36,11 +38,11 @@ class TreeTest(TestCase):
         self.kmer_map2 = kmer2.view(pd.DataFrame)
 
         self.recon_map = pd.DataFrame(
-            data=np.array([['seq01|seq02', 0, 'WANTCAT', 9, 0, 'WANTCAT', np.nan, 15], 
-                           ['seq01|seq02', 0, 'WANTCAT', 9, 0, 'WANTCAT', np.nan, 15], 
-                           ['seq03|seq04', 0, 'WANTCAT', 9, 1, 'CACCTCGTN', np.nan, 15], 
-                           ['seq03|seq04', 0, 'CACCTCGTN', np.nan, 1, 'CACCTCGTN', np.nan, 15], 
-                           ['seq05', 0, 'WANTCAT', 9, 1, 'CACCTCGTN', np.nan, 15],
+            data=np.array([['seq01|seq02', 0, 'WANTCAT', 9, 0, 'WANTCAT', 9, 15], 
+                           ['seq01|seq02', 0, 'WANTCAT', 9, 0, 'WANTCAT', 9, 15], 
+                           ['seq03|seq04', 0, 'WANTCAT', 9, 1, 'CACCTCGTN', 46, 15], 
+                           ['seq03|seq04', 0, 'CACCTCGTN', 46, 1, 'CACCTCGTN', 46, 15], 
+                           ['seq05', 0, 'WANTCAT', 9, 1, 'CACCTCGTN', 46, 15],
                            ],  dtype=object),
             index=pd.Index(['seq01', 'seq02', 'seq03', 'seq04', 'seq05'], name='db-seq'),
             columns=['clean_name', 'first-region', 'first-fwd-primer',  'first-fwd-pos',
@@ -56,6 +58,11 @@ class TreeTest(TestCase):
                      'mean-kmer-per-region', 'stdv-kmer-per-region', 
                      'mapped-asvs'],
             )
+        self.known_extract = pd.Series(
+            data=['GCGAAGCGGCTCAGG',
+                  'WTCCGCGTTGGAGTTATGATGATGAGACCACCTCGTCCCAGTTCCGCGCTTC'],
+            index=pd.Index(['seq01|seq02', 'seq03|seq04'], name='clean_name'),
+            )
         np.random.seed(5)
 
     def test_reconstruct_fragment_rep_seqs_all_unique(self):
@@ -70,19 +77,27 @@ class TreeTest(TestCase):
                      'mapped-asvs'],
             )
         test = reconstruct_fragment_rep_seqs(self.recon_map, recon_summary, self.aligned_seqs)
+        pdt.assert_series_equal(test, pd.Series({'1': DNA('ATCG')}))
 
-    def test_reconstruct_fragment_rep_seqs(self):
-        known = pd.Series(
-            data=['GCGAAGCGGCTCAGG',
-                  'WTCCGCGTTGGAGTTATGATGATGAGACCACCTCGTCCCAGTTCCGCGCTT'],
-            index=pd.Index(['seq01|seq02', 'seq03|seq04'], name='clean_name'),
-            )
+    def test_reconstruct_fragment_rep_seqs_only_positions(self):
+        recon_map = self.recon_map.copy()
+        recon_map[['first-fwd-primer', 'last-fwd-primer']] = np.nan
         test = reconstruct_fragment_rep_seqs(
-            reconstruction_map=self.recon_map,
+            reconstruction_map=recon_map,
             reconstruction_summary=self.recon_summary,
             aligned_sequences=self.aligned_seqs,
             )
-        pdt.assert_series_equal(test.view(pd.Series).astype(str), known)
+        pdt.assert_series_equal(test.astype(str), self.known_extract)
+
+    def test_reconstruct_fragment_rep_seqs_only_primers(self):
+        recon_map = self.recon_map.copy()
+        recon_map[['first-fwd-pos', 'last-fwd-pos']] = np.nan
+        test = reconstruct_fragment_rep_seqs(
+            reconstruction_map=recon_map,
+            reconstruction_summary=self.recon_summary,
+            aligned_sequences=self.aligned_seqs,
+            )
+        pdt.assert_series_equal(test.astype(str), self.known_extract)
 
     def test_find_approx_forward(self):
         args = pd.Series([
@@ -98,6 +113,19 @@ class TreeTest(TestCase):
 
         test = _group_concensus(g)
         self.assertEqual(known, str(test))
+
+    def test_expand_primer_none(self):
+        primer = 'WANTCAT'
+        known = '[AT]A[ACGT]TCAT'
+        test = _expand_primer(primer)
+        self.assertEqual(known, test)
+
+    def test_find_exact_forward_match(self):
+        args = pd.Series([
+            '-CTAGTCATGCGAAGCGGCTCAGGATGATGATGAAGAC--------------',
+            '[AT]A[ACGT]TCAT'])
+        test = _find_exact_forward(*args)
+        self.assertEqual(test, 9)
 
 
 if __name__ == '__main__':

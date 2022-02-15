@@ -11,7 +11,7 @@ import numpy.testing as npt
 import pandas as pd
 import pandas.testing as pdt
 import skbio
-from skbio import DNA
+from skbio import DNA, TabularMSA
 
 from qiime2 import Artifact, Metadata
 from qiime2.plugins.sidle import actions as sidle
@@ -104,19 +104,25 @@ class PluginSetupTest(TestCase):
             ).position_summary
         pdt.assert_frame_equal(known, test.view(Metadata).to_dataframe())
 
-    def test_find_span_positions(self):
+    def test_find_alignment_span_positions(self):
         known = pd.DataFrame(
-            data=np.array([[12., 26.]], dtype=float),
+            data=np.array([[13., 27.]], dtype=float),
             columns=['left', 'right'],
             index=pd.Index(['region'], name='id'),
             )
-        test = sidle.find_span_positions(
+        test = sidle.find_alignment_span_positions(
             alignment=self.expanded_alignment,
             representative_sequences=self.rep_seqs1,
             ).span_summary
         pdt.assert_frame_equal(known, test.view(Metadata).to_dataframe())
 
     def test_prepare_extracted_region(self):
+        known = self.region2_db_map.view(pd.DataFrame).copy()
+        known['fwd-pos'] = np.nan
+        known['rev-pos'] = np.nan
+        known[['fwd-pos', 'rev-pos']] = \
+            known[['fwd-pos', 'rev-pos']].astype(object)
+
         test_seqs, test_map = \
             sidle.prepare_extracted_region(self.region2_db_seqs,
                                            region='Gotham',
@@ -129,8 +135,7 @@ class PluginSetupTest(TestCase):
             test_seqs.view(pd.Series).astype(str),
             self.region2_db_seqs.view(pd.Series).astype(str)
             )
-        pdt.assert_frame_equal(test_map.view(pd.DataFrame), 
-                               self.region2_db_map.view(pd.DataFrame))
+        pdt.assert_frame_equal(test_map.view(pd.DataFrame), known)
 
     def test_trim_dada2_posthoc(self):
         test_table, test_seqs = \
@@ -208,48 +213,44 @@ class PluginSetupTest(TestCase):
                                 test.view(pd.Series))
 
     def test_reconstruct_fragment_rep_seqs(self):
-        recon_map = Artifact.import_data(
+        recon_map = Artifact.import_data( 
             'FeatureData[SidleReconstruction]', 
             pd.DataFrame(
-                data=np.array([['seq01|seq02', 0,  'WANTCAT', 0, 'WANTCAT', 15], 
-                               ['seq01|seq02', 0, 'WANTCAT', 0, 'WANTCAT', 15], 
-                               ['seq03|seq04', 0, 'WANTCAT', 1, 'CACCTCGTN', 15], 
-                               ['seq03|seq04', 0, 'CACCTCGTN', 1, 'CACCTCGTN', 15], 
-                               ['seq05', 0, 'WANTCAT', 1, 'CACCTCGTN', 15],
+                data=np.array([['seq01|seq02', 0, 'WANTCAT',   np.nan, 0, 'WANTCAT',   np.nan, 15], 
+                               ['seq01|seq02', 0, 'WANTCAT',   np.nan, 0, 'WANTCAT',   np.nan, 15], 
+                               ['seq03|seq04', 0, 'WANTCAT',   np.nan, 1, 'CACCTCGTN', np.nan, 15], 
+                               ['seq03|seq04', 0, 'CACCTCGTN', np.nan, 1, 'CACCTCGTN', np.nan, 15], 
+                               ['seq05',       0, 'WANTCAT',   np.nan, 1, 'CACCTCGTN', np.nan, 15],
                                ],  dtype=object),
                 index=pd.Index(['seq01', 'seq02', 'seq03', 'seq04', 'seq05'], 
                                 name='db-seq'),
-                columns=['clean_name', 'first-region', 'first-fwd-primer',  
-                         'last-region', 'last-fwd-primer', 'last-kmer-length'],
-            )
+                columns=['clean_name', 'first-region', 'first-fwd-primer', 
+                         'first-fwd-pos', 'last-region', 'last-fwd-primer', 
+                         'last-fwd-pos', 'last-kmer-length'],
+                )
             )
         recon_summary = Artifact.import_data(
             'FeatureData[ReconstructionSummary]',
-            Metadata(pd.DataFrame(data=[[1, 2, 2, 0, 'asv01|asv02'],
-                                        [2, 3, 1.5, np.std([1, 2], ddof=1), 
-                                         'asv03|asv04'],
-                                        [2, 2, 1, 0, 'asv07|asv08']],
-                                 index=pd.Index(['seq01|seq02', 'seq03|seq04', 
-                                                 'seq05'], name='feature-id'),
-                                columns=['num-regions', 'total-kmers-mapped', 
-                                         'mean-kmer-per-region', 
-                                         'stdv-kmer-per-region', 
-                                         'mapped-asvs']))
+            Metadata(pd.DataFrame(
+                data=[[1, 2, 2, 0, 'asv01|asv02'],
+                      [2, 3, 1.5, np.std([1, 2], ddof=1), 'asv03|asv04'],
+                      [2, 2, 1, 0, 'asv07|asv08']],
+                index=pd.Index(['seq01|seq02', 'seq03|seq04', 'seq05'], 
+                               name='feature-id'),
+                columns=['num-regions', 'total-kmers-mapped', 
+                         'mean-kmer-per-region', 'stdv-kmer-per-region', 
+                         'mapped-asvs']
+                ))
         )
         aligned_seqs = Artifact.import_data(
             'FeatureData[AlignedSequence]', 
-            skbio.TabularMSA([
-                DNA('CTAGTCATGCGAAGCGGCTCAGGATGATGATGAAGAC-------------------'
-                    '--------------', metadata={'id': 'seq01'}),
-                DNA('CTAGTCATGCGAAGCGGCTCAGGATGATGATGAAGAC-------------------'
-                    '--------------', metadata={'id': 'seq02'}),
-                DNA('CATAGTCATWTCCGCGTTGGAGTTATGATGATGAWACCACCTCGTCCCAGTTCCGC'
-                    'GCTTCTGACGTGC-', metadata={'id': 'seq03'}),
-                DNA('------------------GGAGTTATGATGA--AGACCACCTCGTCCCAGTTCCGC'
-                    'GCTTCTGACGTGCC', metadata={'id': 'seq04'}),
-                DNA('CATAGTCATCGTTTATGTATGCCCATGATGATGCGAGCACCTCGTATGGATGTAGA'
-                    'GCCACTGACGTGCG', metadata={'id': 'seq05'}),
-            ])
+            TabularMSA([
+                DNA('-CTAGTCATGCGAAGCGGCTCAGGATGATGATGAAGAC---------------------------------', metadata={'id': 'seq01'}),
+                DNA('ACTAGTCATGCGAAGCGGCTCAGGATGATGATGAAGAC---------------------------------', metadata={'id': 'seq02'}),
+                DNA('CATAGTCATWTCCGCGTTGGAGTTATGATGATGAWACCACCTCGTCCCAGTTCCGCGCTTCTGACGTGCA-', metadata={'id': 'seq03'}),
+                DNA('------------------GGAGTTATGATGA--AGACCACCTCGTCCCAGTTCCGCGCTTCTGACGTGCAC', metadata={'id': 'seq04'}),
+                DNA('CATAGTCATCGTTTATGTATGCCCATGATGATGCGAGCACCTCGTATGGATGTAGAGCCACTGACGTGCGG', metadata={'id': 'seq05'}),
+            ]),
         )
         known = pd.Series(
             data=['GCGAAGCGGCTCAGG',
@@ -261,6 +262,7 @@ class PluginSetupTest(TestCase):
             reconstruction_summary=recon_summary, 
             aligned_sequences=aligned_seqs,
             ).representative_fragments
+
         pdt.assert_series_equal(known, test.view(pd.Series).astype(str))
 
 

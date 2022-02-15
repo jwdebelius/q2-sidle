@@ -737,6 +737,7 @@ plugin.pipelines.register_function(function=q2_sidle.find_and_prepare_regional_s
         },
     )
 
+
 plugin.pipelines.register_function(function=q2_sidle.map_alignment_positions,
     name='Finds the starting positions of denoised amplicons in an alignment',
     description=('For studies without primers, this will take amplicons, '
@@ -796,7 +797,6 @@ plugin.pipelines.register_function(function=q2_sidle.map_alignment_positions,
                      'sequences'),
         },
     )
-
 
 
 plugin.pipelines.register_function(function=q2_sidle.sidle_reconstruction,
@@ -947,7 +947,6 @@ plugin.pipelines.register_function(function=q2_sidle.reconstruct_tree,
 )
 
 
-
 # Registers semantic types
 plugin.register_formats(KmerMapFormat, 
                         KmerMapDirFmt, 
@@ -968,6 +967,7 @@ plugin.register_semantic_types(KmerMap,
                                ReconstructionSummary,
                                AlignmentPosSummary,
                                )
+
 
 plugin.register_semantic_type_to_format(FeatureData[KmerMap], 
                                         KmerMapDirFmt)

@@ -39,6 +39,7 @@ class TestTransform(TestCase):
                      'fwd-pos', 'rev-pos', 'kmer-length'],
             index=pd.Index(['Batman', 'Superman'], name='db-seq')
             )
+        known[['fwd-pos', 'rev-pos']] = known[['fwd-pos', 'rev-pos']].astype(object)
         filepath = os.path.join(self.base_dir, 'kmer-map.tsv')
         format = KmerMapFormat(filepath, mode='r')
         test = t._1(format)
@@ -83,6 +84,8 @@ class TestTransform(TestCase):
                      'fwd-pos', 'rev-pos', 'kmer-length'],
             index=pd.Index(['Batman', 'Superman'], name='db-seq')
             )
+        known[['fwd-pos', 'rev-pos']] = \
+            known[['fwd-pos', 'rev-pos']].astype(object)
         filepath = os.path.join(self.base_dir, 'kmer-map.tsv')
         format = KmerMapFormat(filepath, mode='r')
         test = t._3(format)

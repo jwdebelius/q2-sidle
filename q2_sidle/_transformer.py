@@ -19,7 +19,9 @@ def _1(ff:KmerMapFormat) -> pd.DataFrame:
     df = df[['db-seq', 'seq-name', 'kmer', 'region', 'fwd-primer', 
              'rev-primer', 'fwd-pos', 'rev-pos', 'kmer-length']]
     df[['kmer-length']] = df[['kmer-length']].astype(int)
-    df[[ 'fwd-pos', 'rev-pos']] = df[[ 'fwd-pos', 'rev-pos']].astype(float)
+    if pd.isnull(df[[ 'fwd-pos', 'rev-pos']]).all().all() == False:
+        df[[ 'fwd-pos', 'rev-pos']] = \
+            df[[ 'fwd-pos', 'rev-pos']].astype(int)
     df.sort_values(['db-seq', 'seq-name', 'kmer'], inplace=True)
     return df.set_index('db-seq')
 

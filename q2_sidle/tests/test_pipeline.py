@@ -144,7 +144,7 @@ class PipelineTest(TestCase):
         extra_alignment.drop(['asv01', 'asv02', 'asv03', 'asv04', 'asv05',
                              'asv09', 'asv10'], inplace=True)
         kmer_map = pd.DataFrame(
-            data=np.array([['seq1', 'seq1', 'Gotham', np.nan, np.nan, 53., 67., 15],
+            data=np.array([['seq1', 'seq1', 'Gotham', np.nan, np.nan, 53, 67, 15],
                            ['seq2', 'seq2', 'Gotham', np.nan, np.nan, 53, 67, 15],
                            ['seq3', 'seq3', 'Gotham', np.nan, np.nan, 53, 67, 15],
                            ['seq4', 'seq4', 'Gotham', np.nan, np.nan, 53, 67, 15],
@@ -157,7 +157,7 @@ class PipelineTest(TestCase):
                      'fwd-pos', 'rev-pos', 'kmer-length'],
             )
         kmer_map[['fwd-pos', 'rev-pos']] = \
-            kmer_map[['fwd-pos', 'rev-pos']].astype(float)
+            kmer_map[['fwd-pos', 'rev-pos']].astype(int)
         kmer_map['kmer-length'] = kmer_map['kmer-length'].astype(int)
         pipeline_res = \
             sidle.find_and_prepare_regional_seqs(alignment=self.ori_alignment,
@@ -184,6 +184,8 @@ class PipelineTest(TestCase):
         known = self.kmer_map2.view(pd.DataFrame).copy()
         known['fwd-pos'] = np.nan
         known['rev-pos'] = np.nan
+        known[['fwd-pos', 'rev-pos']] = \
+            known[['fwd-pos', 'rev-pos']].astype(object)
 
         pipeline_res = \
             sidle.find_and_prepare_regional_seqs(alignment=self.ori_alignment,
