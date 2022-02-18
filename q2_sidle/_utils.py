@@ -184,6 +184,18 @@ def _find_primer_start(seq_, primer, adj=1, prefix=''):
         return pd.Series({'%spos' % prefix: np.nan,
                           '%smis' % prefix: np.nan})
 
+    
+def _check_regions(region):
+    """
+    Converts the region to a numeric assignment
+    """
+    region, region_idx = np.unique(region, return_index=True)
+    region_order = {region: i for (i, region) in zip(*(region_idx, region))}
+    region_names = {i: r for r, i in region_order.items()}
+    num_regions = len(region_order)
+    
+    return region_order, region_names, num_regions
+
 
 database_params = {
     'greengenes': {

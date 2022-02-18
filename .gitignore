@@ -1,5 +1,6 @@
 q2_sidle/tests/files/integration/test
 
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -63,6 +64,7 @@ coverage.xml
 # Dask stuff:
 q2_sidle/tests/dask-worker-space/*
 q2_sidle/dask-worker-space/*
+docs/tutorial_data/dask-worker-space/*
 dask-worker-space/*
 playground/*
 

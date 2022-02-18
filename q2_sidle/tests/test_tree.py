@@ -41,12 +41,16 @@ class TreeTest(TestCase):
         np.random.seed(5)
 
     def test_reconstruct_fragment_rep_seqs(self):
-        recon_map = pd.Series(
-            data=['seq01|seq02', 'seq01|seq02', 'seq03|seq04', 
-                  'seq03|seq04', 'seq05'],
-            index=pd.Index(['seq01', 'seq02', 'seq03', 'seq04', 'seq05'], 
-                            name='db-seq'),
-            name='clean_name'
+        recon_map = pd.DataFrame(
+            data=np.array([['seq01|seq02', 0,  'WANTCAT', 0, 'WANTCAT', 15], 
+                           ['seq01|seq02', 0, 'WANTCAT', 0, 'WANTCAT', 15], 
+                           ['seq03|seq04', 0, 'WANTCAT', 1, 'CACCTCGTN', 15], 
+                           ['seq03|seq04', 0, 'CACCTCGTN', 1, 'CACCTCGTN', 15], 
+                           ['seq05', 0, 'WANTCAT', 1, 'CACCTCGTN', 15],
+                           ],  dtype=object),
+            index=pd.Index(['seq01', 'seq02', 'seq03', 'seq04', 'seq05'], name='db-seq'),
+            columns=['clean_name', 'first-region', 'first-fwd-primer',  
+                     'last-region', 'last-fwd-primer', 'last-kmer-length'],
             )
 
         recon_summary = pd.DataFrame(
@@ -65,8 +69,6 @@ class TreeTest(TestCase):
             index=pd.Index(['seq01|seq02', 'seq03|seq04'], name='clean_name'),
             )
         test = reconstruct_fragment_rep_seqs(
-            region=['Bludhaven', 'Gotham'],
-            kmer_map=[self.kmer_map1, self.kmer_map2],
             reconstruction_map=recon_map,
             reconstruction_summary=recon_summary,
             aligned_sequences=self.aligned_seqs,

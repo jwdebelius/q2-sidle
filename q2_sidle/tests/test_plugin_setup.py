@@ -13,7 +13,7 @@ import skbio
 from skbio import DNA
 
 from qiime2 import Artifact, Metadata
-from qiime2.plugins.sidle import methods as sidle
+from qiime2.plugins.sidle import actions as sidle
 from q2_sidle.plugin_setup import plugin
 
 import q2_sidle.tests.test_set as ts
@@ -43,20 +43,10 @@ class PluginSetupTest(TestCase):
         self.seq_map = ts.seq_map
         self.taxonomy = ts.taxonomy
         self.count1 = ts.region1_counts
+        self.database_summary = ts.db_summary
     
     def test_plugin_setup(self):
         self.assertEqual(plugin.name, 'sidle')
-
-    def test_filter_degenerate_sequences(self):
-        known = self.ref_seqs.view(pd.Series).copy().astype(str).drop(['seq3'])
-
-        test = sidle.filter_degenerate_sequences(
-            self.ref_seqs, 
-            max_degen=0, 
-            debug=True
-            )
-        test = test.filtered_sequences.view(pd.Series).astype(str)
-        pdt.assert_series_equal(known, test)
 
     def test_prepare_extracted_region(self):
         test_seqs, test_map = \
@@ -100,62 +90,35 @@ class PluginSetupTest(TestCase):
                                        max_mismatch=2,
                                        debug=True,
                                        ).regional_alignment
-        # self.assertEqual(len(test_discard.view(pd.Series)), 0)
         pdt.assert_frame_equal(
             self.align1.view(pd.DataFrame),
             test_align.view(pd.DataFrame).sort_values(['kmer', 'asv'])
             )
 
-    def test_reconstruct_counts(self):
+    def test_reconstruct_database(self):
+        mapping, summary = sidle.reconstruct_database(
+            region=['Bludhaven', 'Gotham'],
+            kmer_map=[self.kmer_map1, self.kmer_map2],
+            regional_alignment=[self.align1, self.align2],
+            debug=True,
+            )
+        pdt.assert_frame_equal(mapping.view(pd.DataFrame), 
+                               self.seq_map.view(pd.DataFrame))
+        pdt.assert_frame_equal(summary.view(pd.DataFrame),
+                               self.database_summary.view(pd.DataFrame))
 
-        known_summary = pd.DataFrame.from_dict(orient='index', data={
-            'seq1': {'num-regions': 2, 
-                     'total-kmers-mapped': 2, 
-                     'mean-kmer-per-region': 1.,
-                     'stdv-kmer-per-region': 0.,
-                     'mapped-asvs': 'asv01|asv06'
-                    },
-            'seq2': {'num-regions': 2, 
-                     'total-kmers-mapped': 2, 
-                     'mean-kmer-per-region': 1,
-                     'stdv-kmer-per-region': 0,
-                     'mapped-asvs': 'asv01|asv07',
-                    },
-            'seq3': {'num-regions': 2, 
-                     'total-kmers-mapped': 3, 
-                     'mean-kmer-per-region': 1.5,
-                     'stdv-kmer-per-region': np.std([1, 2], ddof=1),
-                     'mapped-asvs': 'asv02|asv03|asv08'
-                    },
-            'seq4': {'num-regions': 1, 
-                     'total-kmers-mapped': 1, 
-                     'mean-kmer-per-region': 1,
-                     'stdv-kmer-per-region': 0,
-                     'mapped-asvs': 'asv09'
-                    },
-            'seq5': {'num-regions': 2, 
-                     'total-kmers-mapped': 2, 
-                     'mean-kmer-per-region': 1,
-                     'stdv-kmer-per-region': 0,
-                     'mapped-asvs': 'asv04|asv05|asv10',
-                    },
-            'seq6': {'num-regions': 2, 
-                     'total-kmers-mapped': 2, 
-                     'mean-kmer-per-region': 1,
-                     'stdv-kmer-per-region': 0,
-                     'mapped-asvs': 'asv04|asv05|asv11',
-                    },
-            })
-        known_summary.index.set_names('feature-id', inplace=True)        
-        count_table, summary, mapping = \
+    def test_reconstruct_counts(self):
+        count_table = \
             sidle.reconstruct_counts(
                 region=['Bludhaven', 'Gotham'],
-                kmer_map=[self.kmer_map1, self.kmer_map2],
                 regional_alignment=[self.align1, self.align2],
                 regional_table=[self.table1, self.table2],
+                database_map=self.seq_map,
+                database_summary=self.database_summary,
                 debug=True,
                 min_abund=1e-2,
-                min_counts=10)
+                min_counts=10
+                ).reconstructed_table
         pdt.assert_frame_equal(
             count_table.view(pd.DataFrame),
             pd.DataFrame( 
@@ -166,9 +129,6 @@ class PluginSetupTest(TestCase):
                 columns=['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 'seq6']
             )
         )
-        pdt.assert_frame_equal(self.seq_map.view(pd.DataFrame), 
-                               mapping.view(pd.DataFrame))
-        pdt.assert_frame_equal(known_summary, summary.view(pd.DataFrame))
 
     def test_reconstruct_taxonomy(self):
         test = sidle.reconstruct_taxonomy(self.seq_map, 
@@ -179,17 +139,50 @@ class PluginSetupTest(TestCase):
         pdt.assert_series_equal(self.taxonomy.view(pd.Series),
                                 test.view(pd.Series))
 
+    def test_sidle_reconstruction(self):
+        mapping, summary, counts, taxonomy  = sidle.sidle_reconstruction(
+            region=['Bludhaven', 'Gotham'],
+            kmer_map=[self.kmer_map1, self.kmer_map2],
+            regional_alignment=[self.align1, self.align2],
+            regional_table=[self.table1, self.table2],
+            reference_taxonomy=self.taxonomy,
+            database='greengenes',
+            define_missing='ignore',
+            min_counts=10,
+            debug=True
+            )
+        pdt.assert_frame_equal(mapping.view(pd.DataFrame), 
+                               self.seq_map.view(pd.DataFrame))
+        pdt.assert_frame_equal(summary.view(pd.DataFrame),
+                               self.database_summary.view(pd.DataFrame))
+        pdt.assert_frame_equal(
+            counts.view(pd.DataFrame),
+            pd.DataFrame( 
+                data=np.array([[100.,  50,   0,  50,  50, 50],
+                               [100.,  25, 100,  25,  25, 25],
+                               [  0., 100, 100,   0,  50, 50]]),
+                index=pd.Index(['sample1', 'sample2', 'sample3']),
+                columns=['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 'seq6']
+            )
+        )
+        pdt.assert_series_equal(self.taxonomy.view(pd.Series),
+                                taxonomy.view(pd.Series))
+
     def test_reconstruct_fragment_rep_seqs(self):
         recon_map = Artifact.import_data(
             'FeatureData[SidleReconstruction]', 
-            pd.DataFrame(data=[['seq01|seq02'], 
-                               ['seq01|seq02'], 
-                               ['seq03|seq04'], 
-                               ['seq03|seq04'], 
-                               ['seq05']],
-                      index=pd.Index(['seq01', 'seq02', 'seq03', 'seq04', 
-                                      'seq05'], name='db-seq'),
-                      columns=['clean_name'])
+            pd.DataFrame(
+                data=np.array([['seq01|seq02', 0,  'WANTCAT', 0, 'WANTCAT', 15], 
+                               ['seq01|seq02', 0, 'WANTCAT', 0, 'WANTCAT', 15], 
+                               ['seq03|seq04', 0, 'WANTCAT', 1, 'CACCTCGTN', 15], 
+                               ['seq03|seq04', 0, 'CACCTCGTN', 1, 'CACCTCGTN', 15], 
+                               ['seq05', 0, 'WANTCAT', 1, 'CACCTCGTN', 15],
+                               ],  dtype=object),
+                index=pd.Index(['seq01', 'seq02', 'seq03', 'seq04', 'seq05'], 
+                                name='db-seq'),
+                columns=['clean_name', 'first-region', 'first-fwd-primer',  
+                         'last-region', 'last-fwd-primer', 'last-kmer-length'],
+            )
             )
         recon_summary = Artifact.import_data(
             'FeatureData[ReconstructionSummary]',
@@ -225,11 +218,6 @@ class PluginSetupTest(TestCase):
             index=pd.Index(['seq01|seq02', 'seq03|seq04']),
             )
         test = sidle.reconstruct_fragment_rep_seqs(
-            region=['Bludhaven', 'Gotham'],
-            kmer_map=[Artifact.load(os.path.join(self.base_dir, 
-                                    'frag_r1_db_map.qza')),
-                      Artifact.load(os.path.join(self.base_dir, 
-                                    'frag_r2_db_map.qza'))],
             reconstruction_map=recon_map, 
             reconstruction_summary=recon_summary, 
             aligned_sequences=aligned_seqs,
@@ -341,20 +329,13 @@ class PluginSetupTest(TestCase):
         count3 = Artifact.load(os.path.join(data_dir, 'region3-counts.qza'))
 
         ### Reconstruction
-        table, summary, map_ = sidle.reconstruct_counts(
+        map_, summary = sidle.reconstruct_database(
             region=['1', '2', '3'],
             kmer_map=[region1_map, region2_map, region3_map],
             regional_alignment=[align1, align2, align3],
-            regional_table=[count1, count2, count3],
-            debug=True,
-            min_counts=100,
-            min_abund=1e-5,
             count_degenerates=False,
-        )
-        known = \
-            Artifact.load(os.path.join(known_dir, 'reconstructed-table.qza'))
-        pdt.assert_frame_equal(known.view(pd.DataFrame), 
-                               table.view(pd.DataFrame))
+            debug=True,
+            )
         known = \
             Artifact.load(os.path.join(known_dir, 'reconstructed-summary.qza'))
         # ASV mapping was optional in the  original sidle. This is  tested
@@ -365,8 +346,29 @@ class PluginSetupTest(TestCase):
             )
         known = \
             Artifact.load(os.path.join(known_dir, 'sidle-reconstruction.qza'))
-        pdt.assert_series_equal(known.view(pd.Series), map_.view(pd.Series))
+        pdt.assert_series_equal(known.view(pd.Series).sort_index(), 
+                                map_.view(pd.Series))
 
+        table = sidle.reconstruct_counts(
+            region=['1', '2', '3'],
+            regional_alignment=[align1, align2, align3],
+            regional_table=[count1, count2, count3],
+            database_map=map_,
+            database_summary=summary,
+            debug=True,
+            min_counts=100,
+            min_abund=1e-5,
+            ).reconstructed_table
+        known = \
+            Artifact.load(os.path.join(known_dir, 'reconstructed-table.qza'))
+        pdt.assert_frame_equal(known.view(pd.DataFrame), 
+                               table.view(pd.DataFrame))
+        known = \
+            Artifact.load(os.path.join(known_dir, 'reconstructed-summary.qza'))
+        pdt.assert_frame_equal(
+            known.view(pd.DataFrame),
+            summary.view(pd.DataFrame).drop(columns=['mapped-asvs'])
+            )
 
 
 if __name__ == '__main__':

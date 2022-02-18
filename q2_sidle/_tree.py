@@ -8,13 +8,13 @@ from skbio.alignment import local_pairwise_align_ssw
 
 from qiime2 import Metadata
 from q2_feature_classifier._cutter import (_local_aln)
-from q2_sidle._utils import (degen_sub)
+from q2_sidle._utils import (degen_sub,
+                             _check_regions,
+                            )
 
 
 def reconstruct_fragment_rep_seqs(
-    region: str,
-    kmer_map: pd.DataFrame,
-    reconstruction_map: pd.Series, 
+    reconstruction_map: pd.DataFrame, 
     reconstruction_summary:pd.DataFrame,
     aligned_sequences:pd.Series,
     ) -> pd.Series:
@@ -64,11 +64,6 @@ def reconstruct_fragment_rep_seqs(
         sequence alignment
 
     """
-    # Gets the regional order
-    region_order = {region: i for i, region in enumerate(region)}
-    region_names = {i: r for r, i in region_order.items()}
-    num_regions = len(region_order)
-
     # Gets the total number of database sequences mapped in the summary
     reconstruction_summary['num_seqs_mapped'] = \
         pd.Series({i: i.count("|") + 1 for i in reconstruction_summary.index})
@@ -79,64 +74,48 @@ def reconstruct_fragment_rep_seqs(
     multiple_mapped = reconstruction_summary['num_seqs_mapped'] > 1
     multiple_mapped = multiple_mapped.index[multiple_mapped].values
     reconstruction_map = \
-        reconstruction_map.loc[reconstruction_map.isin(multiple_mapped)].copy()
-    reconstruction_summary = reconstruction_summary.loc[multiple_mapped]
+        reconstruction_map.loc[reconstruction_map['clean_name'].isin(
+            multiple_mapped)].copy()
 
-    # Loads the mapping of the regional kmers, adds. the clean name
-    # and tidies the information
-    kmer_map = pd.concat(
-        axis=0,
-        objs=kmer_map,
-    )
-    kmer_map['clean_name'] = reconstruction_map
+    # print(aligned_sequences)
+    reconstruction_map['sequence'] = \
+        aligned_sequences.loc[reconstruction_map.index]
+    reconstruction_map.reset_index(inplace=True)
+    reconstruction_map.sort_values(['clean_name', 'first-region'], 
+                                   inplace=True)
 
-    kmer_map.dropna(subset=['clean_name'], axis=0, inplace=True)
-    kmer_map.replace({'region': region_order}, inplace=True)
-    kmer_map.reset_index(inplace=True)
-    kmer_map['kmer-length'] = kmer_map['kmer-length'].astype(int)
-    
-    # Gets the first kmer and the associated information
-    kmer_map.sort_values(by=['clean_name', 'db-seq', 'seq-name', 'region'], 
-                         ascending=True, 
-                         inplace=True)
-    kmer_map.drop_duplicates(['clean_name', 'db-seq', 'region'], 
-                             inplace=True)
-    kmer_map.set_index('db-seq', inplace=True)
-    kmer_map['sequence'] = aligned_sequences.loc[kmer_map.index]
-    kmer_map.reset_index(inplace=True)
-
-    # We'll drop kmer-specific info
-    kmer_map.drop(columns=['seq-name', 'kmer'], 
-                  inplace=True)
+    # # print(reconstruction_map)
 
     # Calculates and degaps the concensus sequence for the region using skbio
     # to calculate the concensus and then fiters the concensus down to a 
     # single sequence
-    concensus = \
-        kmer_map.drop_duplicates('db-seq').copy().set_index('db-seq')
-    concensus = \
-        concensus.groupby('clean_name')['sequence'].apply(_group_concensus)
-
-
-    concensus_cols = ['clean_name', 'fwd-primer', 
-                      'rev-primer', 'kmer-length']
-    concensus_map = kmer_map[concensus_cols].copy()
-    concensus_map.drop_duplicates(inplace=True)
-    concensus_map.set_index('clean_name', inplace=True)
-    concensus_map['sequence'] = concensus
+    concensus_map = pd.concat(axis=1, objs=[
+        reconstruction_map.groupby('clean_name', sort=False)['sequence'].apply(
+            _group_concensus),
+        reconstruction_map.groupby('clean_name', sort=False)[
+        'first-fwd-primer'].first(),
+        reconstruction_map.sort_values('last-region').groupby('clean_name', 
+            sort=False)[['last-fwd-primer', 'last-kmer-length']].last()
+        ])
 
     # Determines the positions for each of the primer regions. We first look
     # for an exact match using regex
     fwd_rep = {primer: _expand_primer(primer, None) 
-               for primer in concensus_map['fwd-primer'].unique()}
+               for primer in concensus_map['first-fwd-primer'].unique()}
     rev_rep = {primer: _expand_primer(primer, None) 
-               for primer in concensus_map['rev-primer'].unique()}
-    concensus_map['f_exact'] = concensus_map['fwd-primer'].replace(fwd_rep)
-    concensus_map['r_exact'] = concensus_map['rev-primer'].replace(fwd_rep)
+               for primer in concensus_map['last-fwd-primer'].unique()}
+    concensus_map['f_exact'] = \
+        concensus_map['first-fwd-primer'].replace(fwd_rep)
+    concensus_map['r_exact'] = \
+        concensus_map['last-fwd-primer'].replace(rev_rep)
 
     # Finds sequences with exact matches
     concensus_map['start'] = \
         concensus_map[['sequence', 'f_exact']].astype(str).apply(
+        _find_exact_forward, axis=1
+    )
+    concensus_map['end'] = \
+        concensus_map[['sequence', 'r_exact']].astype(str).apply(
         _find_exact_forward, axis=1
     )
 
@@ -145,34 +124,22 @@ def reconstruct_fragment_rep_seqs(
     # match go
     missing_start = concensus_map['start'].isna()
     concensus_map.loc[missing_start, 'start'] = \
-        concensus_map.loc[missing_start, ['sequence', 'fwd-primer']].apply(
-        _find_approx_forward, axis=1
-    )
+        concensus_map.loc[missing_start, ['sequence', 'first-fwd-primer']
+        ].apply(_find_approx_forward, axis=1)
+    missing_end = concensus_map['end'].isna()
+    concensus_map.loc[missing_start, 'end'] = \
+        concensus_map.loc[missing_start, ['sequence', 'last-fwd-primer']
+        ].apply(_find_approx_forward, axis=1)
+    concensus_map['end'] = \
+        concensus_map[['end', 'last-kmer-length']].sum(axis=1)
 
-    # Adds the kmer offset
-    concensus_map['start_off'] = \
-        concensus_map['start'] + concensus_map['kmer-length']
-
-    # Finds the most extreme positions based on the overlapping positions at
-    # each region
-
-    concensus_map['fwd-pos'] = \
-        concensus_map[['start', 'start_off']].min(axis=1)
-    concensus_map['rev-pos'] = \
-        concensus_map[['start', 'start_off']].max(axis=1)
+    concensus_map[['start', 'end']] = \
+        concensus_map[['start', 'end']].astype(int)
     
     # Gets that fragment based on the most extreme forward and reverse 
     # positions in the amplified regions
-    concensus_map.reset_index(inplace=True)
-    concensus_map['sequence'] = concensus_map['sequence'].astype(str)
-
-    con_group = concensus_map.groupby(['clean_name', 'sequence'])
-    concensus_sub = pd.concat(axis=1, objs=[
-        con_group['fwd-pos'].min().astype(int), 
-        con_group['rev-pos'].max().astype(int)
-    ]).astype(int).reset_index(level='sequence')
-    concensus_sub = concensus_sub.apply(
-        lambda x: DNA(x['sequence'][x['fwd-pos']:x['rev-pos']]), axis=1)
+    concensus_sub = concensus_map.apply(
+        lambda x: DNA(x['sequence'][x['start']:x['end']]), axis=1)
 
     return concensus_sub
 

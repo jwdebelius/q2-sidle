@@ -3,9 +3,28 @@
 import biom
 import numpy as np
 import pandas as pd
+import skbio
 from skbio import DNA
 
-from qiime2 import Artifact
+from qiime2 import Artifact, Metadata
+
+
+db_alignment = Artifact.import_data('FeatureData[AlignedSequence]', pd.Series({
+    'seq1': skbio.DNA('-----AAATCATGCGAAGCGGCTCAGGATGATGATGGGTGAGTCACCTCGTAAGAGAGGCTGAATCCATGACGTG---ACCAGC', metadata={'id': 'seq1'}),
+    'seq2': skbio.DNA('-----AAATCATGCGAAGCGGCTCAGGATGATGATGGGTGAGTCACCTCGTCAGAGTTTCTGAATCCATGACGTG---ACCAGC', metadata={'id': 'seq2'}),
+    'seq3': skbio.DNA('TATGGTACTCATWTCCGCGTTGGAGTTATGATGATGGGGTGA-CACCTCGTTCCAGTTCCGCGCTTCATGACGTGCTGACC---', metadata={'id': 'seq3'}),
+    'seq4': skbio.DNA('------------------------------AAGGCGGGTGAG-CACCTCGTCCCGGAGACGAGAGGCATGACGTG---ATCCGT', metadata={'id': 'seq4'}),
+    'seq5': skbio.DNA('-AGGCTAGTCATCGTTTATGTATGCCCATGATGATGGGGTGAGCACCTCGTGTGGATGTAGAGCCACCTGACGTGC--ACCTG-', metadata={'id': 'seq5'}),
+    'seq6': skbio.DNA('-AGGCTAGTCATCGTTTATGTATGCCCATGATGATGGGGTGAGCACCTCGTGAAAATGTAGAGCCACCTGACGTGC--ACC---', metadata={'id': 'seq6'}),
+    }))
+db_sequences =  Artifact.import_data('FeatureData[Sequence]', pd.Series({
+    'seq1': skbio.DNA('AAATCATGCGAAGCGGCTCAGGATGATGATGGGTGAGTCACCTCGTAAGAGAGGCTGAATCCATGACGTGACCAGC', metadata={'id': 'seq1'}),
+    'seq2': skbio.DNA('AAATCATGCGAAGCGGCTCAGGATGATGATGGGTGAGTCACCTCGTCAGAGTTTCTGAATCCATGACGTGACCAGC', metadata={'id': 'seq2'}),
+    'seq3': skbio.DNA('TATGGTACTCATWTCCGCGTTGGAGTTATGATGATGGGGTGACACCTCGTTCCAGTTCCGCGCTTCATGACGTGCTGACC', metadata={'id': 'seq3'}),
+    'seq4': skbio.DNA('AAGGCGGGTGAGCACCTCGTCCCGGAGACGAGAGGCATGACGTGATCCGT', metadata={'id': 'seq4'}),
+    'seq5': skbio.DNA('AGGCTAGTCATCGTTTATGTATGCCCATGATGATGGGGTGAGCACCTCGTGTGGATGTAGAGCCACCTGACGTGCACCTG', metadata={'id': 'seq5'}),
+    'seq6': skbio.DNA('AGGCTAGTCATCGTTTATGTATGCCCATGATGATGGGGTGAGCACCTCGTGAAAATGTAGAGCCACCTGACGTGCACC', metadata={'id': 'seq6'}),
+    }))
 
 region1_db_seqs = Artifact.import_data('FeatureData[Sequence]', pd.Series({
     'seq1|seq2': DNA('GCGAAGCGGCTCAGG', metadata={'id': 'seq1|seq2'}),
@@ -65,7 +84,7 @@ region1_align = \
                        ['seq6', 'asv04', 15, 1, 2, 'Bludhaven'],
                        ['seq6', 'asv05', 15, 0, 2, 'Bludhaven']],
                        dtype=object),
-        columns=['kmer', 'asv',  'length', 'mismatch', 'max-mismatch', 'region']
+        columns=['kmer', 'asv',  'length', 'mismatch', 'max-mismatch', 'region'],
     ))
 region2_align = \
     Artifact.import_data('FeatureData[KmerAlignment]', pd.DataFrame(
@@ -76,7 +95,7 @@ region2_align = \
                        ['seq5', 'asv10', 15, 0, 2, 'Gotham'],
                        ['seq6', 'asv11', 15, 0, 2, 'Gotham']],
                        dtype=object),
-        columns=['kmer', 'asv', 'length', 'mismatch', 'max-mismatch', 'region']
+        columns=['kmer', 'asv',  'length', 'mismatch', 'max-mismatch', 'region'],
     ))
 region1_counts = Artifact.import_data('FeatureTable[Frequency]', biom.Table(
     np.array([[150,   0,   0,  50, 50],
@@ -114,15 +133,56 @@ taxonomy_gg = pd.Series(
 taxonomy =  Artifact.import_data('FeatureData[Taxonomy]', taxonomy_gg)
 
 seq_map = pd.DataFrame(
-            data=np.array([['seq1', 'WANTCAT', 'CACCTCGTN', 15],
-                           ['seq2', 'WANTCAT', 'CACCTCGTN', 15],
-                           ['seq3', 'WANTCAT', 'CACCTCGTN', 15],
-                           ['seq4', 'CACCTCGTN', 'CACCTCGTN', 15],
-                           ['seq5', 'WANTCAT', 'CACCTCGTN', 15],
-                           ['seq6', 'WANTCAT', 'CACCTCGTN', 15],
+            data=np.array([['seq1', 0, 'WANTCAT', 1, 'CACCTCGTN', 15],
+                           ['seq2', 0, 'WANTCAT', 1, 'CACCTCGTN', 15],
+                           ['seq3', 0, 'WANTCAT', 1, 'CACCTCGTN', 15],
+                           ['seq4', 1, 'CACCTCGTN', 1, 'CACCTCGTN', 15],
+                           ['seq5', 0, 'WANTCAT', 1, 'CACCTCGTN', 15],
+                           ['seq6', 0, 'WANTCAT', 1, 'CACCTCGTN', 15],
                            ]),
             index=pd.Index(['seq1', 'seq2', 'seq3', 'seq4', 'seq5', 'seq6'], name='db-seq'),
-            columns=['clean_name', 'first-fwd-primer', 'last-fwd-primer', 'last-kmer-length']
+            columns=['clean_name', 'first-region', 'first-fwd-primer', 
+                     'last-region', 'last-fwd-primer', 'last-kmer-length']
             )
 seq_map = Artifact.import_data('FeatureData[SidleReconstruction]', seq_map)
     
+db_summary = pd.DataFrame.from_dict(orient='index', data={
+    'seq1': {'num-regions': 2, 
+             'total-kmers-mapped': 2, 
+             'mean-kmer-per-region': 1.,
+             'stdv-kmer-per-region': 0.,
+             'mapped-asvs': 'asv01|asv06'
+            },
+    'seq2': {'num-regions': 2, 
+             'total-kmers-mapped': 2, 
+             'mean-kmer-per-region': 1,
+             'stdv-kmer-per-region': 0,
+             'mapped-asvs': 'asv01|asv07',
+            },
+    'seq3': {'num-regions': 2, 
+             'total-kmers-mapped': 3, 
+             'mean-kmer-per-region': 1.5,
+             'stdv-kmer-per-region': np.std([1, 2], ddof=1),
+             'mapped-asvs': 'asv02|asv03|asv08'
+            },
+    'seq4': {'num-regions': 1, 
+             'total-kmers-mapped': 1, 
+             'mean-kmer-per-region': 1,
+             'stdv-kmer-per-region': 0,
+             'mapped-asvs': 'asv09'
+            },
+    'seq5': {'num-regions': 2, 
+             'total-kmers-mapped': 2, 
+             'mean-kmer-per-region': 1,
+             'stdv-kmer-per-region': 0,
+             'mapped-asvs': 'asv04|asv05|asv10',
+            },
+    'seq6': {'num-regions': 2, 
+             'total-kmers-mapped': 2, 
+             'mean-kmer-per-region': 1,
+             'stdv-kmer-per-region': 0,
+             'mapped-asvs': 'asv04|asv05|asv11',
+            },
+    })
+db_summary.index.set_names('feature-id', inplace=True)   
+db_summary = Artifact.import_data('FeatureData[ReconstructionSummary]', Metadata(db_summary))

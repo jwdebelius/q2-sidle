@@ -2,6 +2,7 @@ from unittest import TestCase, main
 
 import os
 
+from dask.delayed import Delayed
 import dask.dataframe as dd
 import numpy as np
 import numpy.testing as npt
@@ -14,7 +15,7 @@ from qiime2.plugin.testing import TestPluginBase
 from q2_sidle import (KmerMapFormat,
                       KmerAlignFormat,
                       SidleReconFormat,
-                      ReconSummaryFormat
+                      ReconSummaryFormat,
                       )
 import q2_sidle._transformer as t
 
@@ -68,9 +69,8 @@ class TestTransform(TestCase):
             else:
                 self.assertEqual(v.type, 'categorical')
         pdt.assert_frame_equal(known, test.to_dataframe())
-
-
-    def test_kmer_map_delayed_frame(self):
+        
+    def test_kmer_map_delayed(self):
         known = pd.DataFrame(
             data=[['Batman', 'Batman', 'Gotham', 'WANTCAT', 'CATCATCAT', 50],
                   ['Superman', 'Superman', 'Metropolis', 'CATDAD', 'DADCAT', 
@@ -82,9 +82,9 @@ class TestTransform(TestCase):
         filepath = os.path.join(self.base_dir, 'kmer-map.tsv')
         format = KmerMapFormat(filepath, mode='r')
         test = t._3(format)
-        self.assertTrue(isinstance(test, dd.DataFrame))
+        self.assertTrue(isinstance(test, Delayed))
         pdt.assert_frame_equal(known, test.compute())
-
+        
     def test_dataframe_to_kmer_map(self):
         # tested in plugin setup
         pass
@@ -132,7 +132,7 @@ class TestTransform(TestCase):
         pdt.assert_frame_equal(test.to_dataframe(), 
                                known)
 
-    def test_kmer_align_to_dask_dataframe(self):
+    def test_kmer_align_to_delayed(self):
         known = pd.DataFrame(
             data=[['Batman', 'Bruce Wayne', 80, 2, 2, 'Gotham'],
                   ['Flash', 'Barry Allen', 50, 0, 2, 'Central City'],
@@ -143,7 +143,7 @@ class TestTransform(TestCase):
         filepath = os.path.join(self.base_dir, 'kmer-align.tsv')
         format = KmerAlignFormat(filepath, mode='r')
         test = t._7(format)
-        self.assertTrue(isinstance(test, dd.DataFrame))
+        self.assertTrue(isinstance(test, Delayed))
         pdt.assert_frame_equal(test.compute(), known)
 
     def test_dataframe_to_kmer_align(self):

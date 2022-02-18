@@ -6,6 +6,7 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 
 import biom
 import dask
+from dask.delayed import Delayed
 import dask.dataframe as dd
 import numpy as np
 import pandas as pd
@@ -14,14 +15,16 @@ from qiime2 import Metadata, Artifact
 from qiime2.plugin import ValidationError
 from q2_sidle._utils import (_setup_dask_client, 
                              degen_reps,
+                             _check_regions,
                              )
+from q2_sidle._build_database import _check_regions
 
 def reconstruct_counts(
     region: str,
-    regional_alignment: pd.DataFrame,
-    kmer_map: pd.DataFrame,
+    regional_alignment: Delayed,
     regional_table: biom.Table,
-    count_degenerates: bool=True,
+    database_map: pd.Series,
+    database_summary: Metadata,
     per_nucleotide_error: float=0.005,
     min_abund: float=1e-5,
     region_normalize: str='average',
@@ -30,7 +33,7 @@ def reconstruct_counts(
     debug: bool=False, 
     n_workers: int=1,
     client_address: str=None,
-    ) -> (biom.Table, Metadata, pd.DataFrame):
+    ) -> (biom.Table):
     """
     Reconstructs regional alignments into a full length 16s sequence
 
@@ -86,70 +89,20 @@ def reconstruct_counts(
     _setup_dask_client(debug=debug, cluster_config=None,  
                        n_workers=n_workers, address=client_address)
 
-    region, region_idx = np.unique(region, return_index=True)
-    region_order = {region: i for (i, region) in zip(*(region_idx, region))}
-    region_names = {i: r for r, i in region_order.items()}
-    num_regions = len(region_order)
+    region_order, region_names, num_regions = _check_regions(region)
 
-    # Imports the alignment maps and gets the kmers that were aligned
-    align_map = pd.concat(
-        axis=0, 
-        sort=False, 
-        objs=regional_alignment)
-    align_map.drop_duplicates(['asv', 'kmer'], inplace=True)
-    align_map.replace({'region': region_order}, inplace=True)
-    aligned_kmers = _get_unique_kmers(align_map['kmer'])
-
-    print('Regional Alignments Loaded')
-
-    # ### Untangles the database to get the unique regional mapping
-
-    # Filters database down to kmers which are present in the sequences 
-    # because otherwise we're trying to untangle a huge amount of data and it 
-    # just gets memory intensive and slow
-    kmer_map = pd.concat(
-        axis=0,
-        objs=kmer_map,
-    )
-    kmer_map['region'] = kmer_map['region'].replace(region_order) 
-
-    kmers =_get_unique_kmers(kmer_map.loc[aligned_kmers, 'kmer'])
-
-    kmer_map = kmer_map.loc[kmers]
-    kmer_map.reset_index(inplace=True)
-    kmer_map.drop_duplicates(inplace=True)
-    kmer_map.set_index('db-seq', inplace=True)
-
-    print('Regional Kmers Loaded')
-
-    # Builds database mapping bettween the kmer, the original database
-    # sequence and the original name
-    db_map = _untangle_database_ids(
-        kmer_map.reset_index(),
-        num_regions=num_regions,
-        )
-    print('Database map assembled')
-
-    ### Summarizes the database 
-    kmer_map['clean_name'] = db_map
-    kmer_map.reset_index(inplace=True)
-
-
-    db_summary = _count_mapping(kmer_map.reset_index(), 
-                                count_degenerates, 
-                                kmer='seq-name')
+    ### Constructs the regional alignment map
+    database_summary = database_summary.to_dataframe()
+    database_summary.index.set_names('clean_name', inplace=True)
     if region_normalize == 'unweighted':
-        db_summary['num-regions'] = 1
+        database_summary['num-regions'] = 1
 
-    print('Database map summarized')
-
-    ### Constructs the regional alignment
-    align_mat = _construct_align_mat(align_map,
-                                    sequence_map=db_map.to_dict(),
-                                    seq_summary=db_summary,
-                                    nucleotide_error=per_nucleotide_error, 
-                                    blocksize=block_size,
-                                    )
+    align_mat = _construct_align_mat(matches=regional_alignment,
+                                     sequence_map=database_map,
+                                     seq_summary=database_summary,
+                                     nucleotide_error=per_nucleotide_error, 
+                                     blocksize=block_size,
+                                     )
     print('Alignment map constructed')
     
     ### Solves the relative abundance
@@ -172,23 +125,24 @@ def reconstruct_counts(
     unaligned_counts = counts.copy().drop(keep_asvs).sum(axis=1)
     counts = counts.loc[keep_asvs]
     keep_samples = counts.sum(axis=0) > min_counts
-    if keep_samples.sum() == 0:
-        raise ValueError('None of the samples have more than the %i total '
-                         'sequences required for reconstruction.' 
-                         % min_counts)
-    elif not keep_samples.all():
-        warnings.warn("There are %i samples with fewer than %i total"
-                      " reads. These samples will be discarded."
-                      % ((keep_samples==False).sum(), min_counts),
-                      UserWarning)
+    if keep_samples.all() == False:
+        raise ValueError('There are {samples:d} samples with fewer than '
+                         '{depth:d} total sequences. Please check your '
+                         'minimum counts and make sure your representative '
+                         'sequences are aligned with the database.'.format(
+                            samples=(keep_samples == False).sum(), 
+                            depth=min_counts)
+                         )
+    # elif not keep_samples.all():
+    #     warnings.warn("There are %i samples with fewer than %i total"
+    #                   " reads. These samples will be discarded."
+    #                   % ((keep_samples==False).sum(), min_counts),
+    #                   UserWarning)
     counts = counts[keep_samples.index.values[keep_samples.values]]
     counts = counts.loc[counts.sum(axis=1) > 0]
     keep_asvs = counts.index
 
-
     align_mat = align_mat.loc[align_mat['asv'].isin(keep_asvs)]
-    keep_kmers = align_mat['clean_name'].unique()
-    db_summary = db_summary.loc[keep_kmers]
 
     # Normalizes the alignment table
     n_table = counts / counts.sum(axis=0)
@@ -199,13 +153,13 @@ def reconstruct_counts(
     # to allow multiple samples ot be solved together, but... eh?
     sample_ids = n_table.columns.values
     n_samples = len(sample_ids)
-    # print('start normalization')
+    print('start normalization')
 
     rel_abund = _solve_iterative_noisy(align_mat=align_mat, 
                                        table=n_table,
                                        min_abund=min_abund,
-                                       seq_summary=db_summary)
-    db_summary = db_summary.loc[rel_abund.ids(axis='observation')]
+                                       seq_summary=database_summary)
+    database_summary = database_summary.loc[rel_abund.ids(axis='observation')]
     print('Relative abundance calculated')
 
     # Puts together the regional normalized counts
@@ -214,39 +168,13 @@ def reconstruct_counts(
                                             counts=counts,
                                             region_normalize=region_normalize,
                                             num_regions=num_regions,
-                                            seq_summary=db_summary)
+                                            seq_summary=database_summary)
     count_table = count_table.filter(lambda v, id_,  md: v.sum() > 0,  
                                      axis='observation')
-
-    summary = db_summary.loc[count_table.ids(axis='observation')]
-    summary['mapped-asvs'] = \
-        align_mat.groupby('clean_name')['asv'].apply(lambda x: '|'.join(x))
-    summary.index.set_names('feature-id', inplace=True)
-    summary = Metadata(summary)
-
-    # Puts together a kmer-based mapping which describes the regions covered
-    kmer_map.sort_values(['db-seq', 'region'], ascending=True, inplace=True)
-    kmer_map.drop_duplicates(['db-seq', 'region'], inplace=True)
-    kmer_map['region'] = kmer_map['region'].astype(int)
-
-    first_fwd = kmer_map.drop_duplicates('db-seq', keep='first')
-    first_fwd = first_fwd.set_index('db-seq')[['fwd-primer']]
-    last_rev = kmer_map.drop_duplicates('db-seq', keep='last')
-    last_rev = last_rev.set_index('db-seq')[['fwd-primer', 'kmer-length']]
-    
-    mapping = pd.concat(axis=1, sort=False, objs=[
-        db_map[db_map.isin(count_table.ids(axis='observation'))],
-        first_fwd.add_prefix('first-'),
-        last_rev.add_prefix('last-'),
-        ])
-    mapping.index.set_names('db-seq', inplace=True)
-    mapping.dropna(subset=['clean_name'], inplace=True)
-    mapping.sort_index(inplace=True)
-
-    return count_table, summary, mapping
+    return count_table
 
 
-def _construct_align_mat(match, sequence_map, seq_summary, 
+def _construct_align_mat(matches, sequence_map, seq_summary, 
     nucleotide_error=0.005, kmer_name='kmer', asv_name='asv',
     seq_name='clean_name', miss_col='mismatch', blocksize=5000):
     """
@@ -284,20 +212,29 @@ def _construct_align_mat(match, sequence_map, seq_summary,
 
     """
 
-    # Expands the kmer identifiers and then maps back to the database
-    align_mat = dd.from_pandas(
-        _expand_duplicate_sequences(match, id_col=kmer_name),
-        chunksize=blocksize
-    )
+    # Prepares the delayed align maps by filtering, replacing the region order
+    # and addding the database and clean names
+    cleaned_matches = []
+    for match in matches:
+        expanded = dask.delayed(_expand_duplicate_sequences)(match, kmer_name)
+        cleaned = \
+            dask.delayed(_get_db_and_clean)(expanded, sequence_map, kmer_name, seq_name)
+        cleaned_matches.append(cleaned)
 
-    align_mat['db-seq'] = \
-        align_mat[kmer_name].apply(lambda x: x.split('@')[0],
-                                   meta=('kmer_name', 'str'))
-    align_mat[seq_name] = align_mat['db-seq'].replace(sequence_map)
+    align_mat = dd.from_delayed(
+        cleaned_matches,
+        meta=[('db-seq', 'str'), (kmer_name, 'str'), (asv_name, 'str'), 
+              ('length', int),  (miss_col, int), ('max-mismatch', int), 
+              ('region', object), (seq_name, str)]
+        )
+    n_aligned = len(align_mat)
+    align_mat = align_mat.repartition(int(np.ceil(n_aligned / blocksize)))
+    align_mat.drop_duplicates([seq_name, asv_name, 'region'], inplace=True)
 
     # Collapses into ASV-ref seq combos where for degenerates, the closet
     # match is retained as the sequence.
-    asv_ref = align_mat.groupby([seq_name, asv_name, 'region', 'max-mismatch'])
+    asv_ref = align_mat.groupby([seq_name, asv_name, 'region', 'max-mismatch'], 
+                                sort=False)
     asv_ref = asv_ref[[miss_col, 'length']].min().reset_index()
 
     ## E(ih) : Pr(read = i | kmer = h)
@@ -324,7 +261,7 @@ def _construct_align_mat(match, sequence_map, seq_summary,
     asv_ref['perf_match'] = \
         (asv_ref['match_prob'] > asv_ref['error_thresh'])
 
-    # # ### Computes Mij: Pr(kmer = j | read = j)
+    ### Computes Mij: Pr(kmer = j | read = j)
     # Normalizes the alignment probability based on the pre-region 
     # amplification
     region_amp = seq_summary['num-regions']
@@ -338,127 +275,6 @@ def _construct_align_mat(match, sequence_map, seq_summary,
     asv_ref.drop(columns='region-norm', inplace=True)
 
     return asv_ref
-
-
-def _count_mapping(long_, count_degen, kmer='kmer', region='region', 
-    clean_name='clean_name', db_seq='db-seq'):
-    """
-    Counts the number of sequences which have been mapped 
-    """
-    # If we're counting degenerates, we'll keep the kmers whcih contain
-    # degeneracies. Otherwise, we work with the db_seqs which don't.
-    if count_degen:
-        long_.drop_duplicates([kmer, region, clean_name], 
-                              inplace=True)
-    else:
-        long_.drop_duplicates([db_seq, region, clean_name], 
-                              inplace=True)
-
-    # Gets the regional counts
-    regional_seqs = \
-        long_.groupby([clean_name, region]).count()[[kmer]]
-    regional_seqs.reset_index(inplace=True)
-
-    # Then, we count the data.
-    counts = pd.DataFrame(
-        data=[regional_seqs.groupby('clean_name')[region].count(),
-              regional_seqs.groupby('clean_name')[kmer].sum(),
-              regional_seqs.groupby('clean_name')[kmer].mean(),
-              regional_seqs.groupby('clean_name')[kmer].std().fillna(0),
-              # regional_seqs.groupby('clean_name')['']
-              ],
-        index=['num-regions', 
-               'total-kmers-mapped', 
-               'mean-kmer-per-region',
-               'stdv-kmer-per-region'
-               ],
-        ).T
-    return counts
-
-
-def _detangle_names(long_):
-    """
-    Splits up the mapping into clearer clusters
-
-    Parameters
-    ----------
-    long_: DataFrame
-        A mapping between the database sequence (`db-seq`), the matched 
-        sequence  (`clean_name`), and a column (`counter`) containing an 
-        integer describing how many sequences are mapped to the 
-        database sequence in a sorted order.
-        It is important that this be a long, defense association: condensed/
-        upper triangle matrices will not work here.
-
-    Returns
-    -------
-    Series
-        A mapping between the databset sequence and a unique group name.
-    """
-
-    long_.sort_values(['db-seq', 'clean_name'], ascending=True, inplace=True)
-    long_['counter'] = 1
-    long_['counter'] = long_.groupby(['db-seq'])['counter'].cumsum() - 1
-    
-    # gets the horizontal mapping that pivots the dataframe into a square
-    # distance/mapping matrix
-    map_ = \
-        long_.set_index(['db-seq', 'clean_name'])['counter'].unstack().notna()
-    diagnonal = (np.tril(np.ones(map_.shape)) == np.triu(np.ones(map_.shape)))
-    map_ = (map_ | diagnonal)
-    
-    # Clusters the sequences
-    map_.sort_values(list(map_.columns), inplace=True)
-    map_ = map_[map_.index]
-        
-    # Calculates the number of connections within the cluster
-    num_connections = (long_.groupby('db-seq')['counter'].max() + 1)
-    long_.set_index('clean_name', inplace=True)
-    long_['co-connection'] = num_connections[long_.index]
-    co_min = long_.groupby('db-seq')['co-connection'].min()
-    connection_penalty = (num_connections - co_min + 1)
-
-    # Builds a mask that penalizes for the number of connections that should
-    # be present
-    penalty_v = (np.ones((len(connection_penalty), 1)) * 
-                 connection_penalty.loc[map_.index].values)
-    penalty_mask = (penalty_v == penalty_v.T)
-    
-    overlap = penalty_mask & map_
-    overlap = overlap.mask(~overlap, np.nan)
-    overlap = overlap.unstack().dropna().reset_index()
-
-    # # In some cases, there are sequences that have the same number of 
-    # # connections but don't  connect to the same sequences. So,for pairs 
-    # # of unique sequences which are initally mapped, we want to check the
-    # # number of sequences that overlap
-    shared = \
-        overlap.groupby('db-seq')['clean_name'].apply(lambda x: set(x.values))
-    def check_shared(x):
-        seqs0 = shared.loc[x['clean_name']]
-        seqs1 = shared.loc[x['db-seq']]
-        if len(seqs0) != len(seqs1):
-            return 0
-        else:
-            return len(seqs0 & seqs1) - 1
-
-    check_diff = overlap['clean_name'] != overlap['db-seq']
-
-    if check_diff.any():
-        overlap['seq_count'] = overlap.loc[check_diff].apply(check_shared, axis=1)
-    else:
-        overlap['seq_count'] = np.nan
-    overlap['matches'] = (overlap['seq_count'] == overlap[0]) | ~check_diff
-
-    overlap.sort_values(['db-seq', 'clean_name'], 
-                        inplace=True, 
-                        ascending=True)
-    overlap.drop_duplicates(['db-seq', 'clean_name'], 
-                            inplace=True)
-    new_name = \
-        overlap.groupby('db-seq')['clean_name'].apply(lambda x: "|".join(x))
-
-    return new_name
 
 
 def _expand_duplicate_sequences(df, id_col, delim='|'):
@@ -499,32 +315,15 @@ def _expand_duplicate_sequences(df, id_col, delim='|'):
     return long_exp
 
 
-def _get_clean(df):
-    clean_kmers = \
-        df.groupby(['db-seq', 'region'])['value'].apply(
-            lambda x: "|".join(x.values))
-    return clean_kmers.reset_index()
-
-
-def _get_shared_seqs(df):
-    wide = df.set_index(['db-seq', 'region'])['kmer'].apply(
-            lambda x: pd.Series(x.split("|"))).reset_index()
-    long_ = wide.melt(id_vars=['db-seq', 'region']).dropna()
-    long_['value'] = long_['value'].apply(lambda x: x.split("@")[0])
-    db_seqs = long_['db-seq'].unique()
-    matched = long_['value'].unique()
-    long_.replace({'value': {x: 'X' for x in matched if (x not in db_seqs)}},
-                  inplace=True)
-
-    long_.drop_duplicates(['db-seq', 'region', 'value'], inplace=True)
-    
-    return long_.drop(columns=['variable'])
-
-
-def _get_unique_kmers(series):
-    kmers = np.hstack([[a.split("@")[0] for a in kmer.split('|')] 
-                       for kmer in series])
-    return np.sort(np.unique(kmers))
+def _get_db_and_clean(df, clean, kmer_name, seq_name):
+    """
+    A delayaed function to extract a database sequence and map it to a 
+    cleaned database name
+    """
+    df['db-seq'] = df[kmer_name].apply(lambda x: x.split("@")[0])
+    df.set_index('db-seq', inplace=True)
+    df[seq_name] = clean.loc[df.index]
+    return df.reset_index()
 
 
 def _scale_relative_abundance(align_mat, relative, counts, seq_summary,
@@ -829,128 +628,5 @@ def _solve_ml_em_iterative_1_sample(align, abund, align_kmers, sample,
     return biom.Table(np.atleast_2d(bact_freq).T, 
                       observation_ids=align_kmers, 
                       sample_ids=[sample])
-
-
-def _sort_untidy(df, clean_seqs):
-    if df['tidy']:
-        return df['shared-set']
-    else:
-        return df['shared-set'] - clean_seqs
-    
-
-def _tidy_sequence_set(clean_kmers, clean_seqs):
-    """
-    Iteratively cleans kmers by correcting overlapping sets
-    of sequences
-    """
-    
-    # Gets the sequences that are still shared with other sequences
-    shared_seqs = clean_kmers.loc[~clean_kmers['tidy']].copy()
-    shared_seqs = shared_seqs.groupby('db-seq')['shared-set'].apply(
-        lambda x: set.intersection(*x)
-    )
-    shared_seqs = shared_seqs.reset_index()
-    shared_seqs.columns = ['db-seq', 'shared-set']
-    shared_seqs['kmer'] = shared_seqs['shared-set'].apply(
-        lambda x: '|'.join(sorted(x))
-    )
-    # Updates the mapped sequence
-    clean_check = shared_seqs.groupby('kmer').apply(
-        lambda x: (set.union(*x['shared-set'].values)) == set(x['db-seq']),
-        )
-    if clean_check.any():
-        cleaned = np.hstack([
-            x.split("|") for x in clean_check.index[clean_check].values
-        ])
-        clean_seqs = clean_seqs | set(cleaned)
-    else:
-        clean_seqs = clean_seqs
-
-    clean_kmers['tidy'] = clean_kmers['db-seq'].isin(clean_seqs)
-    clean_kmers['shared-set'] = \
-        clean_kmers.apply(_sort_untidy, 
-                          clean_seqs=clean_seqs,
-                          axis=1, 
-                         )
-    return clean_kmers, clean_seqs
-
-
-def _untangle_database_ids(region_db, num_regions):
-    """
-    Untangles regional sequence identifier to map sequences to each other
-
-    Parameters
-    ----------
-    region_db: DataFrame
-        A sequence array as a dataframe containing the trimmed region
-    kmers: list
-        A list of kmers to keep for the analysis
-
-    Returns
-    -------
-    DataFrame
-        a map between the regional database identifiers and the sequences
-        based on the combinations of regions used.
-    DataFrame
-        A summary of the kmers which were mapped to each of the refernece
-        sequences. This describes the number regions covered, the total
-        number of kmers mapped, the average and standard deviation in the 
-        number per region.
-    """
-    # Cleans up the kmers by pulling off shared labels
-    region_db.drop_duplicates(['db-seq', 'kmer'], inplace=True)
-    shared = _get_shared_seqs(region_db)
-    clean_kmers = _get_clean(shared)
-    clean_kmers['tidy'] = False
-    # Formats for an id set
-    clean_kmers['shared-set'] = clean_kmers['value'].apply(
-        lambda x: set(x.split("|")))
-
-    # Sets up a while loop. Because somehow it makes sense here?
-    untidy = True
-    clean_seqs = set(['X'])
-    last_tidy = len(clean_kmers)
-
-    for i  in np.arange(0, 3):
-        print(f'cleaning kners round {i}')
-        clean_kmers, clean_seqs = _tidy_sequence_set(clean_kmers, clean_seqs)
-        untidy_seqs = ~clean_kmers['tidy']
-        untidy = untidy_seqs.any()
-        if (last_tidy == untidy_seqs.sum()) | ~untidy:
-            break
-        last_tidy = untidy_seqs.sum()
-    clean_kmers['shared-set'] = clean_kmers.apply(_sort_untidy, 
-                                                  clean_seqs=clean_seqs,
-                                                  axis=1, 
-                                                  )
-
-    # Maps the tidy kmers into a single kmer
-    db_map1 = clean_kmers.loc[clean_kmers['tidy']
-                             ].groupby('db-seq')['shared-set'].apply(
-        lambda x: '|'.join(sorted(set.intersection(*x)))
-    )
-    db_map1.name = 'clean_name'
-    # If anything else remains untidy, we need to continue mapping...
-    if untidy:
-        # Finds the sequences that need to be mapped and pulls out the data
-        bad_ = ~clean_kmers['tidy']
-        to_map = clean_kmers.loc[bad_]
-        unique_ids = to_map['db-seq'].unique()
-
-        to_map = to_map.groupby('db-seq')['shared-set'].apply(
-                lambda x: pd.Series(sorted(set.intersection(*x.values))),
-                ).reset_index()
-        to_map.columns = ['db-seq', 'counter', 'clean_name']
-        print('ready to detangle')
-        db_map2 = _detangle_names(to_map) 
-
-    else:
-        db_map2 = pd.Series([], 
-                            index=pd.Index([], name='db-seq'),  
-                            name='clean_name')
-    
-    db_map = pd.concat(axis=0, objs=[db_map1, db_map2])
-    
-    return db_map
 
 

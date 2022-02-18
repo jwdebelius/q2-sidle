@@ -9,7 +9,7 @@ If you've already done the database tutorial, make sure that you're in the ``sid
 
 	pwd
 
-If you're new to the tutorial, you can make a new tutorila directory by running
+If you're new to the tutorial, you can make a new tutorial directory by running
 
 .. code-block:: bash
 
@@ -74,8 +74,8 @@ Using the same parameters, you will need to align the other two regions.
 	 --o-regional-alignment alignment/batman-align-map.qza
 
 	qiime sidle align-regional-kmers \
-	 --i-kmers alignment/green-lantern-kmer-db.qza \
-	 --i-rep-seq table/green-lantern-rep-seq.qza \
+	 --i-kmers database/sidle-db-green-lantern-100nt-kmers.qza \
+	 --i-rep-seq data/green-lantern-100nt-rep-set.qza \
 	 --p-region GreenLantern \
 	 --p-n-workers 2 \
 	 --o-regional-alignment alignment/green-lantern-align-map.qza
@@ -83,12 +83,49 @@ Using the same parameters, you will need to align the other two regions.
 Now, you have all three local alignments prepared, you're ready to
 reconstruct your table.
 
+Reconstruction
+--------------
+
+Our main reconstruction breaks down into four steps. First, we untangle the database, mapping the aligned kmers back to full length database sequences. Then, we use this reconstructed database and a maximum liklihood model to determine the abundance of the reconstructed table. Next, taxonomy is reconstructed. Finally, and optionally, a phylogenetic tree can be built using fragment insertion if the appropriate database (Greengenes 13_8 or Silva 128) was used.
+
+Database Reconstruction
++++++++++++++++++++++++
+
+We'll start by reconstructing the database. This step takes the kmer map and regional alignment files to build a final database. The regional alignment files are to minimize the number of sequences used for reconstruction; you can combine multiple regional files if you wish to do meta analysis and want to re-use the table.
+
+Due to memory requirements, this step relies on parallel processing. Therefore, we recommend using the parallel processing capacity of sildd
+
+.. code-block:: shell
+
+  qiime sidle reconstruct-database \
+   --p-region WonderWoman \
+    --i-kmer-map database/sidle-db-wonder-woman-100nt-map.qza \
+    --i-regional-alignment alignment/wonder-woman-align-map.qza \
+   --p-region Batman \
+    --i-kmer-map database/sidle-db-batman-100nt-map.qza \
+    --i-regional-alignment alignment/batman-align-map.qza \
+   --p-region GreenLantern \
+    --i-kmer-map database/sidle-db-green-lantern-100nt-map.qza \
+    --i-regional-alignment alignment/green-lantern-align-map.qza \
+   --p-n-workers 2 \
+   --o-database-map reconstruction/league_map.qza \
+   --o-database-summary reconstruction/league_summary.qza
+
+This command will produce a database map and a database summary. The map connects the kmer name to a final database name, but is likely not useful to view. The second output, the database summary, can be used to evaluate the quality of the reconstruction; see the `original manuscript`_ [1]_ for more details. By default, the summary will consider degenerate kmers as unique sequences; you can change the behavior using the ``count-degenerates`` parameter; when False, kmers will only be counted if they belong to unique reference sequences. You can view the summary by tabulating the metadata.
+
+.. code:: bash
+
+    qiime metadata tabulate \
+     --m-input-file reconstruction/league_summary.qza \
+     --o-visualization reconstruction/league_summary.qzv
+
+
+Let’s look at the information for the unresolved feature, ``133719|158591|190649``. How many regions has it found?
+
 Table Reconstruction
---------------------
+++++++++++++++++++++
 
-The table is reconstructed in three steps. First, the regional fragments get re-assembled into complete database sequences. Then, the relative abundance of the pooled counts gets computed through an optimization process. Finally, the relative abundance is used to reconstruct a table of counts.
-
-The ``per-nucleotide-error`` is combined with the ``maximum-mismatch`` parameter from alignment to the probability that a sequence that differs from the reference. So, for instance, this algorithm allows a single ASV to be mapped to multiple sequences in the reference database. During reconstruction, the alignment mismatch, sequencing error, and relative abundance are combined to calculate the mapped abundance.
+Now we have our database, we'll move onto the next step, reconstructing the regional counts into  a table. In this step, we estimate the probability a count from an ASV belongs to a given database sequence based on the kmer alignment. The ``per-nucleotide-error`` is combined with the ``maximum-mismatch`` parameter from alignment to the probability that a sequence that differs from the reference. So, for instance, this algorithm allows a single ASV to be mapped to multiple sequences in the reference database. During reconstruction, the alignment mismatch, sequencing error, and relative abundance are combined to calculate the mapped abundance.
 
 The ``min-abundance`` determines the relative abundance of a database sequence to be excluded during optimization. This is, to some degree, a function of the avaliable sequencing depth and the desired specificity of the fit.
 
@@ -100,21 +137,18 @@ Now, let’s reconstruct the table, using the default settings.
 
     qiime sidle reconstruct-counts \
       --p-region WonderWoman \
-        --i-kmer-map database/sidle-db-wonder-woman-100nt-map.qza \
         --i-regional-alignment alignment/wonder-woman-align-map.qza \
         --i-regional-table data/wonder-woman-100nt-table.qza \
       --p-region Batman \
-        --i-kmer-map database/sidle-db-batman-100nt-map.qza \
         --i-regional-alignment alignment/batman-align-map.qza \
         --i-regional-table data/batman-100nt-table.qza \
       --p-region GreenLantern \
-        --i-kmer-map database/sidle-db-green-lantern-100nt-map.qza \
         --i-regional-alignment alignment/green-lantern-align-map.qza \
         --i-regional-table data/green-lantern-100nt-table.qza \
+      --i-database-map reconstruction/league_map.qza \
+      --i-database-summary reconstruction/league_summary.qza \
       --p-n-workers 2 \
-      --o-reconstructed-table reconstruction/league_table.qza \
-      --o-reconstruction-summary reconstruction/league_summary.qza \
-      --o-reconstruction-map reconstruction/league_map.qza
+      --o-reconstructed-table reconstruction/league_table.qza
 
 The command will produce a count table, a file containing details about the number of database kmers mapped to a region along with the ASV IDs, and a mapping that’s needed if you want to do taxonomic reconstruction.
 
@@ -129,16 +163,6 @@ Let’s take a look at the count table.
 
 You’ll notice that some of the feature IDs contain a ``|`` character, for example, ``1764594|195532|4471854``. This means the three databases sequences could not be resolved during the reconstruction, and so we assign the sequence to both regions. The more regions that are used in the reconstruction, the more likely you are to be able to accurately reconstuct the database sequences.
 
-The second output is a summary. The summary can be used to evaluate the quality of the reconstruction; see the `original manuscript`_ [1]_ for more details. By default, the summary will consider degenerate kmers as unique sequences; you can change the behavior using the ``count-degenerates`` parameter; when False, kmers will only be counted if they belong to unique reference sequences. You can view the summary by tabulating the metadata.
-
-.. code:: bash
-
-    qiime metadata tabulate \
-     --m-input-file reconstruction/league_summary.qza \
-     --o-visualization reconstruction/league_summary.qzv
-
-
-Let’s look at the information for the unresolved feature, ``133719|158591|190649``. How many regions has it found?
 
 Taxonomic Reconstruction
 ------------------------
@@ -211,12 +235,6 @@ So, our first step is to reconstruct the consensus fragments from sequences that
 .. code-block:: shell
 
     qiime sidle reconstruct-fragment-rep-seqs \
-    --p-region WonderWoman \
-      --i-kmer-map database/sidle-db-wonder-woman-100nt-map.qza
-     --p-region Batman \
-      --i-kmer-map database/sidle-db-batman-100nt-map.qza \
-     --p-region GreenLantern \
-      --i-kmer-map database/sidle-db-green-lantern-100nt-map.qza \
      --i-reconstruction-map reconstruction/league_map.qza \
      --i-reconstruction-summary reconstruction/league_summary.qza \
      --i-aligned-sequences database/sidle-db-aligned-sequences.qza \
@@ -277,6 +295,48 @@ Regional Alignment Commands
     --p-region WonderWoman \
     --o-regional-alignment wonderwoman-align-map.qza
 
+Reconstructing the Database
++++++++++++++++++++++++++++
+
+* This step is best done in parallel
+* Make sure your region names match between the alignment artifact, the database kmer map, and the ``region`` parameter.
+
+**Syntax**
+
+For *n* regions
+
+.. code-block:: bash
+
+    qiime sidle reconstruct-counts \
+      --p-region [region 1 name] \
+        --i-kmer-map [region 1 kmer map] \
+        --i-regional-alignment [region 1 alignment] \
+      ... \
+      --p-region [region n name] \
+        --i-kmer-map [region n kmer map] \
+        --i-regional-alignment [region n alignment] \
+      --o-reconstruction-summary [reconstruction summary] \
+      --o-reconstruction-map [reconstructed database map]
+
+**Example**
+
+.. code-block:: bash
+
+    qiime sidle reconstruct-counts \
+      --p-region WonderWoman \
+        --i-regional-alignment alignment/wonder-woman-align-map.qza \
+        --i-regional-table data/wonder-woman-100nt-table.qza \
+      --p-region Batman \
+        --i-regional-alignment alignment/batman-align-map.qza \
+        --i-regional-table data/batman-100nt-table.qza \
+      --p-region GreenLantern \
+        --i-regional-alignment alignment/green-lantern-align-map.qza \
+        --i-regional-table data/green-lantern-100nt-table.qza \
+      --i-database-map reconstruction/league_map.qza \
+      --i-database-summary reconstruction/league_summary.qza \
+      --p-n-workers 2 \
+      --o-reconstructed-table reconstruction/league_table.qza
+
 Reconstructing the Table
 ++++++++++++++++++++++++
 
@@ -292,14 +352,14 @@ For *n* regions
 
   qiime sidle reconstruct-counts \
     --p-region [region 1 name] \
-      --i-kmer-map [region 1 kmer map] \
       --i-regional-alignment [region 1 alignment] \
       --i-regional-table [region 1 counts table] \
     ... \
     --p-region [region n name] \
-      --i-kmer-map [region n kmer map] \
       --i-regional-alignment [region n alignment] \
       --i-regional-table [region n counts table] \
+    --i-database-map [database map] \
+    --i-database-summary [database summary] \
     --o-reconstructed-table [reconstructed table] \
     --o-reconstruction-summary [reconstruction summary] \
     --o-reconstruction-map [reconstructed database map]
@@ -362,14 +422,9 @@ Reconstructing the Tree
 .. code-block:: shell
 
   qiime sidle reconstruct-fragment-rep-seqs \
-    --p-region [region 1 name] \
-      --i-kmer-map [region 1 kmer alignment]
-     ... \
-     --p-region [region n name] \
-      --i-kmer-map [region n kmer alignment] \
-     --i-reconstruction-map [database map] \
-     --i-reconstruction-summary [database summary] \
-     --i-aligned-sequences [aligned database sequences] \
+     --i-reconstruction-map [reconstruction map] \
+     --i-reconstruction-summary [reconstruction summary] \
+     --i-aligned-sequences [aligned sequences] \
      --o-representative-fragments [reconstructed fragments]
 
 **Example reconstruction syntax**
@@ -377,16 +432,11 @@ Reconstructing the Tree
 .. code-block:: shell
 
   qiime sidle reconstruct-fragment-rep-seqs \
-    --p-region WonderWoman \
-      --i-kmer-map database/sidle-db-wonder-woman-100nt-map.qza
-     --p-region Batman \
-      --i-kmer-map database/sidle-db-batman-100nt-map.qza \
-     --p-region GreenLantern \
-      --i-kmer-map database/sidle-db-green-lantern-100nt-map.qza \
-     --i-reconstruction-map reconstruction/league_map.qza \
-     --i-reconstruction-summary reconstruction/league_summary.qza \
-     --i-aligned-sequences database/sidle-db-aligned-sequences.qza \
-     --o-representative-fragments reconstruction/league-rep-seq-fragments.qza
+   --i-reconstruction-map reconstruction/league_map.qza \
+   --i-reconstruction-summary reconstruction/league_summary.qza \
+   --i-aligned-sequences database/sidle-db-aligned-sequences.qza \
+   --o-representative-fragments reconstruction/league-rep-seq-fragments.qza
+
 
 References
 ++++++++++

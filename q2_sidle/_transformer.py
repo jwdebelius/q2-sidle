@@ -1,5 +1,7 @@
 import pandas as pd
 import dask.dataframe as dd
+import dask.delayed
+from dask.delayed import Delayed
 from qiime2 import Metadata
 
 from q2_sidle import (KmerMapFormat, 
@@ -32,15 +34,10 @@ def _2(ff:KmerMapFormat) -> Metadata:
     df.index.set_names('id', inplace=True)
     return Metadata(df)
 
-
 @plugin.register_transformer
-def _3(ff:KmerMapFormat) -> dd.DataFrame:
-    df = pd.read_csv(str(ff), sep='\t', dtype=str)
-    df = df[['db-seq', 'seq-name', 'kmer', 'region', 'fwd-primer', 
-             'rev-primer', 'kmer-length']]
-    df[['kmer-length']] = df[['kmer-length']].astype(int)
-    df.sort_values(['db-seq', 'seq-name', 'kmer'], inplace=True)
-    return dd.from_pandas(df.set_index('db-seq'), chunksize=50000)
+def _3(ff:KmerMapFormat) -> Delayed:
+    df = _1(ff)
+    return dask.delayed(df)
 
 
 @plugin.register_transformer
@@ -70,12 +67,9 @@ def _6(ff:KmerAlignFormat) -> Metadata:
     return Metadata(df)
 
 @plugin.register_transformer
-def _7(ff:KmerAlignFormat) -> dd.DataFrame:
-    df = dd.read_csv(str(ff), sep='\t', dtype=str)
-    df = df[['kmer', 'asv', 'length', 'mismatch', 'max-mismatch', 'region']]
-    df[['mismatch', 'max-mismatch', 'length']] = \
-        df[['mismatch', 'max-mismatch', 'length']].astype(int)
-    return df
+def _7(ff:KmerAlignFormat) -> Delayed:
+    df = _5(ff)
+    return dask.delayed(df)
 
 @plugin.register_transformer
 def _8(obj: pd.DataFrame) -> KmerAlignFormat:
@@ -132,5 +126,3 @@ def _15(obj: dd.DataFrame) -> KmerAlignFormat:
     obj.to_csv(str(ff), sep='\t', index=False, single_file=True)
     return ff
 
-# @plugin.register_transformer
-    # @_16(obj: pd.DataFrame) -> 
