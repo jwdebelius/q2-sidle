@@ -7,7 +7,6 @@ import dask
 import dask.dataframe as dd
 import numpy as np
 import pandas as pd
-import regex
 
 from q2_types.feature_data import (DNAFASTAFormat, DNAIterator)
 from q2_sidle._formats import KmerAlignFormat

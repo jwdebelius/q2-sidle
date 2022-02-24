@@ -218,18 +218,74 @@ class DatabaseMapTest(TestCase):
             columns=['kmer', 'region', 'db-seq', 'clean_name'],
             )
 
-    def test_reconstruct_database_parallel(self):
+    # def test_reconstruct_database_parallel(self):
+    #     t_map, t_summary = reconstruct_database(
+    #         region=['0', '1', '2'],
+    #         regional_alignment=[self.align0, self.align1, self.align2],
+    #         kmer_map=[dask.delayed(self.match0), 
+    #                   dask.delayed(self.match1), 
+    #                   dask.delayed(self.match2)],
+    #         debug=True
+    #         )
+    #     t_map.sort_index(inplace=True)
+    #     pdt.assert_frame_equal(self.untangled, t_map)
+    #     pdt.assert_frame_equal(self.summary, t_summary.to_dataframe())
+
+    def test_reconstruct_database_with_dash(self):
+        match0 = pd.DataFrame(
+            data=np.array([['seq00-001+', 'seq00-001+', 'seq00-001+', 'region1', 'WANTCAT', 'CATCATCAT', '15'],
+                           ['seq00-002+', 'seq00-002+', 'seq00-002+', 'region1', 'WANTCAT', 'CATCATCAT', '15'],
+                           ['seq01-001+', 'seq01-001+', 'seq01-001+|seq02-001+', 'region1', 'WANTCAT', 'CATCATCAT', '15'],
+                           ['seq02-001+', 'seq02-001+', 'seq01-001+|seq02-001+', 'region1', 'WANTCAT', 'CATCATCAT', '15'],
+                           ]),
+            columns=['db-seq', 'seq-name', 'kmer', 'region', 'fwd-primer', 'rev-primer', 'kmer-length'],
+            )
+        match1 = pd.DataFrame(
+            data=np.array([['seq00-001+', 'seq00-001+', 'seq00-001+', 'region2', 'CACCTCGTN', 'MTGACGTG', '15'],
+                           ['seq00-002+', 'seq00-002+', 'seq00-002+', 'region2', 'CACCTCGTN', 'MTGACGTG', '15'],
+                           ['seq01-001+', 'seq01-001+', 'seq01-001+', 'region2', 'CACCTCGTN', 'MTGACGTG', '15'],
+                           ]),
+            columns=['db-seq', 'seq-name', 'kmer', 'region', 'fwd-primer', 'rev-primer', 'kmer-length'],
+            )
+        for match in [match0, match1]:
+            match.set_index('db-seq', inplace=True)
+            match['kmer-length'] = match['kmer-length'].astype(int)
+
+        align0 = pd.DataFrame(
+            data=np.array([['seq00-001+', 'asv00', 15, 0, 2, 'region1'],
+                           ['seq00-001+', 'asv01', 15, 1, 2, 'region1'],
+                           ['seq00-002+', 'asv00', 15, 1, 2, 'region1'],
+                           ['seq00-002+', 'asv01', 15, 0, 2, 'region2'],
+                           ['seq01-001+|seq01-002+', 'asv02', 15, 1, 2, 'region2'],
+                           ], dtype=object),
+            columns=['kmer', 'asv', 'length', 'mismatch', 'max-mismatch', 'region'],
+            )
+        align1 = pd.DataFrame(
+            data=np.array([['seq00-001+', 'asv10', 15, 0, 2, 'region1'],
+                           ['seq00-001+', 'asv11', 15, 2, 2, 'region1'],
+                           ['seq02-001+', 'asv12', 15, 0, 2, 'region2'],
+                           ], dtype=object),
+            columns=['kmer', 'asv', 'length', 'mismatch', 'max-mismatch', 'region'],
+            )
+        untangled = pd.DataFrame.from_dict(
+            orient='index',
+            data={'seq00-001+': {'clean_name': 'seq00-001+', 'first-region': 0, 'first-fwd-primer': 'WANTCAT', 'last-region': 1, 'last-fwd-primer': 'CACCTCGTN', 'last-kmer-length': 15},
+                  'seq00-002+': {'clean_name': 'seq00-002+', 'first-region': 0, 'first-fwd-primer': 'WANTCAT', 'last-region': 1, 'last-fwd-primer': 'CACCTCGTN', 'last-kmer-length': 15},
+                  'seq01-001+': {'clean_name': 'seq01-001+', 'first-region': 0, 'first-fwd-primer': 'WANTCAT', 'last-region': 1, 'last-fwd-primer': 'CACCTCGTN', 'last-kmer-length': 15},
+                  'seq02-001+': {'clean_name': 'seq02-001+', 'first-region': 0, 'first-fwd-primer': 'WANTCAT', 'last-region': 0, 'last-fwd-primer': 'WANTCAT', 'last-kmer-length': 15},
+                  }
+            )
+        untangled.index.set_names('db-seq', inplace=True)
+
         t_map, t_summary = reconstruct_database(
-            region=['0', '1', '2'],
-            regional_alignment=[self.align0, self.align1, self.align2],
-            kmer_map=[dask.delayed(self.match0), 
-                      dask.delayed(self.match1), 
-                      dask.delayed(self.match2)],
+            region=['region1', 'region2'],
+            regional_alignment=[align0, align1],
+            kmer_map=[dask.delayed(match0), dask.delayed(match1)],
             debug=True
             )
         t_map.sort_index(inplace=True)
-        pdt.assert_frame_equal(self.untangled, t_map)
-        pdt.assert_frame_equal(self.summary, t_summary.to_dataframe())
+        pdt.assert_frame_equal(untangled, t_map)
+
 
     def test_build_region_db(self):
         kmers = ['seq1', 'seq2', 'seq3']

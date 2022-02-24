@@ -3,7 +3,6 @@ import os
 import dask
 import numpy as np
 import pandas as pd
-import regex
 import skbio
 
 from dask.distributed import Client
