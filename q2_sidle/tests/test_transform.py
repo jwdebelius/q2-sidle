@@ -15,7 +15,7 @@ from qiime2.plugin.testing import TestPluginBase
 from q2_sidle import (KmerMapFormat,
                       KmerAlignFormat,
                       SidleReconFormat,
-                      ReconSummaryFormat
+                      ReconSummaryFormat,
                       )
 import q2_sidle._transformer as t
 

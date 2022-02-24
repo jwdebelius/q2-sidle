@@ -125,15 +125,19 @@ def reconstruct_counts(
     unaligned_counts = counts.copy().drop(keep_asvs).sum(axis=1)
     counts = counts.loc[keep_asvs]
     keep_samples = counts.sum(axis=0) > min_counts
-    if keep_samples.sum() == 0:
-        raise ValueError('None of the samples have more than the %i total '
-                         'sequences required for reconstruction.' 
-                         % min_counts)
-    elif not keep_samples.all():
-        warnings.warn("There are %i samples with fewer than %i total"
-                      " reads. These samples will be discarded."
-                      % ((keep_samples==False).sum(), min_counts),
-                      UserWarning)
+    if keep_samples.all() == False:
+        raise ValueError('There are {samples:d} samples with fewer than '
+                         '{depth:d} total sequences. Please check your '
+                         'minimum counts and make sure your representative '
+                         'sequences are aligned with the database.'.format(
+                            samples=(keep_samples == False).sum(), 
+                            depth=min_counts)
+                         )
+    # elif not keep_samples.all():
+    #     warnings.warn("There are %i samples with fewer than %i total"
+    #                   " reads. These samples will be discarded."
+    #                   % ((keep_samples==False).sum(), min_counts),
+    #                   UserWarning)
     counts = counts[keep_samples.index.values[keep_samples.values]]
     counts = counts.loc[counts.sum(axis=1) > 0]
     keep_asvs = counts.index

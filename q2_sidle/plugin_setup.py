@@ -33,7 +33,7 @@ from q2_sidle import (KmerMap,
                       ReconSummaryDirFormat,
                       AlignmentLedger,
                       AlignmentLedgerFormat,
-                      AlignmentLedgerDirFormat,                    
+                      AlignmentLedgerDirFormat,
                       )
 import q2_sidle
 
@@ -672,14 +672,14 @@ plugin.register_formats(KmerMapFormat,
                         SidleReconFormat, 
                         SidleReconDirFormat,
                         ReconSummaryFormat,
-                        ReconSummaryDirFormat
+                        ReconSummaryDirFormat,
                         )
 
 
 plugin.register_semantic_types(KmerMap, 
                                KmerAlignment,
                                SidleReconstruction,
-                               ReconstructionSummary
+                               ReconstructionSummary,
                                )
 
 
@@ -700,6 +700,7 @@ plugin.register_semantic_type_to_format(FeatureData[ReconstructionSummary],
 
 plugin.register_semantic_type_to_format(SampleData[AlignmentLedger], 
                                         AlignmentLedgerDirFormat)
+
 
 
 importlib.import_module('q2_sidle._transformer')

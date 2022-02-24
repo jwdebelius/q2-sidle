@@ -77,18 +77,6 @@ class PluginSetupTest(TestCase):
         format = SidleReconDirFormat(self.tmp, 'r')
         format.validate()
 
-    def test_sidle_summary_format(self):
-        filepath = os.path.join(self.base_dir, 'sidle-summary.tsv')
-        format = ReconSummaryFormat(filepath, mode='r')
-        format.validate()
-
-    def test_sidle_summary_dir_format_validate(self):
-        shutil.copy(os.path.join(self.base_dir, 'sidle-summary.tsv'), 
-                    self.tmp)
-        format = ReconSummaryDirFormat(self.tmp, 'r')
-        format.validate()
-
-
 
 if __name__ == '__main__':
     main()
