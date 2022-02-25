@@ -5,9 +5,9 @@ from ._extract import (prepare_extracted_region,
 					   )
 from ._formats import (KmerMapFormat, KmerMapDirFmt,
                        KmerAlignFormat, KmerAlignDirFmt,
-                       ReconSummaryFormat, ReconSummaryDirFormat,
-                       SidleReconFormat, SidleReconDirFormat,
-                       AlignmentLedgerFormat, AlignmentLedgerDirFormat,
+                       ReconSummaryFormat, ReconSummaryDirFmt,
+                       SidleReconFormat, SidleReconDirFmt,
+                       AlignmentLedgerFormat, AlignmentLedgerDirFmt,
                        )
 from ._pipelines import (sidle_reconstruction,
                          reconstruct_tree,

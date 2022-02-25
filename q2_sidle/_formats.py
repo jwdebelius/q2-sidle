@@ -42,15 +42,15 @@ KmerMapDirFmt = model.SingleFileDirectoryFormat(
 KmerAlignDirFmt = model.SingleFileDirectoryFormat(
     'KmerAlignDirFmt', 'kmer-align.tsv', KmerAlignFormat)
 
-SidleReconDirFormat = model.SingleFileDirectoryFormat(
+SidleReconDirFmt = model.SingleFileDirectoryFormat(
     'SidleReconDirFormat', 'sidle-reconstruction-mapping.tsv', 
     SidleReconFormat
     )
 
-ReconSummaryDirFormat = model.SingleFileDirectoryFormat(
+ReconSummaryDirFmt = model.SingleFileDirectoryFormat(
     'ReconSummaryDirFormat', 'sidle-summary.tsv', ReconSummaryFormat
     )
 
-AlignmentLedgerDirFormat = model.SingleFileDirectoryFormat(
-    'AlignmentLedgerFormat', 'count-tracking.tsv', AlignmentLedgerFormat
+AlignmentLedgerDirFmt = model.SingleFileDirectoryFormat(
+    'AlignmentLedgerDirFmt', 'count-tracking.tsv', AlignmentLedgerFormat
     )

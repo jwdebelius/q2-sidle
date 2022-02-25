@@ -8,7 +8,7 @@ from q2_sidle import (KmerMapFormat,
                       KmerAlignFormat, 
                       SidleReconFormat,
                       ReconSummaryFormat,
-                      AlignmentLedger,
+                      AlignmentLedgerFormat,
                       )
 from q2_types.feature_data import  AlignedDNAFASTAFormat, DNAFASTAFormat
 from q2_sidle.plugin_setup import plugin
@@ -124,11 +124,11 @@ def _15(obj: dd.DataFrame) -> KmerAlignFormat:
     return ff
 
 @plugin.register_transformer
-def _16(ff: AlignmentLedger) -> Metadata:
+def _16(ff: AlignmentLedgerFormat) -> Metadata:
     return Metadata.load(str(ff))
 
 @plugin.register_transformer
-def _17(obj: Metadata) -> AlignmentLedger:
-    ff = AlignmentLedger()
-    obj.to_csv(str(ff), sep='\t', index=False, single_file=True)
+def _17(obj: Metadata) -> AlignmentLedgerFormat:
+    ff = AlignmentLedgerFormat()
+    obj.save(str(ff))
     return ff

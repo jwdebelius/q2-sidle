@@ -60,7 +60,9 @@ def track_aligned_counts(
         for (r, a, t) 
         in zip(*(region, regional_alignment, regional_table))
         ]
-    total_table = regional_table[0].copy().merge(*regional_table[1:])
+    total_table = regional_table[0].copy()
+    for table in regional_table[1:]:
+        total_table = total_table.merge(table)
     total_counts = _alignment_accounting('total', 
                                          pd.concat(regional_alignment),
                                          total_table)

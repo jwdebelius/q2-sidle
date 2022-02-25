@@ -27,13 +27,13 @@ from q2_sidle import (KmerMap,
                       KmerAlignDirFmt,
                       SidleReconstruction, 
                       SidleReconFormat, 
-                      SidleReconDirFormat,
+                      SidleReconDirFmt,
                       ReconstructionSummary,
                       ReconSummaryFormat,
-                      ReconSummaryDirFormat,
+                      ReconSummaryDirFmt,
                       AlignmentLedger,
                       AlignmentLedgerFormat,
-                      AlignmentLedgerDirFormat,
+                      AlignmentLedgerDirFmt,
                       )
 import q2_sidle
 
@@ -51,6 +51,47 @@ plugin = Plugin(
     citations=[citations['Debelius2021']],
 )
 
+# ### Types and formations
+# Format
+plugin.register_formats(KmerMapFormat, 
+                        KmerMapDirFmt, 
+                        KmerAlignFormat, 
+                        KmerAlignDirFmt,
+                        SidleReconFormat, 
+                        SidleReconDirFmt,
+                        ReconSummaryFormat,
+                        ReconSummaryDirFmt,
+                        AlignmentLedgerFormat,
+                        AlignmentLedgerDirFmt,
+                        )
+
+# Semantic types
+plugin.register_semantic_types(KmerMap, 
+                               KmerAlignment,
+                               SidleReconstruction,
+                               ReconstructionSummary,
+                               AlignmentLedger,
+                               )
+
+# Type mapping
+plugin.register_semantic_type_to_format(FeatureData[KmerMap], 
+                                        KmerMapDirFmt)
+
+plugin.register_semantic_type_to_format(FeatureData[KmerAlignment], 
+                                        KmerAlignDirFmt)
+
+plugin.register_semantic_type_to_format(FeatureData[SidleReconstruction], 
+                                        SidleReconDirFmt)
+
+plugin.register_semantic_type_to_format(FeatureData[ReconstructionSummary], 
+                                        ReconSummaryDirFmt)
+
+plugin.register_semantic_type_to_format(SampleData[AlignmentLedger], 
+                                        AlignmentLedgerDirFmt)
+
+
+### Functions
+# prepare extracted region
 plugin.methods.register_function(
     function=q2_sidle.prepare_extracted_region,
     name='Prepares an already extracted region to be a kmer database.',
@@ -122,7 +163,7 @@ plugin.methods.register_function(
     citations=[citations['Fuks2018']],
 )
 
-
+# Track aligned counts
 plugin.methods.register_function(
     function=q2_sidle.track_aligned_counts,
     name='Tracks the aligned sequencings to determine which are lost',
@@ -154,7 +195,7 @@ plugin.methods.register_function(
     }
 )
 
-
+# Align regional kmers
 plugin.methods.register_function(
     function=q2_sidle.align_regional_kmers,
     name='Aligns ASV representative sequences to a regional kmer database.',
@@ -214,6 +255,7 @@ plugin.methods.register_function(
     citations=[citations['Fuks2018']],
 )
 
+# Reconstruct database
 plugin.methods.register_function(
     function=q2_sidle.reconstruct_database,
     name='Reconstructs regional kmers into full database names',
@@ -278,7 +320,7 @@ plugin.methods.register_function(
         },
 )
 
-
+# Reconstruct counts
 plugin.methods.register_function(
     function=q2_sidle.reconstruct_counts,
     name='Reconstructs multiple aligned regions into a count table.',
@@ -366,6 +408,7 @@ plugin.methods.register_function(
 )
 
 
+# Reconstruct taxonomy
 plugin.methods.register_function(
     function=q2_sidle.reconstruct_taxonomy,
     name='Reconstructs taxonomic strings for a reconstructed sidle table.',
@@ -420,6 +463,7 @@ plugin.methods.register_function(
 )
 
 
+# Trim dada2 post hoc
 plugin.methods.register_function(
     function=q2_sidle.trim_dada2_posthoc,
     name='Trim a dada2 ASV table and rep set to a consistent length.',
@@ -472,6 +516,7 @@ plugin.methods.register_function(
 )
 
 
+# Reconstruct fragment rep seqs
 plugin.methods.register_function(
     function=q2_sidle.reconstruct_fragment_rep_seqs,
     name='Reconstract representative sequences for shared fragments.',
@@ -514,7 +559,9 @@ plugin.methods.register_function(
     parameter_descriptions={},
 )
 
+### Pipelines
 
+# Sidle reconstruction
 plugin.pipelines.register_function(
     function=q2_sidle.sidle_reconstruction,
     name="A pipeline to reconstruct the database, count table, and taxonomy",
@@ -610,6 +657,7 @@ plugin.pipelines.register_function(
 )
 
 
+# Reconstruct tree
 plugin.pipelines.register_function(
     function=q2_sidle.reconstruct_tree,
     name=("A pipeline to build a phylogenetic tree based on reconstructed "
@@ -663,43 +711,6 @@ plugin.pipelines.register_function(
         'n_threads': 'the number of threads to use during fragment insertion',
     },
 )
-
-
-plugin.register_formats(KmerMapFormat, 
-                        KmerMapDirFmt, 
-                        KmerAlignFormat, 
-                        KmerAlignDirFmt,
-                        SidleReconFormat, 
-                        SidleReconDirFormat,
-                        ReconSummaryFormat,
-                        ReconSummaryDirFormat,
-                        )
-
-
-plugin.register_semantic_types(KmerMap, 
-                               KmerAlignment,
-                               SidleReconstruction,
-                               ReconstructionSummary,
-                               )
-
-
-plugin.register_semantic_type_to_format(FeatureData[KmerMap], 
-                                        KmerMapDirFmt)
-
-
-plugin.register_semantic_type_to_format(FeatureData[KmerAlignment], 
-                                        KmerAlignDirFmt)
-
-
-plugin.register_semantic_type_to_format(FeatureData[SidleReconstruction], 
-                                        SidleReconDirFormat)
-
-
-plugin.register_semantic_type_to_format(FeatureData[ReconstructionSummary], 
-                                        ReconSummaryDirFormat)
-
-plugin.register_semantic_type_to_format(SampleData[AlignmentLedger], 
-                                        AlignmentLedgerDirFormat)
 
 
 
