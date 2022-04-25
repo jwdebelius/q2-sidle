@@ -13,8 +13,6 @@ from qiime2 import Artifact, Metadata
 from qiime2.plugin import ValidationError
 
 from q2_sidle._utils import (_count_degenerates,
-                             _find_primer_end,
-                             _find_primer_start,
                              _check_regions,
                              )
 import q2_sidle.tests.test_set as ts
@@ -49,27 +47,6 @@ class UtilTest(TestCase):
                           dtype=int)
         test = _count_degenerates(seq_array)
         pdt.assert_series_equal(known, test)
-
-    def test_find_primer_start_match(self):
-        known = pd.Series({'pos': 0, 'mis': 0})
-        test = _find_primer_start('Cats are awesome', '(Cat){e<=1}', adj=0)
-        pdt.assert_series_equal(known, test)
-
-    def test_find_primer_start_no_match(self):
-        known = pd.Series({'pos': np.nan, 'mis': np.nan})
-        test = _find_primer_start('Dogs are awesome', '(Cat){e<=1}', adj=0)
-        pdt.assert_series_equal(known, test)
-
-    def test_find_primer_end_match(self):
-        known = pd.Series({'pos': 3, 'mis': 1})
-        test = _find_primer_end('Rats are awesome', '(Cat){e<=1}', )
-        pdt.assert_series_equal(known, test)
-
-    def test_find_primer_end_no_match(self):
-        known = pd.Series({'pos': np.nan, 'mis': np.nan})
-        test = _find_primer_end('Iguanas are awesome', '(Cat){e<=1}')
-        pdt.assert_series_equal(known, test)
-
 
     def test_check_regions(self):
         regions = ['Bludhaven', 'Gotham']

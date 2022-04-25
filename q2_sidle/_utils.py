@@ -157,32 +157,6 @@ def _count_degenerates(seq_array):
     
     return num_degen
 
-
-def _find_primer_end(seq_, primer, prefix=''):
-    """
-    Finds the last position of a primer sequence
-    """
-    match = regex.search(primer, seq_)
-    if match is not None:
-        return pd.Series({'%spos' % prefix: match.end(),
-                          '%smis' % prefix: sum(match.fuzzy_counts)})
-    else:
-        return pd.Series({'%spos' % prefix: np.nan,
-                          '%smis' % prefix: np.nan})
-
-
-def _find_primer_start(seq_, primer, adj=1, prefix=''):
-    """
-    Finds the first position of a primer sequence
-    """
-    match = regex.search(primer, seq_)
-    if match is not None:
-        return pd.Series({'%spos' % prefix: match.start() - adj,
-                          '%smis' % prefix: sum(match.fuzzy_counts)})
-    else:
-        return pd.Series({'%spos' % prefix: np.nan,
-                          '%smis' % prefix: np.nan})
-
     
 def _check_regions(region):
     """
