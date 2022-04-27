@@ -8,6 +8,7 @@ from q2_sidle import (KmerMapFormat,
                       KmerAlignFormat, 
                       SidleReconFormat,
                       ReconSummaryFormat,
+                      AlignmentLedgerFormat,
                       )
 from q2_types.feature_data import  AlignedDNAFASTAFormat, DNAFASTAFormat
 from q2_sidle.plugin_setup import plugin
@@ -101,13 +102,9 @@ def _11(obj: pd.DataFrame) -> SidleReconFormat:
 
 @plugin.register_transformer
 def _12(ff:ReconSummaryFormat) -> pd.DataFrame:
-    df = pd.read_csv(str(ff), sep='\t', dtype=str)
-    df.set_index('feature-id', inplace=True)
-    df.drop('#q2:types', inplace=True)
+    df = Metadata.load(str(ff)).to_dataframe()
     df[['num-regions', 'total-kmers-mapped']] = \
         df[['num-regions', 'total-kmers-mapped']].astype(float).astype(int)
-    df[['mean-kmer-per-region', 'stdv-kmer-per-region']] = \
-        df[['mean-kmer-per-region', 'stdv-kmer-per-region']].astype(float)
     return df
 
 @plugin.register_transformer
@@ -126,3 +123,12 @@ def _15(obj: dd.DataFrame) -> KmerAlignFormat:
     obj.to_csv(str(ff), sep='\t', index=False, single_file=True)
     return ff
 
+@plugin.register_transformer
+def _16(ff: AlignmentLedgerFormat) -> Metadata:
+    return Metadata.load(str(ff))
+
+@plugin.register_transformer
+def _17(obj: Metadata) -> AlignmentLedgerFormat:
+    ff = AlignmentLedgerFormat()
+    obj.save(str(ff))
+    return ff

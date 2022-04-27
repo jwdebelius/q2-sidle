@@ -6,9 +6,8 @@ import dask
 import numpy as np
 import pandas as pd
 
-from q2_sidle._utils import (_setup_dask_client, 
-                             degen_reps,
-                             )
+from q2_sidle._dask_util import _setup_dask_client
+from q2_sidle._utils import degen_reps
 
 from q2_types.feature_data import (DNAFASTAFormat,
                                    DNAIterator, 

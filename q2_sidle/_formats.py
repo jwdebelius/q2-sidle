@@ -18,31 +18,39 @@ class KmerMapFormat(model.TextFileFormat):
         except:
             raise ValidationError('The kmer-length column must be numeric')
 
-KmerMapDirFmt = model.SingleFileDirectoryFormat(
-    'KmerMapDirFmt', 'kmer-map.tsv', KmerMapFormat)
-
-
 class KmerAlignFormat(model.TextFileFormat):
     def validate(*args):
         pass
-
-KmerAlignDirFmt = model.SingleFileDirectoryFormat(
-    'KmerAlignDirFmt', 'kmer-align.tsv', KmerAlignFormat)
 
 
 class SidleReconFormat(model.TextFileFormat):
     def validate(*args):
         pass
 
-SidleReconDirFormat = model.SingleFileDirectoryFormat(
-    'SidleReconDirFormat', 'sidle-reconstruction-mapping.tsv', 
-    SidleReconFormat
-    )
-
 class ReconSummaryFormat(model.TextFileFormat):
     def validate(*args):
         pass
 
-ReconSummaryDirFormat = model.SingleFileDirectoryFormat(
+class AlignmentLedgerFormat(model.TextFileFormat):
+    def validate(*args):
+        pass
+
+
+KmerMapDirFmt = model.SingleFileDirectoryFormat(
+    'KmerMapDirFmt', 'kmer-map.tsv', KmerMapFormat)
+
+KmerAlignDirFmt = model.SingleFileDirectoryFormat(
+    'KmerAlignDirFmt', 'kmer-align.tsv', KmerAlignFormat)
+
+SidleReconDirFmt = model.SingleFileDirectoryFormat(
+    'SidleReconDirFormat', 'sidle-reconstruction-mapping.tsv', 
+    SidleReconFormat
+    )
+
+ReconSummaryDirFmt = model.SingleFileDirectoryFormat(
     'ReconSummaryDirFormat', 'sidle-summary.tsv', ReconSummaryFormat
+    )
+
+AlignmentLedgerDirFmt = model.SingleFileDirectoryFormat(
+    'AlignmentLedgerDirFmt', 'count-tracking.tsv', AlignmentLedgerFormat
     )

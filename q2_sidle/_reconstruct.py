@@ -13,8 +13,8 @@ import pandas as pd
 
 from qiime2 import Metadata, Artifact
 from qiime2.plugin import ValidationError
-from q2_sidle._utils import (_setup_dask_client, 
-                             degen_reps,
+from q2_sidle._dask_util import _setup_dask_client
+from q2_sidle._utils import (degen_reps,
                              _check_regions,
                              )
 from q2_sidle._build_database import _check_regions

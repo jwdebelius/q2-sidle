@@ -11,12 +11,14 @@ import numpy as np
 import pandas as pd
 
 from dask.delayed import Delayed
+
 from qiime2 import Metadata, Artifact
 from qiime2.plugin import ValidationError
-from q2_sidle._utils import (_setup_dask_client, 
-                             degen_reps,
+
+from q2_sidle._dask_util import _setup_dask_client
+from q2_sidle._utils import (degen_reps,
                              _check_regions,
-                             )                             
+                             )                            
 
 def reconstruct_database(
     region: str,
@@ -125,10 +127,10 @@ def reconstruct_database(
     ).reset_index()
     region_db.columns = ['composite', 'kmer']
     region_db['region'] = region_db['composite'].apply(
-        lambda x: int(x.split("-")[1]), 
+        lambda x: x.split("-")[-1], 
         meta=(None, int))
     region_db['db-seq'] = region_db['composite'].apply(
-        lambda x: x.split("-")[0], meta=(None, str)
+        lambda x: '-'.join(x.split("-")[:-1]), meta=(None, str)
     )
     print('regions grouped')
     
@@ -474,7 +476,8 @@ def _map_aligned_asvs(align_map, seq_map):
                                        value_name='db-seq')
     aligned_asvs.dropna(inplace=True)
     aligned_asvs.set_index('db-seq', inplace=True)
-    aligned_asvs['clean_name'] = seq_map.loc[aligned_asvs.index]
+    keep_seqs = seq_map.index.to_frame()['db-seq'].isin(aligned_asvs.index)
+    aligned_asvs['clean_name'] = seq_map.loc[keep_seqs]
     aligned_asvs.sort_values(['clean_name', 'region', 'asv'], inplace=True)
     aligned_asvs.drop_duplicates(['clean_name', 'asv'], inplace=True)
 

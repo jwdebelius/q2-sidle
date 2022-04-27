@@ -95,6 +95,27 @@ class PluginSetupTest(TestCase):
             test_align.view(pd.DataFrame).sort_values(['kmer', 'asv'])
             )
 
+    def track_aligned_counts(self):
+        known = pd.DataFrame(
+            data=np.array([[600, 550, 0.9166667, 300, 250, 0.833333, 300, 300, 1],
+                           [600, 575, 0.9583333, 300, 275, 0.916667, 300, 300, 1],
+                           [600, 600, 1, 300, 300, 1, 300, 300, 1]]),
+            columns=['total starting counts', 'total aligned counts', 
+                     'total aligned percentage', 'Bludhaven starting counts', 
+                     'Bludhaven aligned counts',
+                     'Bludhaven aligned percentage', 'Gotham starting counts',
+                     'Gotham aligned counts', 'Gotham aligned percentage'],
+            index=pd.Index(['sample1', 'sample2', 'sample3'], name='sample-id')
+            )
+        test = sidle.track_aligned_counts(
+            region=['Bludhaven', 'Gotham'],
+            regional_alignment=[self.align1, self.align2],
+            regional_table=[self.table1, self.table2]
+            )
+
+        pdt.assert_frame_equal(test.view(Metadata).to_dataframe().round(5), 
+                               known.round(5))
+
     def test_reconstruct_database(self):
         mapping, summary = sidle.reconstruct_database(
             region=['Bludhaven', 'Gotham'],

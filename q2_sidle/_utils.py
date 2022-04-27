@@ -3,10 +3,7 @@ import os
 import dask
 import numpy as np
 import pandas as pd
-import regex
 import skbio
-
-from dask.distributed import Client
 
 from qiime2 import Artifact, Metadata
 from qiime2.plugin import ValidationError
@@ -63,79 +60,6 @@ degen_undo = {'AG': 'R',
               'ACG': 'V',
               'ACGT': 'N'}
 
-def _setup_dask_client(debug=False, cluster_config=None, n_workers=1,
-    address=None):
-    """
-    Sets up a Dask client and daskboard
-
-    Parameters
-    ----------
-    debug: bool
-        Whether the function should be run in debug mode (without a client)
-        or not. `debug` superceeds all options
-    client_config: dict, optional
-        A dictionary describing configuration parameters for the dask client.
-        More information about configuring the dask scheduler and dask client 
-        can be found at
-            https://docs.dask.org/en/latest/setup/single-distributed.html
-        The client_config sueprceeds the n_workers value, so if you want 
-        multi threading, that should be specified here.
-    n_workers: int, optional
-        The number of jobs to initiate. When `n_workers` is 0, the cluster 
-        will be able to access all avalaibel resources.
-    address: str, optional
-        The IP address for the client
-    """
-
-    if debug:
-        pass
-    elif cluster_config is not None:
-        client = Client(**client_config.to_dict())
-    elif address is not None:
-        client = Client(address)
-    else:
-        client = Client(n_workers=n_workers, processes=True)
-
-
-def _convert_seq_block_to_dna_fasta_format(seqs):
-    """
-    Converts to a DNA fasta format
-    """
-    seqs = pd.concat(axis=0, sort=True, objs=seqs).fillna('')
-    seqs = seqs.apply(lambda x: ''.join(x), axis=1)
-    ff = DNAFASTAFormat()
-    with ff.open() as f:
-        for id_, seq_ in seqs.items():
-            sequence = skbio.DNA(seq_, metadata={'id': id_})
-            skbio.io.write(sequence, format='fasta', into=f)
-    return ff
-
-
-def _convert_generator_to_delayed_seq_block(generator, chunksize=5000):
-    """
-    Converts from a generator to a block of sequences
-    """
-    seq_block = [dask.delayed(_to_seq_array)(seqs) 
-                 for seqs in _chunks(generator, chunksize)]
-
-    return seq_block
-
-
-def _convert_generator_to_seq_block(generator, chunksize=5000):
-    """
-    Converts from a generator to a block of sequences
-    """
-    seq_block = [_to_seq_array(seqs) for seqs in _chunks(generator, chunksize)]
-    return seq_block
-
-
-def _to_seq_array(x):
-    """
-    Converts a list of sequences from a generator to a DataFrame of sequences
-    """
-    seq_series = pd.Series({s.metadata['id']: str(s) for s in x})
-    return seq_series.apply(lambda x: pd.Series(list(x)))
-
 
 def _count_degenerates(seq_array):
     """
@@ -157,32 +81,6 @@ def _count_degenerates(seq_array):
     num_degen = any_degen.sum(axis=1)
     
     return num_degen
-
-
-def _find_primer_end(seq_, primer, prefix=''):
-    """
-    Finds the last position of a primer sequence
-    """
-    match = regex.search(primer, seq_)
-    if match is not None:
-        return pd.Series({'%spos' % prefix: match.end(),
-                          '%smis' % prefix: sum(match.fuzzy_counts)})
-    else:
-        return pd.Series({'%spos' % prefix: np.nan,
-                          '%smis' % prefix: np.nan})
-
-
-def _find_primer_start(seq_, primer, adj=1, prefix=''):
-    """
-    Finds the first position of a primer sequence
-    """
-    match = regex.search(primer, seq_)
-    if match is not None:
-        return pd.Series({'%spos' % prefix: match.start() - adj,
-                          '%smis' % prefix: sum(match.fuzzy_counts)})
-    else:
-        return pd.Series({'%spos' % prefix: np.nan,
-                          '%smis' % prefix: np.nan})
 
     
 def _check_regions(region):
