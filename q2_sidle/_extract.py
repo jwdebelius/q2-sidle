@@ -12,8 +12,7 @@ from skbio import DNA
 
 from qiime2 import Metadata
 from q2_types.feature_data import (DNAFASTAFormat, DNAIterator)
-from q2_sidle._utils import (_setup_dask_client, 
-                             )
+from q2_sidle._dask_util import _setup_dask_client
 from q2_feature_classifier._skl import _chunks
 
 

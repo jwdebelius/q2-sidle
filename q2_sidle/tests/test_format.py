@@ -16,6 +16,8 @@ from q2_sidle._formats import (KmerMapFormat,
                                SidleReconDirFmt,
                                ReconSummaryFormat,
                                ReconSummaryDirFmt,
+                               AlignmentLedgerFormat,
+                               AlignmentLedgerDirFmt,
                                )
 
 class PluginSetupTest(TestCase):
@@ -75,6 +77,12 @@ class PluginSetupTest(TestCase):
                                  'sidle-reconstruction-mapping.tsv'), 
                     self.tmp)
         format = SidleReconDirFmt(self.tmp, 'r')
+        format.validate()
+
+    def test_alignment_ledger_format_validate(self):
+        shutil.copy(os.path.join(self.base_dir, 'count-tracking.tsv'),
+                    self.tmp)
+        format = AlignmentLedgerDirFmt(self.tmp, 'r')
         format.validate()
 
 

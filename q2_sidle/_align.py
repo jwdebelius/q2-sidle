@@ -12,9 +12,8 @@ from q2_types.feature_data import (DNAFASTAFormat, DNAIterator)
 from q2_sidle._formats import KmerAlignFormat
 from q2_feature_classifier._skl import _chunks
 
-from q2_sidle._utils import (_setup_dask_client, 
-                             degen_sub2
-                             )
+from q2_sidle._utils import degen_sub2
+form q2_sidle._dask_util import _setup_dask_client
 
 
 def align_regional_kmers(kmers: DNAFASTAFormat, 

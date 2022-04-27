@@ -17,7 +17,7 @@ from q2_sidle._accounting import (filter_with_aligned,
 from qiime2 import Artifact, Metadata
 
 
-class ReconstructTest(TestCase):
+class AccountingTest(TestCase):
     def setUp(self):
         self.base_dir = \
             os.path.join(os.path.dirname(os.path.realpath(__file__)), 

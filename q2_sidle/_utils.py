@@ -96,46 +96,6 @@ def _setup_dask_client(debug=False, cluster_config=None, n_workers=1,
         client = Client(n_workers=n_workers, processes=True)
 
 
-def _convert_seq_block_to_dna_fasta_format(seqs):
-    """
-    Converts to a DNA fasta format
-    """
-    seqs = pd.concat(axis=0, sort=True, objs=seqs).fillna('')
-    seqs = seqs.apply(lambda x: ''.join(x), axis=1)
-    ff = DNAFASTAFormat()
-    with ff.open() as f:
-        for id_, seq_ in seqs.items():
-            sequence = skbio.DNA(seq_, metadata={'id': id_})
-            skbio.io.write(sequence, format='fasta', into=f)
-    return ff
-
-
-def _convert_generator_to_delayed_seq_block(generator, chunksize=5000):
-    """
-    Converts from a generator to a block of sequences
-    """
-    seq_block = [dask.delayed(_to_seq_array)(seqs) 
-                 for seqs in _chunks(generator, chunksize)]
-
-    return seq_block
-
-
-def _convert_generator_to_seq_block(generator, chunksize=5000):
-    """
-    Converts from a generator to a block of sequences
-    """
-    seq_block = [_to_seq_array(seqs) for seqs in _chunks(generator, chunksize)]
-    return seq_block
-
-
-def _to_seq_array(x):
-    """
-    Converts a list of sequences from a generator to a DataFrame of sequences
-    """
-    seq_series = pd.Series({s.metadata['id']: str(s) for s in x})
-    return seq_series.apply(lambda x: pd.Series(list(x)))
-
-
 def _count_degenerates(seq_array):
     """
     Determines the number of degenerate nt in a sequence
