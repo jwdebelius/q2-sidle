@@ -509,7 +509,7 @@ def _solve_iterative_noisy(align_mat, table, seq_summary, tolerance=1e-7,
     align_asvs = align.index.values
 
     recon = []
-    for sample, col_ in table.iteritems():
+    for sample, col_ in table.items():
         filt_align = align.loc[col_ > 0].values
         abund = col_[col_ > 0].values
         sub_seqs = copy.copy(align_seqs)[(filt_align > 0).any(axis=0)]
