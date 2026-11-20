@@ -1,0 +1,45 @@
+package:
+  name: q2-sidle
+  version: 2021.2.dev0
+source:
+  fn: q2-sidle-35589ef.tar.gz
+  url: https://codeload.github.com/jwdebelius/q2-sidle/tar.gz/35589ef2df684df597369ed722dc31e84208a3b2
+  sha256: f9d27f5d66788b66ad2e2fd73754f5a46770aa117a0ab1fb6c64cb01b5f65af2
+build:
+  number: 0
+  noarch: python
+  script: "{{ PYTHON }} -m pip install . --no-deps --no-build-isolation -vv"
+requirements:
+  host:
+    - python 3.8.*
+    - pip
+    - setuptools
+  run:
+    - python 3.8.*
+    - qiime2 2021.4.*
+    - q2-types 2021.4.*
+    - q2-feature-classifier 2021.4.*
+    - q2-fragment-insertion 2021.4.*
+    - biom-format 2.1.10
+    - pandas 1.2.4
+    - numpy 1.20.2
+    - scipy 1.6.2
+    - scikit-bio 0.5.6
+    - dask 2022.2.1
+    - distributed 2022.2.1
+    - regex
+    - mafft
+test:
+  imports:
+    - q2_sidle
+    - q2_sidle.plugin_setup
+  commands:
+    - python -c "from qiime2.sdk import PluginManager; p=PluginManager().plugins['sidle']; assert p.version == '2020.08'; assert len(p.actions) >= 7"
+about:
+  home: https://github.com/jwdebelius/q2-sidle
+  license: BSD-3-Clause
+  license_file: LICENSE
+  summary: QIIME 2 Short MUltiple Regions Framework (pinned legacy AmpliSeq runtime)
+extra:
+  recipe-maintainers:
+    - nekrut
